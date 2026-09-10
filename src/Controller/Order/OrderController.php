@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Order;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderDetailContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilterPresenter;
@@ -28,6 +29,7 @@ use BackOfficeDefaultTwigBundle\Service\Pdf\OrderPdfRenderer;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
@@ -39,11 +41,13 @@ use Thelia\Core\Event\Order\OrderEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
 use Thelia\Model\CountryQuery;
 use Thelia\Model\CustomerTitleQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderAddressQuery;
 use Thelia\Model\OrderQuery;
+use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\StateQuery;
@@ -75,6 +79,9 @@ final class OrderController
         private readonly OrderFilterPresenter $filterPresenter,
         private readonly CountryStateProvider $countryStates,
         private readonly OrderReturnContextBuilder $returnContextBuilder,
+        private readonly OrderStatusTransitionGuard $transitionGuard,
+        private readonly AdminLogger $adminLogger,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -93,6 +100,8 @@ final class OrderController
 
         return new Response($this->twig->render(self::LIST_TEMPLATE, [
             'rows' => $this->rowPresenter->presentAll($paginated['rows'], $locale),
+            'bulk_statuses' => $this->orderRepository->findStatusesLocalized($locale),
+            'bulk_status_url' => $this->urls->generate('admin.order.list.update.status'),
             'total' => $paginated['total'],
             'pages' => $paginated['lastPage'],
             'current_page' => min($page, $paginated['lastPage']),
@@ -130,7 +139,7 @@ final class OrderController
                 'items_page' => $itemsPage,
                 'items_last_page' => $itemsLastPage,
                 'order_addresses' => $this->orderAddresses($order, $locale),
-                'available_statuses' => $this->statusChoices($locale),
+                ...$this->statusChangeContext($order, $locale),
                 'customer_titles' => $this->customerTitleChoices($locale),
                 'countries' => $this->countryChoices($locale),
                 'states' => $this->stateChoices($locale),
@@ -152,25 +161,60 @@ final class OrderController
             return $denied;
         }
 
-        try {
-            $this->tokens->checkToken((string) $request->query->get('_token'));
-            $orderIds = $request->query->all('order_ids') ?: $request->request->all('order_ids');
-            $statusId = (int) ($request->query->get('status_id') ?? $request->request->get('status_id', 0));
+        $redirect = new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
 
-            foreach ($orderIds as $id) {
-                $order = OrderQuery::create()->findPk((int) $id);
-                if ($order === null) {
-                    continue;
-                }
+        if (!$this->tokens->checkToken((string) ($request->request->get('_token') ?? $request->query->get('_token', '')))) {
+            $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
+
+            return $redirect;
+        }
+
+        $orderIds = array_values(array_unique(array_filter(array_map('intval', $request->request->all('order_ids') ?: $request->query->all('order_ids')), static fn (int $id): bool => $id > 0)));
+        $statusId = (int) ($request->request->get('status_id') ?? $request->query->get('status_id', 0));
+        $status = OrderStatusQuery::create()->findPk($statusId);
+
+        if ([] === $orderIds || null === $status) {
+            $this->flash('warning', $this->translator->trans('Select at least one order and a status.'));
+
+            return $redirect;
+        }
+
+        // The graph decides on the id, the reference and the current status: nothing else is loaded.
+        $orders = OrderQuery::create()->filterById($orderIds, Criteria::IN)->find();
+        $partition = $this->transitionGuard->partition($orders, $statusId);
+        $updated = 0;
+        $failed = [];
+
+        foreach ($partition['allowed'] as $order) {
+            try {
                 $event = new OrderEvent($order);
                 $event->setStatus($statusId);
                 $this->events->dispatch($event, TheliaEvents::ORDER_UPDATE_STATUS);
+                ++$updated;
+            } catch (\Throwable) {
+                $failed[] = (string) $order->getRef();
             }
-        } catch (\Throwable) {
-            // Iso behavior: silently ignore CSRF/dispatch errors here, log via session if needed
         }
 
-        return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        $status->setLocale($request->getLocale());
+
+        if ($updated > 0) {
+            $this->flash('success', $this->translator->trans('%count% order(s) moved to "%status%".', ['%count%' => $updated, '%status%' => (string) $status->getTitle()]));
+            $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Bulk status change to %s on %d order(s)', $status->getCode(), $updated));
+        }
+
+        if ([] !== $partition['refused']) {
+            $this->flash('warning', $this->translator->trans('Skipped, the transition to "%status%" is not allowed from their current status: %refs%', [
+                '%status%' => (string) $status->getTitle(),
+                '%refs%' => implode(', ', array_map(static fn (Order $order): string => (string) $order->getRef(), $partition['refused'])),
+            ]));
+        }
+
+        if ([] !== $failed) {
+            $this->flash('danger', $this->translator->trans('The status change failed for: %refs%', ['%refs%' => implode(', ', $failed)]));
+        }
+
+        return $redirect;
     }
 
     #[Route('/admin/order/update/{order_id}/status', name: 'admin.order.update.status', methods: ['POST', 'GET'], requirements: ['order_id' => '\d+'])]
@@ -181,8 +225,28 @@ final class OrderController
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
 
+        $statusId = (int) ($request->query->get('status_id') ?? $request->request->get('status_id', 0));
+        $forced = '1' === (string) ($request->request->get('force') ?? $request->query->get('force', '0'));
+        $detail = new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+
+        // Forcing a transition the graph refuses is a right of its own.
+        if ($forced && $denied = $this->access->check(AdminResources::ORDER_STATUS_FORCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        if (!$forced && !$this->transitionGuard->isAllowed((int) $order->getStatusId(), $statusId)) {
+            $this->flash('danger', $this->refusalMessage($order, $statusId, $request->getLocale()));
+
+            return $detail;
+        }
+
         $event = new OrderEvent($order);
-        $event->setStatus((int) ($request->query->get('status_id') ?? $request->request->get('status_id', 0)));
+        $event->setStatus($statusId);
+        $previousCode = (string) $order->getOrderStatus()->getCode();
+
+        if ($forced) {
+            $event->forceStatusTransition();
+        }
 
         return $this->action->tokenAction(
             resource: self::RESOURCE,
@@ -193,6 +257,10 @@ final class OrderController
             actionLabel: 'Order status updated',
             successRoute: self::DETAIL_ROUTE,
             successParameters: ['order_id' => $order_id],
+            describeForLog: $forced ? static fn (OrderEvent $event): array => [
+                \sprintf('Forced order %s from status %s to status %s, outside the allowed transitions', $event->getOrder()->getRef(), $previousCode, $event->getOrder()->getOrderStatus()->getCode()),
+                $order_id,
+            ] : null,
         );
     }
 
@@ -206,6 +274,12 @@ final class OrderController
 
         $cancelStatus = OrderStatusQuery::getCancelledStatus();
         if ($cancelStatus === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        }
+
+        if (!$this->transitionGuard->isAllowed((int) $order->getStatusId(), (int) $cancelStatus->getId())) {
+            $this->flash('danger', $this->refusalMessage($order, (int) $cancelStatus->getId(), $request->getLocale()));
+
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
 
@@ -522,13 +596,61 @@ final class OrderController
     }
 
     /**
-     * @return list<array<string, mixed>>
+     * The statuses the graph lets this order reach and, for an administrator
+     * entitled to it, the other statuses a forced change may pick.
+     *
+     * @return array<string, mixed>
      */
-    private function statusChoices(string $locale): array
+    private function statusChangeContext(Order $order, string $locale): array
     {
-        return $this->orderRepository->findStatusChoices(
-            $locale,
-            $this->translator->trans('- All statuses -'),
-        );
+        $currentId = (int) $order->getStatusId();
+        $allowed = [];
+        $forcedOnly = [];
+        $allowedIds = array_map(static fn (OrderStatus $status): int => (int) $status->getId(), $this->transitionGuard->allowedTargets($currentId));
+
+        foreach ($this->orderRepository->findStatusesLocalized($locale) as $status) {
+            if ($status['id'] === $currentId) {
+                continue;
+            }
+
+            if (\in_array($status['id'], $allowedIds, true)) {
+                $allowed[] = $status;
+            } else {
+                $forcedOnly[] = $status;
+            }
+        }
+
+        $cancelStatusId = (int) (OrderStatusQuery::getCancelledStatus()?->getId() ?? 0);
+        $canForce = null === $this->access->check(AdminResources::ORDER_STATUS_FORCE, [], AccessManager::UPDATE);
+
+        return [
+            'allowed_statuses' => $allowed,
+            'forced_only_statuses' => $canForce ? $forcedOnly : [],
+            'status_is_free' => $this->transitionGuard->isFree($currentId),
+            'can_force_status' => $canForce,
+            'can_cancel' => $cancelStatusId > 0 && $this->transitionGuard->isAllowed($currentId, $cancelStatusId),
+        ];
+    }
+
+    private function refusalMessage(Order $order, int $toStatusId, string $locale): string
+    {
+        $from = $order->getOrderStatus();
+        $to = OrderStatusQuery::create()->findPk($toStatusId);
+        $from->setLocale($locale);
+        $to?->setLocale($locale);
+
+        return $this->translator->trans('Order %ref% cannot go from "%from%" to "%to%": this transition is not allowed. Change the transitions of the status, or force the change if you are entitled to.', [
+            '%ref%' => (string) $order->getRef(),
+            '%from%' => (string) $from->getTitle(),
+            '%to%' => (string) ($to?->getTitle() ?? $toStatusId),
+        ]);
+    }
+
+    private function flash(string $type, string $message): void
+    {
+        $session = $this->requestStack->getSession();
+        if (method_exists($session, 'getFlashBag')) {
+            $session->getFlashBag()->add($type, $message);
+        }
     }
 }

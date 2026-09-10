@@ -24,6 +24,7 @@ import BoCouponProductPickerController from './controllers/bo-coupon-product-pic
 import BoDatatableDetailsController from './controllers/bo-datatable-details_controller.js';
 import BoDateRangeController from './controllers/bo-date-range_controller.js';
 import BoDefaultRadioController from './controllers/bo-default-radio_controller.js';
+import BoOrderStatusActionFormController from './controllers/bo-order-status-action-form_controller.js';
 import BoExportFormController from './controllers/bo-export-form_controller.js';
 import BoFileListController from './controllers/bo-file-list_controller.js';
 import BoFileUploadController from './controllers/bo-file-upload_controller.js';
@@ -86,6 +87,7 @@ app.register('bo-coupon-product-picker', BoCouponProductPickerController);
 app.register('bo-datatable-details', BoDatatableDetailsController);
 app.register('bo-date-range', BoDateRangeController);
 app.register('bo-default-radio', BoDefaultRadioController);
+app.register('bo-order-status-action-form', BoOrderStatusActionFormController);
 app.register('bo-export-form', BoExportFormController);
 app.register('bo-file-list', BoFileListController);
 app.register('bo-file-upload', BoFileUploadController);

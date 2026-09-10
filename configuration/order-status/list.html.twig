@@ -26,6 +26,16 @@
             {% endif %}
         </div>
 
+        {% if unreachable_statuses|length > 0 %}
+            <div class="alert alert-warning d-flex align-items-start gap-2" role="alert" data-testid="order-status-unreachable-warning">
+                <i class="bi bi-exclamation-triangle-fill mt-1" aria-hidden="true"></i>
+                <div>
+                    <strong>{{ 'No transition leads to: %statuses%'|trans({ '%statuses%': unreachable_statuses|join(', ') }) }}</strong>
+                    <div class="small">{{ 'Orders can never reach these statuses through the allowed transitions. Add a transition to them, or leave one status free.'|trans }}</div>
+                </div>
+            </div>
+        {% endif %}
+
         {{ component('BoDataTable', {
             id: 'order-statuses',
             columns: [

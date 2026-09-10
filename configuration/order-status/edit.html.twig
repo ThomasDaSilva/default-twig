@@ -29,6 +29,18 @@
                     {{ 'General'|trans }}
                 </button>
             </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if current_tab|default('general') == 'transitions' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-transitions" type="button" data-testid="order-status-tab-transitions">
+                    {{ 'Transitions'|trans }}
+                    {% if not transitions_free %}<span class="badge text-bg-secondary ms-1">{{ transition_targets|filter(t => t.checked)|length }}</span>{% endif %}
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link {% if current_tab|default('general') == 'actions' %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-actions" type="button" data-testid="order-status-tab-actions">
+                    {{ 'Actions'|trans }}
+                    {% if action_rows|length > 0 %}<span class="badge text-bg-secondary ms-1">{{ action_rows|length }}</span>{% endif %}
+                </button>
+            </li>
             {% for block in extra_tabs %}
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
@@ -94,6 +106,14 @@
                 {{ form_end(form) }}
             </div>
 
+            <div class="tab-pane fade {% if current_tab|default('general') == 'transitions' %}show active{% endif %}" id="tab-transitions" role="tabpanel" data-testid="order-status-transitions-pane">
+                {% include '@BackOfficeDefaultTwig/configuration/order-status/_transitions_tab.html.twig' %}
+            </div>
+
+            <div class="tab-pane fade {% if current_tab|default('general') == 'actions' %}show active{% endif %}" id="tab-actions" role="tabpanel" data-testid="order-status-actions-pane">
+                {% include '@BackOfficeDefaultTwig/configuration/order-status/_actions_tab.html.twig' %}
+            </div>
+
             {% for block in extra_tabs %}
                 <div class="tab-pane fade" id="{{ block.id }}" role="tabpanel">
                     {% if block.href is defined and block.href %}
@@ -111,6 +131,18 @@
     </div>
 
     {{ safe_hook('order-status-edit.bottom', { order_status_id: status.id }) }}
+
+    {% if is_granted('UPDATE', 'admin.configuration.order-status') %}
+        {{ component('BoConfirmDialog', {
+            id: 'order-status-action-delete-modal',
+            title: 'Remove this action',
+            formAction: path('admin.order-status.actions.delete'),
+            message: 'Do you really want to remove this action? The status change itself is not affected.',
+            testid: 'order-status-action-delete',
+            prefillTrigger: 'data-action-id',
+            prefillInput: 'action_id',
+        }) }}
+    {% endif %}
 {% endblock %}
 
 {% block scripts_extra %}

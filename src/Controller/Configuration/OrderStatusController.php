@@ -15,9 +15,13 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Order\OrderStatusType;
+use BackOfficeDefaultTwigBundle\Repository\OrderStatusActionRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
+use BackOfficeDefaultTwigBundle\Service\OrderStatus\OrderStatusActionPresenter;
+use BackOfficeDefaultTwigBundle\Service\OrderStatus\OrderStatusActionWriter;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Propel\Runtime\ActiveQuery\Criteria;
@@ -25,6 +29,7 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -36,6 +41,11 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\Order\Enum\OrderStatusActionTrigger;
+use Thelia\Domain\Order\Exception\InvalidOrderStatusActionPayloadException;
+use Thelia\Domain\Order\Service\OrderStatusCatalog;
+use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
+use Thelia\Domain\Order\Service\OrderStatusTransitionWriter;
 use Thelia\Model\LangQuery;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\OrderStatus;
@@ -61,6 +71,14 @@ final class OrderStatusController
         private readonly TokenProvider $tokens,
         private readonly TranslatorInterface $translator,
         private readonly EditLocaleResolver $editLocale,
+        private readonly RequestStack $requestStack,
+        private readonly AdminLogger $adminLogger,
+        private readonly OrderStatusCatalog $statusCatalog,
+        private readonly OrderStatusTransitionGuard $transitionGuard,
+        private readonly OrderStatusTransitionWriter $transitionWriter,
+        private readonly OrderStatusActionRepository $actionRepository,
+        private readonly OrderStatusActionWriter $actionWriter,
+        private readonly OrderStatusActionPresenter $actionPresenter,
     ) {
     }
 
@@ -115,7 +133,246 @@ final class OrderStatusController
             'status' => $status,
             'form' => $this->buildUpdateForm($status, $locale)->createView(),
             'edit_language_id' => (int) $editLang->getId(),
+            'current_tab' => \in_array($request->query->get('tab'), ['general', 'transitions', 'actions', 'modules'], true) ? $request->query->get('tab') : 'general',
+            'token' => $this->tokens->assignToken(),
+            ...$this->buildTransitionsContext($status, $locale),
+            ...$this->buildActionsContext($status, $locale),
         ]));
+    }
+
+    #[Route('/transitions/{order_status_id}', name: 'transitions.save', methods: ['POST'], requirements: ['order_status_id' => '\d+'])]
+    public function saveTransitions(int $order_status_id, Request $request): Response
+    {
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        $status = OrderStatusQuery::create()->findPk($order_status_id);
+        if ($status === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        }
+
+        $redirect = new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['order_status_id' => $order_status_id, 'tab' => 'transitions']));
+
+        if (!$this->tokens->checkToken((string) $request->request->get('_token', ''))) {
+            $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
+
+            return $redirect;
+        }
+
+        $targetIds = array_values(array_filter(array_map('intval', (array) $request->request->all('to_status_ids')), static fn (int $id): bool => $id > 0));
+        $this->transitionWriter->replaceTargets($order_status_id, $targetIds);
+
+        $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Transitions of order status %s set to [%s]', $status->getCode(), implode(', ', $targetIds)), $order_status_id);
+        $this->flash('success', [] === $targetIds
+            ? $this->translator->trans('This status is free again: an order in this status may move to any other status.')
+            : $this->translator->trans('The allowed transitions have been saved.'));
+
+        return $redirect;
+    }
+
+    #[Route('/actions/{order_status_id}/create', name: 'actions.create', methods: ['POST'], requirements: ['order_status_id' => '\d+'])]
+    public function createAction(int $order_status_id, Request $request): Response
+    {
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        $status = OrderStatusQuery::create()->findPk($order_status_id);
+        if ($status === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        }
+
+        $redirect = new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['order_status_id' => $order_status_id, 'tab' => 'actions']));
+
+        if (!$this->tokens->checkToken((string) $request->request->get('_token', ''))) {
+            $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
+
+            return $redirect;
+        }
+
+        $type = (string) $request->request->get('action_type', '');
+        $payloads = $request->request->all('payload');
+        $payload = \is_array($payloads[$type] ?? null) ? $payloads[$type] : [];
+        $fromStatusId = (int) $request->request->get('from_status_id', 0);
+
+        try {
+            $trigger = OrderStatusActionTrigger::from((string) $request->request->get('trigger', OrderStatusActionTrigger::ENTER->value));
+            $action = $this->actionWriter->create($order_status_id, $trigger, $fromStatusId > 0 ? $fromStatusId : null, $type, $payload);
+        } catch (InvalidOrderStatusActionPayloadException|\InvalidArgumentException|\ValueError $exception) {
+            $this->flash('danger', $exception->getMessage());
+
+            return $redirect;
+        }
+
+        $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Action %s #%d added to order status %s', $type, $action->getId(), $status->getCode()), $order_status_id);
+        $this->flash('success', $this->translator->trans('The action has been added.'));
+
+        return $redirect;
+    }
+
+    #[Route('/actions/{action_id}/toggle', name: 'actions.toggle', methods: ['GET', 'POST'], requirements: ['action_id' => '\d+'])]
+    public function toggleAction(int $action_id, Request $request): Response
+    {
+        return $this->actionWrite($action_id, $request, function (\Thelia\Model\OrderStatusAction $action): void {
+            $this->actionWriter->toggleActive($action);
+        }, 'Action %1$s #%2$d switched %4$s on order status %3$s');
+    }
+
+    #[Route('/actions/delete', name: 'actions.delete', methods: ['POST', 'GET'])]
+    public function deleteAction(Request $request): Response
+    {
+        $actionId = (int) ($request->request->get('action_id') ?? $request->query->get('action_id', 0));
+
+        return $this->actionWrite($actionId, $request, function (\Thelia\Model\OrderStatusAction $action): void {
+            $this->actionWriter->delete($action);
+        }, 'Action %1$s #%2$d removed from order status %3$s');
+    }
+
+    #[Route('/actions/move', name: 'actions.move', methods: ['GET', 'POST'])]
+    public function moveAction(Request $request): Response
+    {
+        $actionId = (int) ($request->query->get('action_id') ?? $request->request->get('action_id', 0));
+        $position = (int) ($request->query->get('position') ?? $request->request->get('position', 0));
+
+        return $this->actionWrite($actionId, $request, function (\Thelia\Model\OrderStatusAction $action) use ($position): void {
+            $this->actionWriter->moveTo($action, $position);
+        }, 'Action %1$s #%2$d moved to position '.$position.' on order status %3$s');
+    }
+
+    /**
+     * The shared road of the token-protected writes on one action: right, token,
+     * write, admin log, back to the actions tab of its status.
+     *
+     * @param callable(\Thelia\Model\OrderStatusAction): void $write
+     */
+    private function actionWrite(int $actionId, Request $request, callable $write, string $logFormat): Response
+    {
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        $action = $this->actionRepository->find($actionId);
+        if ($action === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        }
+
+        $statusId = (int) $action->getToStatusId();
+        $redirect = new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['order_status_id' => $statusId, 'tab' => 'actions']));
+
+        if (!$this->tokens->checkToken((string) ($request->query->get('_token') ?? $request->request->get('_token', '')))) {
+            $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
+
+            return $redirect;
+        }
+
+        $write($action);
+
+        $this->adminLogger->log(
+            self::RESOURCE,
+            AccessManager::UPDATE,
+            \sprintf($logFormat, $action->getActionType(), $actionId, $action->getToStatus()->getCode(), $action->getActive() ? 'on' : 'off'),
+            $statusId,
+        );
+
+        return $redirect;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildTransitionsContext(OrderStatus $status, string $locale): array
+    {
+        $statusId = (int) $status->getId();
+        $targets = [];
+        $allowedIds = array_map(static fn (OrderStatus $target): int => (int) $target->getId(), $this->transitionGuard->allowedTargets($statusId));
+        $isFree = $this->transitionGuard->isFree($statusId);
+
+        foreach ($this->statusCatalog->all() as $candidate) {
+            if ((int) $candidate->getId() === $statusId) {
+                continue;
+            }
+
+            $candidate->setLocale($locale);
+            $targets[] = [
+                'id' => (int) $candidate->getId(),
+                'title' => (string) $candidate->getTitle(),
+                'code' => (string) $candidate->getCode(),
+                'color' => (string) ($candidate->getColor() ?: '#6c757d'),
+                // A free status shows nothing checked: it reaches everything by default.
+                'checked' => !$isFree && \in_array((int) $candidate->getId(), $allowedIds, true),
+            ];
+        }
+
+        $unreachable = [];
+        foreach ($this->transitionGuard->unreachableStatuses() as $lost) {
+            $lost->setLocale($locale);
+            $unreachable[] = (string) $lost->getTitle();
+        }
+
+        return [
+            'transition_targets' => $targets,
+            'transitions_free' => $isFree,
+            'unreachable_statuses' => $unreachable,
+            'transitions_save_url' => $this->urls->generate('admin.order-status.transitions.save', ['order_status_id' => $statusId]),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function buildActionsContext(OrderStatus $status, string $locale): array
+    {
+        $statusId = (int) $status->getId();
+        $statuses = $this->statusCatalog->all();
+        foreach ($statuses as $candidate) {
+            $candidate->setLocale($locale);
+        }
+
+        $actions = $this->actionRepository->findForStatus($statusId);
+        $failures = $this->actionRepository->countFailuresByAction(array_map(static fn ($action): int => (int) $action->getId(), $actions));
+        $rows = [];
+
+        foreach ($actions as $action) {
+            $row = $this->actionPresenter->row($action, $statuses, $failures[(int) $action->getId()] ?? 0);
+            $row['toggle_url'] = $this->urls->generate('admin.order-status.actions.toggle', ['action_id' => $row['id'], '_token' => $this->tokens->assignToken()]);
+            $row['_actions'] = [
+                new RowAction(
+                    kind: 'delete',
+                    label: $this->translator->trans('Delete'),
+                    modalTarget: '#order-status-action-delete-modal',
+                    grantedAttribute: AccessManager::UPDATE,
+                    grantedSubject: self::RESOURCE,
+                    dataAttributes: ['action-id' => $row['id'], 'action-label' => $row['type_label']],
+                ),
+            ];
+            $rows[] = $row;
+        }
+
+        $fromChoices = [];
+        foreach ($statuses as $candidate) {
+            if ((int) $candidate->getId() !== $statusId) {
+                $fromChoices[] = ['id' => (int) $candidate->getId(), 'title' => (string) $candidate->getTitle()];
+            }
+        }
+
+        return [
+            'action_rows' => $rows,
+            'action_type_choices' => $this->actionPresenter->typeChoices(),
+            'action_fields_by_type' => $this->actionPresenter->payloadFieldsByType(),
+            'action_from_choices' => $fromChoices,
+            'action_recent_failures' => $this->actionRepository->findRecentFailures($statusId),
+            'actions_create_url' => $this->urls->generate('admin.order-status.actions.create', ['order_status_id' => $statusId]),
+            'actions_move_url' => $this->urls->generate('admin.order-status.actions.move'),
+        ];
+    }
+
+    private function flash(string $type, string $message): void
+    {
+        $session = $this->requestStack->getSession();
+        if (method_exists($session, 'getFlashBag')) {
+            $session->getFlashBag()->add($type, $message);
+        }
     }
 
     #[Route('/save/{order_status_id}', name: 'save', methods: ['POST'], requirements: ['order_status_id' => '\d+'])]
@@ -247,8 +504,15 @@ final class OrderStatusController
             'include_equivalent_code' => true,
         ]);
 
+        $unreachable = [];
+        foreach ($this->transitionGuard->unreachableStatuses() as $lost) {
+            $lost->setLocale($locale);
+            $unreachable[] = (string) $lost->getTitle();
+        }
+
         return [
             'rows' => $rows,
+            'unreachable_statuses' => $unreachable,
             'create_form' => $createForm->createView(),
             'update_position_url' => $this->urls->generate('admin.order-status.update-position'),
             'update_position_token' => $this->tokens->assignToken(),

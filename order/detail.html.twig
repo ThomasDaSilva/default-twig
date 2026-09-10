@@ -61,7 +61,7 @@
                         <i class="bi bi-download" aria-hidden="true"></i>
                     </a>
                 </div>
-                {% if cancel_status_id > 0 and not is_canceled %}
+                {% if cancel_status_id > 0 and not is_canceled and can_cancel %}
                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#order-cancel-modal" data-testid="order-cancel-btn">
                         <i class="bi bi-x-circle" aria-hidden="true"></i> {{ 'Cancel order'|trans }}
                     </button>
@@ -265,16 +265,42 @@
                                 <label class="form-label" for="order-status-select">{{ 'Order status'|trans }}</label>
                                 <form action="{{ path('admin.order.update.status', { order_id: order.id }) }}?_token={{ token }}" method="post" data-testid="order-status-form">
                                     <div class="input-group">
-                                        <select id="order-status-select" name="status_id" class="form-select" data-testid="order-status-select">
-                                            {% for s in available_statuses %}
-                                                {% if s.id > 0 %}
-                                                    <option value="{{ s.id }}" {% if s.id == order.statusId %}selected{% endif %}>{{ s.title }}</option>
-                                                {% endif %}
+                                        <select id="order-status-select" name="status_id" class="form-select" data-testid="order-status-select" {% if allowed_statuses|length == 0 %}disabled{% endif %}>
+                                            {#- The current status first, so that submitting unchanged is a no-op; then only what the graph allows. -#}
+                                            <option value="{{ order.statusId }}" selected>{{ order.orderStatus.title }}</option>
+                                            {% for s in allowed_statuses %}
+                                                <option value="{{ s.id }}">{{ s.title }}</option>
                                             {% endfor %}
                                         </select>
-                                        <button type="submit" class="btn btn-primary" data-testid="order-status-submit">{{ 'Update'|trans }}</button>
+                                        <button type="submit" class="btn btn-primary" data-testid="order-status-submit" {% if allowed_statuses|length == 0 %}disabled{% endif %}>{{ 'Update'|trans }}</button>
                                     </div>
+                                    {% if not status_is_free %}
+                                        <div class="form-text" data-testid="order-status-restricted-hint">
+                                            {% if allowed_statuses|length == 0 %}
+                                                {{ 'No transition is allowed from the current status.'|trans }}
+                                            {% else %}
+                                                {{ 'Only the statuses allowed from the current status are listed.'|trans }}
+                                            {% endif %}
+                                        </div>
+                                    {% endif %}
                                 </form>
+                                {% if can_force_status and forced_only_statuses|length > 0 %}
+                                    <details class="mt-2" data-testid="order-status-force">
+                                        <summary class="small text-danger">{{ 'Force a status outside the allowed transitions'|trans }}</summary>
+                                        <form action="{{ path('admin.order.update.status', { order_id: order.id }) }}?_token={{ token }}" method="post" class="mt-2" data-testid="order-status-force-form">
+                                            <input type="hidden" name="force" value="1">
+                                            <div class="input-group">
+                                                <select name="status_id" class="form-select border-danger" aria-label="{{ 'Status to force'|trans }}" data-testid="order-status-force-select">
+                                                    {% for s in forced_only_statuses %}
+                                                        <option value="{{ s.id }}">{{ s.title }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                                <button type="submit" class="btn btn-outline-danger" data-testid="order-status-force-submit">{{ 'Force'|trans }}</button>
+                                            </div>
+                                            <div class="form-text text-danger">{{ 'The transition graph is bypassed for this order only. The override is written to the administration log.'|trans }}</div>
+                                        </form>
+                                    </details>
+                                {% endif %}
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label" for="order-delivery-ref-input">{{ 'Tracking reference'|trans }}</label>
@@ -497,7 +523,7 @@
         } only %}
     {% endif %}
 
-    {% if cancel_status_id > 0 and not is_canceled %}
+    {% if cancel_status_id > 0 and not is_canceled and can_cancel %}
         <div class="modal fade" id="order-cancel-modal" tabindex="-1" aria-hidden="true" data-testid="order-cancel-modal">
             <div class="modal-dialog">
                 <form method="post" action="{{ path('admin.order.update.status', { order_id: order.id }) }}?_token={{ token }}" data-testid="order-cancel-form">

@@ -18,6 +18,9 @@ import { Controller } from '@hotwired/stimulus';
 export default class extends Controller {
     static targets = ['all', 'row', 'toolbar', 'count', 'form', 'summary'];
 
+    // The name of the hidden inputs carrying the selection, one listing may not be about products.
+    static values = { param: { type: String, default: 'product_ids[]' } };
+
     connect() {
         this.refresh();
     }
@@ -56,14 +59,14 @@ export default class extends Controller {
         this.syncForms(selected.map((row) => row.value));
     }
 
-    /** Rewrites the hidden product_ids inputs of every bulk form. */
+    /** Rewrites the hidden selection inputs of every bulk form. */
     syncForms(ids) {
         this.formTargets.forEach((form) => {
             form.querySelectorAll('input[data-bulk-selection="1"]').forEach((input) => input.remove());
             ids.forEach((id) => {
                 const input = document.createElement('input');
                 input.type = 'hidden';
-                input.name = 'product_ids[]';
+                input.name = this.paramValue;
                 input.value = id;
                 input.dataset.bulkSelection = '1';
                 form.appendChild(input);

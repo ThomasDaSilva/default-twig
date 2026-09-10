@@ -1,0 +1,129 @@
+{#- What the shop does automatically when an order reaches this status. -#}
+{% set can_edit = is_granted('UPDATE', 'admin.configuration.order-status') %}
+<div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+    <p class="text-muted small mb-0">
+        {{ 'Actions run in this order once the status is saved. One that fails is recorded below and does not undo the status change, and the next actions still run.'|trans }}
+    </p>
+    {% if can_edit and action_type_choices|length > 0 %}
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#order-status-action-create-modal" data-testid="order-status-action-create-button">
+            <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add an action'|trans }}
+        </button>
+    {% endif %}
+</div>
+
+{{ component('BoDataTable', {
+    id: 'order-status-actions',
+    columns: [
+        column('position', 'Order'|trans, 'center', hideBelow: 'md'),
+        column('trigger', 'Trigger'|trans, 'start'),
+        column_html('type_html', 'Action'|trans, 'start'),
+        column('summary', 'Settings'|trans, 'start', hideBelow: 'lg'),
+        column_html('failures_html', 'Failures'|trans, 'center'),
+        column_toggle('active', 'Active'|trans, can_edit ? 'toggle_url' : null),
+        column_actions('_actions', 'Actions'|trans),
+    ],
+    rows: action_rows|map(row => row|merge({
+        type_html: '<span>' ~ row.type_label|e ~ '</span>' ~ (row.installed ? '' : ' <span class="badge text-bg-danger" title="' ~ ('The module providing this action is missing or disabled: it will be recorded as a failure.'|trans)|e ~ '">' ~ ('missing'|trans)|e ~ '</span>'),
+        failures_html: row.failures > 0 ? '<span class="badge text-bg-warning" data-testid="order-status-action-failures-' ~ row.id ~ '">' ~ row.failures ~ '</span>' : '<span class="text-muted">0</span>',
+    })),
+    emptyMessage: 'No action yet: entering this status changes nothing beyond what the core always does.'|trans,
+    rowIdentifierKey: 'id',
+    tbodyAttributes: can_edit ? {
+        'data-controller': 'bo-sortable',
+        'data-bo-sortable-url-value': actions_move_url,
+        'data-bo-sortable-token-value': token,
+        'data-bo-sortable-param-name-value': 'action_id',
+    } : {},
+}) }}
+
+{% if action_recent_failures|length > 0 %}
+    <div class="card mt-3" data-testid="order-status-action-failures">
+        <div class="card-header">{{ 'Latest failures'|trans }}</div>
+        <ul class="list-group list-group-flush small">
+            {% for failure in action_recent_failures %}
+                <li class="list-group-item d-flex flex-wrap gap-2 align-items-baseline">
+                    <span class="text-muted">{{ failure.created_at ? failure.created_at|date('d/m/Y H:i') : '' }}</span>
+                    <a href="{{ path('admin.order.update.view', { order_id: failure.order_id }) }}"><code>{{ failure.order_ref }}</code></a>
+                    <span class="badge text-bg-light border">{{ failure.action_type }}</span>
+                    <span>{{ failure.message }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+{% endif %}
+
+{% if can_edit and action_type_choices|length > 0 %}
+    <div class="modal fade" id="order-status-action-create-modal" tabindex="-1" aria-hidden="true" data-testid="order-status-action-create-modal">
+        <div class="modal-dialog modal-lg">
+            <form method="post" action="{{ actions_create_url }}" class="modal-content" data-controller="bo-order-status-action-form" data-testid="order-status-action-create-form">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5">{{ 'Add an action'|trans }}</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'Close'|trans }}"></button>
+                </div>
+                <div class="modal-body">
+                    <fieldset class="mb-3">
+                        <legend class="form-label">{{ 'Trigger'|trans }}</legend>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="trigger" value="enter" id="action-trigger-enter" checked
+                                   data-bo-order-status-action-form-target="trigger" data-action="change->bo-order-status-action-form#refresh">
+                            <label class="form-check-label" for="action-trigger-enter">{{ 'When an order enters this status, whatever it comes from'|trans }}</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="trigger" value="transition" id="action-trigger-transition"
+                                   data-bo-order-status-action-form-target="trigger" data-action="change->bo-order-status-action-form#refresh">
+                            <label class="form-check-label" for="action-trigger-transition">{{ 'Only when an order comes from a given status'|trans }}</label>
+                        </div>
+                        <div class="mt-2 ms-4" data-bo-order-status-action-form-target="from" hidden>
+                            <label class="form-label" for="action-from-status">{{ 'Coming from'|trans }}</label>
+                            <select class="form-select" name="from_status_id" id="action-from-status" data-testid="order-status-action-from">
+                                {% for choice in action_from_choices %}
+                                    <option value="{{ choice.id }}">{{ choice.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </fieldset>
+
+                    <div class="mb-3">
+                        <label class="form-label" for="action-type">{{ 'Action'|trans }}</label>
+                        <select class="form-select" name="action_type" id="action-type" required
+                                data-bo-order-status-action-form-target="type" data-action="change->bo-order-status-action-form#refresh"
+                                data-testid="order-status-action-type">
+                            {% for type, label in action_type_choices %}
+                                <option value="{{ type }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    {% for type, fields in action_fields_by_type %}
+                        <div data-bo-order-status-action-form-target="fields" data-type="{{ type }}" hidden>
+                            {% for field in fields %}
+                                <div class="mb-3">
+                                    <label class="form-label" for="action-field-{{ type }}-{{ field.name }}">{{ field.label }}</label>
+                                    {% if field.type == 'choice' %}
+                                        <select class="form-select" name="payload[{{ type }}][{{ field.name }}]" id="action-field-{{ type }}-{{ field.name }}" {% if field.required %}required{% endif %}
+                                                data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
+                                            {% for value, label in field.choices %}
+                                                <option value="{{ value }}">{{ label }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    {% else %}
+                                        <input type="text" class="form-control" name="payload[{{ type }}][{{ field.name }}]" id="action-field-{{ type }}-{{ field.name }}" {% if field.required %}required{% endif %}
+                                               data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                            {% if fields|length == 0 %}
+                                <p class="text-muted small">{{ 'This action has no setting.'|trans }}</p>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Close'|trans }}</button>
+                    <button type="submit" class="btn btn-primary" data-testid="order-status-action-create-submit">{{ 'Add'|trans }}</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}

@@ -131,7 +131,9 @@
                             <td colspan="{{ colCount }}">
                                 <dl class="bo-datatable__details-grid mb-0">
                                     {% for column in columns %}
-                                        {% if column.visibleFrom != 'always' %}
+                                        {#- A selection checkbox is never repeated: the bulk toolbar counts the
+                                            checked boxes, and a second box per row would count every row twice. -#}
+                                        {% if column.visibleFrom != 'always' and column.kind.value != 'select' %}
                                             <div class="bo-datatable__details-item d-{{ column.visibleFrom }}-none">
                                                 <dt>{{ column.label }}</dt>
                                                 <dd>

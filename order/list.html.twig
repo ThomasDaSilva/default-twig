@@ -15,7 +15,7 @@
 {% block content %}
     {{ safe_hook('orders.top') }}
 
-    <div class="container-fluid" data-testid="orders-page">
+    <div class="container-fluid" data-testid="orders-page" data-controller="bo-bulk-select" data-bo-bulk-select-param-value="order_ids[]">
         {% embed '@BackOfficeDefaultTwig/_page_header.html.twig' with { title: 'Orders management'|trans } %}
             {% block actions %}
                 <div class="d-flex flex-wrap align-items-center gap-2" data-testid="order-quick-filters">
@@ -328,19 +328,47 @@
         {% endif %}
 
         <div class="mt-3">
+            {% if is_granted('UPDATE', 'admin.order') %}
+                <div class="bo-bulk-toolbar card border-0 shadow-sm mb-3" data-bo-bulk-select-target="toolbar" hidden data-testid="order-bulk-toolbar">
+                    <form method="post" action="{{ bulk_status_url }}" class="card-body d-flex flex-wrap align-items-center gap-2 py-2"
+                          data-bo-bulk-select-target="form" data-testid="order-bulk-status-form">
+                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                        <span class="badge text-bg-primary" data-testid="order-bulk-count">
+                            <span data-bo-bulk-select-target="count">0</span>
+                            {{ 'selected'|trans }}
+                        </span>
+                        <label class="visually-hidden" for="order-bulk-status">{{ 'Move the selected orders to'|trans }}</label>
+                        <select id="order-bulk-status" name="status_id" class="form-select form-select-sm w-auto" required data-testid="order-bulk-status-select">
+                            <option value="">{{ 'Move the selected orders to'|trans }}</option>
+                            {% for status in bulk_statuses %}
+                                <option value="{{ status.id }}">{{ status.title }}</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-sm btn-primary" data-testid="order-bulk-status-submit">{{ 'Apply'|trans }}</button>
+                        <span class="small text-muted">{{ 'Orders whose current status does not allow the transition are skipped and named.'|trans }}</span>
+                        <button type="button" class="btn btn-sm btn-link" data-action="bo-bulk-select#clear" data-testid="order-bulk-clear">{{ 'Clear selection'|trans }}</button>
+                    </form>
+                </div>
+            {% endif %}
+
+            {% set order_columns = [
+                column_html('ref_html', 'Reference'|trans, 'start', 'ref'),
+                column_html('customer_html', 'Customer'|trans, visibleFrom: 'lg'),
+                column_html('items_html', 'Items'|trans, 'center', visibleFrom: 'lg'),
+                column_badge('status_code', 'Status'|trans, {}, 'start', 'status', 'status_color'),
+                column_html('payment_html', 'Payment'|trans, visibleFrom: 'xl'),
+                column_html('delivery_html', 'Delivery'|trans, visibleFrom: 'xl'),
+                column_text('amount', 'Total'|trans, 'end', 'amount'),
+                column_html('date_html', 'Date'|trans, 'start', 'created_at', visibleFrom: 'lg'),
+                column_actions('_actions', 'Actions'|trans),
+            ] %}
+            {% if is_granted('UPDATE', 'admin.order') %}
+                {% set order_columns = [column_select('_select', 'Select this order'|trans, 'id', 'ref', visibleFrom: 'md')]|merge(order_columns) %}
+            {% endif %}
+
             {{ component('BoDataTable', {
                 id: 'orders',
-                columns: [
-                    column_html('ref_html', 'Reference'|trans, 'start', 'ref'),
-                    column_html('customer_html', 'Customer'|trans, visibleFrom: 'lg'),
-                    column_html('items_html', 'Items'|trans, 'center', visibleFrom: 'lg'),
-                    column_badge('status_code', 'Status'|trans, {}, 'start', 'status', 'status_color'),
-                    column_html('payment_html', 'Payment'|trans, visibleFrom: 'xl'),
-                    column_html('delivery_html', 'Delivery'|trans, visibleFrom: 'xl'),
-                    column_text('amount', 'Total'|trans, 'end', 'amount'),
-                    column_html('date_html', 'Date'|trans, 'start', 'created_at', visibleFrom: 'lg'),
-                    column_actions('_actions', 'Actions'|trans),
-                ],
+                columns: order_columns,
                 rows: rows,
                 emptyMessage: 'No order matches the current filters.'|trans,
                 sortField: filters.sort_field,

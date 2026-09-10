@@ -1,0 +1,47 @@
+{#- The statuses an order in this status may be moved to. Nothing checked means the status is free. -#}
+<div class="card">
+    <div class="card-header d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span>{{ 'Allowed transitions from this status'|trans }}</span>
+        {% if transitions_free %}
+            <span class="badge text-bg-success" data-testid="order-status-transitions-free">{{ 'Free status'|trans }}</span>
+        {% else %}
+            <span class="badge text-bg-primary" data-testid="order-status-transitions-restricted">{{ 'Restricted'|trans }}</span>
+        {% endif %}
+    </div>
+    <div class="card-body">
+        <p class="text-muted small mb-3">
+            {{ 'Check the statuses an order may be moved to from this one. Leave every box unchecked to keep the status free: an order may then go anywhere, as before. A change to another status is refused everywhere it can be asked for: back office, API, payment modules and scheduled tasks.'|trans }}
+        </p>
+
+        {% if unreachable_statuses|length > 0 %}
+            <div class="alert alert-warning py-2" role="alert" data-testid="order-status-unreachable-warning">
+                <i class="bi bi-exclamation-triangle-fill me-1" aria-hidden="true"></i>
+                {{ 'No transition leads to: %statuses%'|trans({ '%statuses%': unreachable_statuses|join(', ') }) }}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{{ transitions_save_url }}" data-testid="order-status-transitions-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-2 mb-3">
+                {% for target in transition_targets %}
+                    <div class="col">
+                        <div class="form-check border rounded px-3 py-2 ps-5 h-100">
+                            <input class="form-check-input" type="checkbox" name="to_status_ids[]" value="{{ target.id }}" id="transition-to-{{ target.id }}"
+                                   {% if target.checked %}checked{% endif %}
+                                   {% if not is_granted('UPDATE', 'admin.configuration.order-status') %}disabled{% endif %}
+                                   data-testid="order-status-transition-{{ target.code }}">
+                            <label class="form-check-label d-flex align-items-center gap-2" for="transition-to-{{ target.id }}">
+                                <span class="d-inline-block rounded-circle border" style="width:.75rem;height:.75rem;background-color:{{ target.color }}" aria-hidden="true"></span>
+                                {{ target.title }}
+                                <code class="small text-muted">{{ target.code }}</code>
+                            </label>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            {% if is_granted('UPDATE', 'admin.configuration.order-status') %}
+                <button type="submit" class="btn btn-primary" data-testid="order-status-transitions-submit">{{ 'Save the transitions'|trans }}</button>
+            {% endif %}
+        </form>
+    </div>
+</div>
