@@ -310,7 +310,8 @@
                                             {% for change in forced_status_changes %}
                                                 <li class="list-group-item d-flex flex-wrap column-gap-2 px-0">
                                                     <span class="text-muted">{{ change.created_at ? change.created_at|date('d/m/Y H:i') : '' }}</span>
-                                                    <span>{{ change.admin }}</span>
+                                                    {#- Who forced it is read from the administration log, and only shown to an administrator allowed to read it. -#}
+                                                    {% if change.admin %}<span data-testid="order-forced-status-change-admin">{{ change.admin }}</span>{% endif %}
                                                     <span>
                                                         <span class="fw-semibold">{{ change.from }}</span>
                                                         <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>
@@ -318,6 +319,11 @@
                                                     </span>
                                                 </li>
                                             {% endfor %}
+                                            {% if forced_status_changes_hidden > 0 %}
+                                                <li class="list-group-item text-muted px-0" data-testid="order-forced-status-changes-truncated">
+                                                    {{ '%count% older override(s) are not listed here.'|trans({'%count%': forced_status_changes_hidden}) }}
+                                                </li>
+                                            {% endif %}
                                         </ul>
                                     </div>
                                 {% endif %}

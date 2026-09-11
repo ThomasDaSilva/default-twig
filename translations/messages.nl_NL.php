@@ -1539,4 +1539,7 @@ return [
     'Choose the status to force' => 'Kies de te forceren status',
     'Statuses forced on this order' => 'Op deze bestelling geforceerde statussen',
     'No status can be reached from every order selected: narrow the selection.' => 'Geen enkele status is bereikbaar vanuit alle geselecteerde bestellingen: beperk de selectie.',
+    'Select a status.' => 'Selecteer een status.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% bestelling(en) bestaan niet meer en zijn overgeslagen.',
+    '%count% older override(s) are not listed here.' => '%count% oudere forcering(en) worden hier niet vermeld.',
 ];

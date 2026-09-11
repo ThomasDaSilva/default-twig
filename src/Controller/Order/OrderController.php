@@ -217,6 +217,10 @@ final class OrderController
             ]));
         }
 
+        if ($plan['missing_count'] > 0) {
+            $this->flash('warning', $this->translator->trans('%count% order(s) no longer exist and were skipped.', ['%count%' => $plan['missing_count']]));
+        }
+
         if ([] !== $failed) {
             $this->flash('danger', $this->translator->trans('The status change failed for: %refs%', ['%refs%' => implode(', ', $failed)]));
         }
@@ -240,6 +244,14 @@ final class OrderController
         $statusId = (int) ($request->query->get('status_id') ?? $request->request->get('status_id', 0));
         $forced = '1' === (string) ($request->request->get('force') ?? $request->query->get('force', '0'));
         $detail = new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+
+        // An empty selector, or a status deleted since the sheet was rendered: said
+        // plainly, before the graph is asked about a status that is not one.
+        if ($statusId <= 0 || null === OrderStatusQuery::create()->findPk($statusId)) {
+            $this->flash('warning', $this->translator->trans('Select a status.'));
+
+            return $detail;
+        }
 
         // Forcing a transition the graph refuses is a right of its own.
         if ($forced && $denied = $this->access->check(AdminResources::ORDER_STATUS_FORCE, [], AccessManager::UPDATE)) {

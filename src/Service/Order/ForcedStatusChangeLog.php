@@ -23,6 +23,12 @@ namespace BackOfficeDefaultTwigBundle\Service\Order;
  * never drift apart: the order sheet reads back exactly what the controller
  * wrote. The sentence is deliberately never translated, for the same reason as
  * every other line of that log.
+ *
+ * A status code is a free 45-character field: nothing forbids a space in it, or
+ * an empty one. The codes are therefore written between double quotes, which is
+ * what keeps them apart from the words of the sentence and from an order
+ * reference that happens to read like them. A code holding a double quote of its
+ * own is the one thing this wording cannot carry back.
  */
 final class ForcedStatusChangeLog
 {
@@ -31,9 +37,15 @@ final class ForcedStatusChangeLog
      */
     public const MESSAGE_PREFIX = 'Forced order ';
 
-    private const MESSAGE_FORMAT = self::MESSAGE_PREFIX.'%s from status %s to status %s, outside the allowed transitions';
+    private const MESSAGE_SUFFIX = ', outside the allowed transitions';
 
-    private const MESSAGE_PATTERN = '/^Forced order (?<ref>.+) from status (?<from>\S+) to status (?<to>\S+), outside the allowed transitions$/';
+    private const MESSAGE_FORMAT = self::MESSAGE_PREFIX.'%s from status "%s" to status "%s"'.self::MESSAGE_SUFFIX;
+
+    /**
+     * The wording used before the codes were quoted. Entries written by it are
+     * still on file, and the order sheet still has to read them.
+     */
+    private const LEGACY_MESSAGE_PATTERN = '/^Forced order (?<ref>.+) from status (?<from>\S+) to status (?<to>\S+), outside the allowed transitions$/D';
 
     public static function message(string $orderRef, string $fromStatusCode, string $toStatusCode): string
     {
@@ -47,10 +59,21 @@ final class ForcedStatusChangeLog
      */
     public static function parse(string $message): ?array
     {
-        if (1 !== preg_match(self::MESSAGE_PATTERN, $message, $matches)) {
-            return null;
+        foreach ([self::messagePattern(), self::LEGACY_MESSAGE_PATTERN] as $pattern) {
+            if (1 === preg_match($pattern, $message, $matches)) {
+                return ['ref' => $matches['ref'], 'from' => $matches['from'], 'to' => $matches['to']];
+            }
         }
 
-        return ['ref' => $matches['ref'], 'from' => $matches['from'], 'to' => $matches['to']];
+        return null;
+    }
+
+    private static function messagePattern(): string
+    {
+        return '/^'
+            .preg_quote(self::MESSAGE_PREFIX, '/')
+            .'(?<ref>.*) from status "(?<from>[^"]*)" to status "(?<to>[^"]*)"'
+            .preg_quote(self::MESSAGE_SUFFIX, '/')
+            .'$/D';
     }
 }

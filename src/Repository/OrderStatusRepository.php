@@ -15,6 +15,8 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Repository;
 
 use Propel\Runtime\ActiveQuery\Criteria;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Thelia\Core\Event\TheliaEvents;
 use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusQuery;
 
@@ -25,7 +27,10 @@ use Thelia\Model\OrderStatusQuery;
  *
  * A status screen asks for the same list three times (the transitions tab, the
  * unreachable-status warning, the actions tab), so the read is memoised per
- * locale for the request, as the order filter catalog does.
+ * locale for the request, as the order filter catalog does. A write on the
+ * statuses drops the memo, the way the core catalog does: the screen that
+ * created, renamed, deleted or moved a status renders the list again in the
+ * same request.
  */
 final class OrderStatusRepository
 {
@@ -38,6 +43,15 @@ final class OrderStatusRepository
     public function findLocalized(string $locale): array
     {
         return $this->statusesByLocale[$locale] ??= $this->readLocalized($locale);
+    }
+
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_CREATE, priority: -128)]
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_UPDATE, priority: -128)]
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_DELETE, priority: -128)]
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_UPDATE_POSITION, priority: -128)]
+    public function reset(): void
+    {
+        $this->statusesByLocale = [];
     }
 
     /**

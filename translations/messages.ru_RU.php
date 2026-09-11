@@ -1540,4 +1540,7 @@ return [
     'Choose the status to force' => 'Выберите статус для принудительной установки',
     'Statuses forced on this order' => 'Статусы, принудительно установленные для этого заказа',
     'No status can be reached from every order selected: narrow the selection.' => 'Ни один статус не достижим из всех выбранных заказов: сузьте выбор.',
+    'Select a status.' => 'Выберите статус.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% заказ(ов) больше не существует и был(и) пропущен(ы).',
+    '%count% older override(s) are not listed here.' => '%count% более ранних принудительных изменений здесь не показаны.',
 ];

@@ -1969,4 +1969,7 @@ return [
     'Choose the status to force' => 'Choisir le statut à forcer',
     'Statuses forced on this order' => 'Statuts forcés sur cette commande',
     'No status can be reached from every order selected: narrow the selection.' => 'Aucun statut n\'est atteignable depuis toutes les commandes sélectionnées : réduisez la sélection.',
+    'Select a status.' => 'Sélectionnez un statut.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% commande(s) n\'existe(nt) plus et ont été ignorées.',
+    '%count% older override(s) are not listed here.' => '%count% forçage(s) plus ancien(s) ne sont pas listés ici.',
 ];

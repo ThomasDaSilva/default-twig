@@ -1574,4 +1574,7 @@ return [
     'Choose the status to force' => 'Scegli lo stato da forzare',
     'Statuses forced on this order' => 'Stati forzati su quest\'ordine',
     'No status can be reached from every order selected: narrow the selection.' => 'Nessuno stato è raggiungibile da tutti gli ordini selezionati: restringere la selezione.',
+    'Select a status.' => 'Seleziona uno stato.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% ordine(i) non esiste(ono) più ed è stato ignorato.',
+    '%count% older override(s) are not listed here.' => '%count% forzatura(e) precedente(i) non sono elencate qui.',
 ];

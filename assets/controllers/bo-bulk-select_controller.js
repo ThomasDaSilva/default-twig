@@ -80,9 +80,11 @@ export default class extends Controller {
         }
 
         const states = [...new Set(selected.map((row) => row.dataset.bulkState).filter((state) => state))];
-        let available = 0;
+        let selectsWithATarget = 0;
 
         this.restrictTargets.forEach((select) => {
+            let available = 0;
+
             Array.from(select.options).forEach((option) => {
                 if (option.value === '') {
                     return;
@@ -96,13 +98,17 @@ export default class extends Controller {
                 available += reachable ? 1 : 0;
             });
 
+            selectsWithATarget += available > 0 ? 1 : 0;
+
             // A target that just went out of reach must not stay picked.
             if (select.selectedOptions.length > 0 && select.selectedOptions[0].disabled) {
                 select.value = '';
             }
         });
 
-        this.restrictHintTargets.forEach((node) => { node.hidden = selected.length === 0 || available > 0; });
+        // Said only when it is true of the selection as a whole: rows are ticked,
+        // and not one of the selects has anything left to offer them.
+        this.restrictHintTargets.forEach((node) => { node.hidden = selected.length === 0 || selectsWithATarget > 0; });
     }
 
     /** Rewrites the hidden selection inputs of every bulk form. */

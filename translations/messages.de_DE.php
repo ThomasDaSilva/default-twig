@@ -1540,4 +1540,7 @@ return [
     'Choose the status to force' => 'Zu erzwingenden Status wählen',
     'Statuses forced on this order' => 'Bei dieser Bestellung erzwungene Status',
     'No status can be reached from every order selected: narrow the selection.' => 'Kein Status ist aus allen ausgewählten Bestellungen erreichbar: Grenzen Sie die Auswahl ein.',
+    'Select a status.' => 'Wählen Sie einen Status.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% Bestellung(en) existieren nicht mehr und wurden übersprungen.',
+    '%count% older override(s) are not listed here.' => '%count% ältere Erzwingung(en) werden hier nicht aufgeführt.',
 ];

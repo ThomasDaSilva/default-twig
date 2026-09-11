@@ -16,6 +16,9 @@ namespace BackOfficeDefaultTwigBundle\Tests\Query;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderStatusRepository;
 use BackOfficeDefaultTwigBundle\Tests\Support\QueryCounter;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Core\Event\OrderStatus\OrderStatusCreateEvent;
+use Thelia\Core\Event\TheliaEvents;
 use Thelia\Model\OrderStatus;
 use Thelia\Test\IntegrationTestCase;
 
@@ -59,7 +62,7 @@ final class OrderStatusReadTest extends IntegrationTestCase
 
     public function testAnotherLocaleIsItsOwnRead(): void
     {
-        $this->statuses->findLocalized('en_US');
+        $english = $this->statuses->findLocalized('en_US');
 
         $french = [];
         $queries = QueryCounter::count(function () use (&$french): void {
@@ -67,7 +70,53 @@ final class OrderStatusReadTest extends IntegrationTestCase
         });
 
         self::assertSame(1, $queries, 'A locale never serves another one its titles.');
-        self::assertNotSame([], $french);
+
+        $notPaidId = $this->seededStatusId($english, OrderStatus::CODE_NOT_PAID);
+        self::assertNotSame(
+            (string) $english[$notPaidId]->getTitle(),
+            (string) $french[$notPaidId]->getTitle(),
+            'The two locales are seeded with two different titles for that status.',
+        );
+    }
+
+    public function testAStatusWrittenDuringTheRequestIsReadBack(): void
+    {
+        // The container instance is the one the dispatcher calls back, unlike the
+        // bare repository the other tests build.
+        $statuses = $this->getService(OrderStatusRepository::class);
+        $statuses->reset();
+
+        $before = $statuses->findLocalized('en_US');
+
+        $event = new OrderStatusCreateEvent();
+        $event->setCode('memoised_read_check')->setColor('#123456')->setLocale('en_US')->setTitle('Memoised read check');
+        $this->getService(EventDispatcherInterface::class)->dispatch($event, TheliaEvents::ORDER_STATUS_CREATE);
+
+        $createdId = (int) $event->getOrderStatus()->getId();
+        $after = $statuses->findLocalized('en_US');
+
+        // Left behind, the memo of the first read would answer the screen that
+        // rendered right after the write with a list missing the new status.
+        self::assertArrayNotHasKey($createdId, $before);
+        self::assertArrayHasKey($createdId, $after, 'A status created in the request is read back.');
+
+        // The container keeps this instance for the whole process, the created
+        // status does not survive the rollback.
+        $statuses->reset();
+    }
+
+    /**
+     * @param array<int, OrderStatus> $statuses
+     */
+    private function seededStatusId(array $statuses, string $code): int
+    {
+        foreach ($statuses as $id => $status) {
+            if ($status->getCode() === $code) {
+                return $id;
+            }
+        }
+
+        self::fail("Seeded order status '$code' is missing.");
     }
 
     public function testTheListIsIndexedByIdAndOrderedByPosition(): void

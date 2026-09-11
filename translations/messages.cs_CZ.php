@@ -1539,4 +1539,7 @@ return [
     'Choose the status to force' => 'Zvolte stav k vynucení',
     'Statuses forced on this order' => 'Stavy vynucené u této objednávky',
     'No status can be reached from every order selected: narrow the selection.' => 'Žádný stav není dosažitelný ze všech vybraných objednávek: zúžte výběr.',
+    'Select a status.' => 'Vyberte stav.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% objednávka(y) již neexistuje a byla přeskočena.',
+    '%count% older override(s) are not listed here.' => '%count% starší vynucení není v tomto seznamu uvedeno.',
 ];

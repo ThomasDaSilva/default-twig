@@ -26,25 +26,27 @@ use Thelia\Model\AdminLogQuery;
  */
 final readonly class AdminLogRepository
 {
-    private const FORCED_CHANGES_LIMIT = 20;
+    /**
+     * The administration log is never purged, and nothing caps how many times an
+     * order may be forced: the read is bounded, and says how many entries it left
+     * behind so the sheet can own up to it rather than end on a silent cut.
+     */
+    private const FORCED_CHANGES_LIMIT = 100;
 
     /**
-     * The forced status changes an order has received, most recent first.
+     * The forced status changes an order has received, most recent first, and the
+     * number of older ones the limit left out.
      *
      * Three conditions name them without ambiguity: the resource and the access
      * the order screens write under, the order itself, and the opening words of
      * the sentence a forced change writes. Nothing else the order sheet logs
      * starts with them.
      *
-     * @return list<array{created_at: ?\DateTimeInterface, admin: string, from_code: string, to_code: string}>
+     * @return array{changes: list<array{created_at: ?\DateTimeInterface, admin: string, from_code: string, to_code: string}>, hidden: int}
      */
     public function findForcedOrderStatusChanges(int $orderId): array
     {
-        $logs = AdminLogQuery::create()
-            ->filterByResource(AdminResources::ORDER)
-            ->filterByResourceId($orderId)
-            ->filterByAction(AccessManager::UPDATE)
-            ->filterByMessage(ForcedStatusChangeLog::MESSAGE_PREFIX.'%', Criteria::LIKE)
+        $logs = $this->forcedOrderStatusChangesQuery($orderId)
             ->orderById(Criteria::DESC)
             ->limit(self::FORCED_CHANGES_LIMIT)
             ->find();
@@ -66,7 +68,31 @@ final readonly class AdminLogRepository
             ];
         }
 
-        return $changes;
+        // Counted only when the page is full: an order forced a handful of times,
+        // which is every order in practice, pays for one query.
+        $hidden = \count($logs) < self::FORCED_CHANGES_LIMIT
+            ? 0
+            : max(0, $this->forcedOrderStatusChangesQuery($orderId)->count() - \count($logs));
+
+        return ['changes' => $changes, 'hidden' => $hidden];
+    }
+
+    private function forcedOrderStatusChangesQuery(int $orderId): AdminLogQuery
+    {
+        return AdminLogQuery::create()
+            ->filterByResource(AdminResources::ORDER)
+            ->filterByResourceId($orderId)
+            ->filterByAction(AccessManager::UPDATE)
+            ->filterByMessage(self::escapeLikeValue(ForcedStatusChangeLog::MESSAGE_PREFIX).'%', Criteria::LIKE);
+    }
+
+    /**
+     * A LIKE pattern reads `%`, `_` and the escape character itself; the prefix is
+     * meant literally, whatever it is made of.
+     */
+    private static function escapeLikeValue(string $value): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
     }
 
     private function adminName(AdminLog $log): string

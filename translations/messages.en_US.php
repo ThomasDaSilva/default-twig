@@ -242,4 +242,7 @@ return [
     'Choose the status to force' => 'Choose the status to force',
     'Statuses forced on this order' => 'Statuses forced on this order',
     'No status can be reached from every order selected: narrow the selection.' => 'No status can be reached from every order selected: narrow the selection.',
+    'Select a status.' => 'Select a status.',
+    '%count% order(s) no longer exist and were skipped.' => '%count% order(s) no longer exist and were skipped.',
+    '%count% older override(s) are not listed here.' => '%count% older override(s) are not listed here.',
 ];

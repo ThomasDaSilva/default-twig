@@ -15,7 +15,6 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Order;
 
 use BackOfficeDefaultTwigBundle\Repository\AdminLogRepository;
-use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderStatusRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -37,7 +36,6 @@ final readonly class OrderStatusChangeContextBuilder
     public function __construct(
         private OrderStatusTransitionGuard $transitionGuard,
         private AdminAccessChecker $access,
-        private OrderRepository $orderRepository,
         private OrderStatusRepository $statusRepository,
         private AdminLogRepository $adminLogRepository,
         private TranslatorInterface $translator,
@@ -54,12 +52,14 @@ final readonly class OrderStatusChangeContextBuilder
         $forcedOnly = [];
         $allowedIds = array_map(static fn (OrderStatus $status): int => (int) $status->getId(), $this->transitionGuard->allowedTargets($currentId));
 
-        foreach ($this->orderRepository->findStatusesLocalized($locale) as $status) {
-            if ($status['id'] === $currentId) {
+        // The one memoised read of the statuses: the forced changes below and the
+        // refusal message share it.
+        foreach ($this->statusRepository->findLocalized($locale) as $statusId => $status) {
+            if ($statusId === $currentId) {
                 continue;
             }
 
-            if (\in_array($status['id'], $allowedIds, true)) {
+            if (\in_array($statusId, $allowedIds, true)) {
                 $allowed[] = $status;
             } else {
                 $forcedOnly[] = $status;
@@ -68,6 +68,7 @@ final readonly class OrderStatusChangeContextBuilder
 
         $cancelStatusId = (int) (OrderStatusQuery::getCancelledStatus()?->getId() ?? 0);
         $canForce = null === $this->access->check(AdminResources::ORDER_STATUS_FORCE, [], AccessManager::UPDATE);
+        $forced = $this->forcedStatusChanges($order, $locale);
 
         return [
             'allowed_statuses' => $allowed,
@@ -75,7 +76,8 @@ final readonly class OrderStatusChangeContextBuilder
             'status_is_free' => $this->transitionGuard->isFree($currentId),
             'can_force_status' => $canForce,
             'can_cancel' => $cancelStatusId > 0 && $this->transitionGuard->isAllowed($currentId, $cancelStatusId),
-            'forced_status_changes' => $this->forcedStatusChanges($order, $locale),
+            'forced_status_changes' => $forced['changes'],
+            'forced_status_changes_hidden' => $forced['hidden'],
         ];
     }
 
@@ -83,7 +85,11 @@ final readonly class OrderStatusChangeContextBuilder
      * The overrides this order went through, worded with the status titles of the
      * interface rather than the codes the administration log stores.
      *
-     * @return list<array{created_at: ?\DateTimeInterface, admin: string, from: string, to: string}>
+     * That an order was forced belongs to whoever reads the order; who forced it
+     * belongs to the administration log, and is only named to an administrator
+     * entitled to read that log.
+     *
+     * @return array{changes: list<array{created_at: ?\DateTimeInterface, admin: string, from: string, to: string}>, hidden: int}
      */
     private function forcedStatusChanges(Order $order, string $locale): array
     {
@@ -92,18 +98,21 @@ final readonly class OrderStatusChangeContextBuilder
             $titlesByCode[(string) $status->getCode()] = (string) $status->getTitle();
         }
 
+        $canReadAdminLog = $this->access->canView(AdminResources::ADMIN_LOG);
+        $forced = $this->adminLogRepository->findForcedOrderStatusChanges((int) $order->getId());
+
         $changes = [];
-        foreach ($this->adminLogRepository->findForcedOrderStatusChanges((int) $order->getId()) as $change) {
+        foreach ($forced['changes'] as $change) {
             $changes[] = [
                 'created_at' => $change['created_at'],
-                'admin' => $change['admin'],
+                'admin' => $canReadAdminLog ? $change['admin'] : '',
                 // A status deleted since keeps its code on screen: it is all that is left of it.
                 'from' => $titlesByCode[$change['from_code']] ?? $change['from_code'],
                 'to' => $titlesByCode[$change['to_code']] ?? $change['to_code'],
             ];
         }
 
-        return $changes;
+        return ['changes' => $changes, 'hidden' => $forced['hidden']];
     }
 
     public function refusalMessage(Order $order, int $toStatusId, string $locale): string

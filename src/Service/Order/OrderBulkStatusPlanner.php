@@ -40,16 +40,23 @@ final readonly class OrderBulkStatusPlanner
     }
 
     /**
+     * Every selected order is accounted for: moved, refused by the graph, or gone
+     * from the database between the page and the submit. The last kind used to
+     * disappear from the outcome altogether.
+     *
      * @param list<int> $orderIds
      *
-     * @return array{allowed_ids: list<int>, refused_refs: list<string>}
+     * @return array{allowed_ids: list<int>, refused_refs: list<string>, missing_count: int}
      */
     public function plan(array $orderIds, int $toStatusId): array
     {
         $allowedIds = [];
         $refusedRefs = [];
+        $found = 0;
 
         foreach ($this->orderRepository->findStatusDecisionRows($orderIds) as $decision) {
+            ++$found;
+
             if ($this->transitionGuard->isAllowed($decision['status_id'], $toStatusId)) {
                 $allowedIds[] = $decision['id'];
             } else {
@@ -57,7 +64,11 @@ final readonly class OrderBulkStatusPlanner
             }
         }
 
-        return ['allowed_ids' => $allowedIds, 'refused_refs' => $refusedRefs];
+        return [
+            'allowed_ids' => $allowedIds,
+            'refused_refs' => $refusedRefs,
+            'missing_count' => max(0, \count($orderIds) - $found),
+        ];
     }
 
     /**
