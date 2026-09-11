@@ -1543,4 +1543,5 @@ return [
     'Select a status.' => 'Выберите статус.',
     '%count% order(s) no longer exist and were skipped.' => '%count% заказ(ов) больше не существует и был(и) пропущен(ы).',
     '%count% older override(s) are not listed here.' => '%count% более ранних принудительных изменений здесь не показаны.',
+    'The address could not be saved. See the system log for the details.' => 'Не удалось сохранить адрес. Подробности см. в системном журнале.',
 ];

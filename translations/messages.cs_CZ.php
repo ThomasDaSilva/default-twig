@@ -1542,4 +1542,5 @@ return [
     'Select a status.' => 'Vyberte stav.',
     '%count% order(s) no longer exist and were skipped.' => '%count% objednávka(y) již neexistuje a byla přeskočena.',
     '%count% older override(s) are not listed here.' => '%count% starší vynucení není v tomto seznamu uvedeno.',
+    'The address could not be saved. See the system log for the details.' => 'Adresu se nepodařilo uložit. Podrobnosti najdete v systémovém protokolu.',
 ];

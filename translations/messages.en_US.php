@@ -245,4 +245,5 @@ return [
     'Select a status.' => 'Select a status.',
     '%count% order(s) no longer exist and were skipped.' => '%count% order(s) no longer exist and were skipped.',
     '%count% older override(s) are not listed here.' => '%count% older override(s) are not listed here.',
+    'The address could not be saved. See the system log for the details.' => 'The address could not be saved. See the system log for the details.',
 ];

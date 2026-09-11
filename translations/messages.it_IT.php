@@ -1577,4 +1577,5 @@ return [
     'Select a status.' => 'Seleziona uno stato.',
     '%count% order(s) no longer exist and were skipped.' => '%count% ordine(i) non esiste(ono) più ed è stato ignorato.',
     '%count% older override(s) are not listed here.' => '%count% forzatura(e) precedente(i) non sono elencate qui.',
+    'The address could not be saved. See the system log for the details.' => 'Non è stato possibile salvare l\'indirizzo. Consultare il registro di sistema per i dettagli.',
 ];

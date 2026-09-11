@@ -46,6 +46,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
+use Thelia\Log\Tlog;
 use Thelia\Model\CountryQuery;
 use Thelia\Model\CustomerTitleQuery;
 use Thelia\Model\Order;
@@ -266,7 +267,8 @@ final class OrderController
 
         $event = new OrderEvent($order);
         $event->setStatus($statusId);
-        $previousCode = (string) $order->getOrderStatus()->getCode();
+        // An order pointing at a status row that is gone still has to be moved out of it.
+        $previousCode = (string) ($order->getOrderStatus()?->getCode() ?? '');
 
         if ($forced) {
             $event->forceStatusTransition();
@@ -426,8 +428,12 @@ final class OrderController
             $event->setOrder($order);
 
             $this->events->dispatch($event, TheliaEvents::ORDER_UPDATE_ADDRESS);
-        } catch (\Throwable) {
-            // surfaced via session flash in production
+        } catch (\Throwable $throwable) {
+            // The administrator is told the address was not saved; what went wrong
+            // goes to the log, where it does not leak internals to the browser.
+            Tlog::getInstance()->error(\sprintf('Order %d address update failed: %s', $order_id, $throwable->getMessage()));
+
+            $this->flash('danger', $this->translator->trans('The address could not be saved. See the system log for the details.'));
         }
 
         return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));

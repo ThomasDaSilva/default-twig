@@ -1543,4 +1543,5 @@ return [
     'Select a status.' => 'Wählen Sie einen Status.',
     '%count% order(s) no longer exist and were skipped.' => '%count% Bestellung(en) existieren nicht mehr und wurden übersprungen.',
     '%count% older override(s) are not listed here.' => '%count% ältere Erzwingung(en) werden hier nicht aufgeführt.',
+    'The address could not be saved. See the system log for the details.' => 'Die Adresse konnte nicht gespeichert werden. Einzelheiten finden Sie im Systemprotokoll.',
 ];

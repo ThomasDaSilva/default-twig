@@ -1542,4 +1542,5 @@ return [
     'Select a status.' => 'Selecteer een status.',
     '%count% order(s) no longer exist and were skipped.' => '%count% bestelling(en) bestaan niet meer en zijn overgeslagen.',
     '%count% older override(s) are not listed here.' => '%count% oudere forcering(en) worden hier niet vermeld.',
+    'The address could not be saved. See the system log for the details.' => 'Het adres kon niet worden opgeslagen. Raadpleeg het systeemlogboek voor details.',
 ];

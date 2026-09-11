@@ -1972,4 +1972,5 @@ return [
     'Select a status.' => 'Sélectionnez un statut.',
     '%count% order(s) no longer exist and were skipped.' => '%count% commande(s) n\'existe(nt) plus et ont été ignorées.',
     '%count% older override(s) are not listed here.' => '%count% forçage(s) plus ancien(s) ne sont pas listés ici.',
+    'The address could not be saved. See the system log for the details.' => 'L\'adresse n\'a pas pu être enregistrée. Consultez le journal système pour le détail.',
 ];

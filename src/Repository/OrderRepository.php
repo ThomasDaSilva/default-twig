@@ -19,6 +19,8 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
 use Propel\Runtime\Propel;
+use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
+use Thelia\Core\Event\TheliaEvents;
 use Thelia\Model\Map\OrderTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
@@ -57,6 +59,19 @@ final class OrderRepository
 
     /** @var array<string, list<array{id: int, code: string, title: string, color: string, count: int}>> */
     private array $statusesWithCounts = [];
+
+    /**
+     * The status rows change rarely and through these events only; the counts
+     * change with every order, and a memo per request is what the sidebar wants.
+     */
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_CREATE, priority: -128)]
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_UPDATE, priority: -128)]
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_DELETE, priority: -128)]
+    #[AsEventListener(event: TheliaEvents::ORDER_STATUS_UPDATE_POSITION, priority: -128)]
+    public function reset(): void
+    {
+        $this->statusesWithCounts = [];
+    }
 
     /**
      * @return array{rows: ObjectCollection<int, Order>, total: int, lastPage: int}
