@@ -265,7 +265,7 @@
         {{ component('BoDataTable', {
             id: 'products',
             columns: [
-                column_select('_select', 'Select this product'|trans, 'id', 'ref', visibleFrom: 'md'),
+                column_select('_select', 'Select this product'|trans, 'id', 'ref'),
                 column('id', 'ID'|trans, visibleFrom: 'md'),
                 column_html('thumbnail_html', 'Image'|trans, 'center', visibleFrom: 'md'),
                 column_html('ref_html', 'Reference'|trans, 'start', 'ref', visibleFrom: 'md'),

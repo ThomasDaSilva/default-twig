@@ -363,7 +363,7 @@
                 column_actions('_actions', 'Actions'|trans),
             ] %}
             {% if is_granted('UPDATE', 'admin.order') %}
-                {% set order_columns = [column_select('_select', 'Select this order'|trans, 'id', 'ref', visibleFrom: 'md')]|merge(order_columns) %}
+                {% set order_columns = [column_select('_select', 'Select this order'|trans, 'id', 'ref')]|merge(order_columns) %}
             {% endif %}
 
             {{ component('BoDataTable', {
