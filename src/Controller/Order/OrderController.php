@@ -25,6 +25,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderRoundingRule;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnContextBuilder;
+use BackOfficeDefaultTwigBundle\Service\Order\OrderStatusChangeContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Pdf\OrderPdfRenderer;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -40,6 +41,7 @@ use Thelia\Core\Event\Order\OrderAddressEvent;
 use Thelia\Core\Event\Order\OrderEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
 use Thelia\Model\CountryQuery;
@@ -47,7 +49,6 @@ use Thelia\Model\CustomerTitleQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderAddressQuery;
 use Thelia\Model\OrderQuery;
-use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\StateQuery;
@@ -80,6 +81,7 @@ final class OrderController
         private readonly CountryStateProvider $countryStates,
         private readonly OrderReturnContextBuilder $returnContextBuilder,
         private readonly OrderStatusTransitionGuard $transitionGuard,
+        private readonly OrderStatusChangeContextBuilder $statusChangeContext,
         private readonly AdminLogger $adminLogger,
         private readonly RequestStack $requestStack,
     ) {
@@ -139,7 +141,7 @@ final class OrderController
                 'items_page' => $itemsPage,
                 'items_last_page' => $itemsLastPage,
                 'order_addresses' => $this->orderAddresses($order, $locale),
-                ...$this->statusChangeContext($order, $locale),
+                ...$this->statusChangeContext->build($order, $locale),
                 'customer_titles' => $this->customerTitleChoices($locale),
                 'countries' => $this->countryChoices($locale),
                 'states' => $this->stateChoices($locale),
@@ -163,7 +165,9 @@ final class OrderController
 
         $redirect = new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
 
-        if (!$this->tokens->checkToken((string) ($request->request->get('_token') ?? $request->query->get('_token', '')))) {
+        try {
+            $this->tokens->checkToken((string) ($request->request->get('_token') ?? $request->query->get('_token', '')));
+        } catch (TokenAuthenticationException) {
             $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
 
             return $redirect;
@@ -220,6 +224,11 @@ final class OrderController
     #[Route('/admin/order/update/{order_id}/status', name: 'admin.order.update.status', methods: ['POST', 'GET'], requirements: ['order_id' => '\d+'])]
     public function updateStatus(int $order_id, Request $request): Response
     {
+        // The right comes first: nothing about the order is said before it is checked.
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
         $order = OrderQuery::create()->findPk($order_id);
         if ($order === null) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
@@ -235,7 +244,7 @@ final class OrderController
         }
 
         if (!$forced && !$this->transitionGuard->isAllowed((int) $order->getStatusId(), $statusId)) {
-            $this->flash('danger', $this->refusalMessage($order, $statusId, $request->getLocale()));
+            $this->flash('danger', $this->statusChangeContext->refusalMessage($order, $statusId, $request->getLocale()));
 
             return $detail;
         }
@@ -267,6 +276,10 @@ final class OrderController
     #[Route('/admin/order/list/cancel/{order_id}', name: 'admin.order.list.cancel', methods: ['POST', 'GET'], requirements: ['order_id' => '\d+'])]
     public function cancelFromList(int $order_id, Request $request): Response
     {
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
         $order = OrderQuery::create()->findPk($order_id);
         if ($order === null) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
@@ -278,7 +291,7 @@ final class OrderController
         }
 
         if (!$this->transitionGuard->isAllowed((int) $order->getStatusId(), (int) $cancelStatus->getId())) {
-            $this->flash('danger', $this->refusalMessage($order, (int) $cancelStatus->getId(), $request->getLocale()));
+            $this->flash('danger', $this->statusChangeContext->refusalMessage($order, (int) $cancelStatus->getId(), $request->getLocale()));
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
@@ -593,57 +606,6 @@ final class OrderController
     private function stateChoices(string $locale): array
     {
         return $this->countryStates->visibleStates($locale);
-    }
-
-    /**
-     * The statuses the graph lets this order reach and, for an administrator
-     * entitled to it, the other statuses a forced change may pick.
-     *
-     * @return array<string, mixed>
-     */
-    private function statusChangeContext(Order $order, string $locale): array
-    {
-        $currentId = (int) $order->getStatusId();
-        $allowed = [];
-        $forcedOnly = [];
-        $allowedIds = array_map(static fn (OrderStatus $status): int => (int) $status->getId(), $this->transitionGuard->allowedTargets($currentId));
-
-        foreach ($this->orderRepository->findStatusesLocalized($locale) as $status) {
-            if ($status['id'] === $currentId) {
-                continue;
-            }
-
-            if (\in_array($status['id'], $allowedIds, true)) {
-                $allowed[] = $status;
-            } else {
-                $forcedOnly[] = $status;
-            }
-        }
-
-        $cancelStatusId = (int) (OrderStatusQuery::getCancelledStatus()?->getId() ?? 0);
-        $canForce = null === $this->access->check(AdminResources::ORDER_STATUS_FORCE, [], AccessManager::UPDATE);
-
-        return [
-            'allowed_statuses' => $allowed,
-            'forced_only_statuses' => $canForce ? $forcedOnly : [],
-            'status_is_free' => $this->transitionGuard->isFree($currentId),
-            'can_force_status' => $canForce,
-            'can_cancel' => $cancelStatusId > 0 && $this->transitionGuard->isAllowed($currentId, $cancelStatusId),
-        ];
-    }
-
-    private function refusalMessage(Order $order, int $toStatusId, string $locale): string
-    {
-        $from = $order->getOrderStatus();
-        $to = OrderStatusQuery::create()->findPk($toStatusId);
-        $from->setLocale($locale);
-        $to?->setLocale($locale);
-
-        return $this->translator->trans('Order %ref% cannot go from "%from%" to "%to%": this transition is not allowed. Change the transitions of the status, or force the change if you are entitled to.', [
-            '%ref%' => (string) $order->getRef(),
-            '%from%' => (string) $from->getTitle(),
-            '%to%' => (string) ($to?->getTitle() ?? $toStatusId),
-        ]);
     }
 
     private function flash(string $type, string $message): void

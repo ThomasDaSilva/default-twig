@@ -14,10 +14,12 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\OrderStatus;
 
+use Propel\Runtime\Propel;
 use Thelia\Domain\Order\Enum\OrderStatusActionTrigger;
 use Thelia\Domain\Order\Exception\InvalidOrderStatusActionPayloadException;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRegistry;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRunner;
+use Thelia\Model\Map\OrderStatusActionTableMap;
 use Thelia\Model\OrderStatusAction;
 use Thelia\Model\OrderStatusActionQuery;
 
@@ -97,8 +99,21 @@ final readonly class OrderStatusActionWriter
         $position = max(1, min($position, \count($siblings) + 1));
         array_splice($siblings, $position - 1, 0, [$action]);
 
-        foreach (array_values($siblings) as $index => $sibling) {
-            $sibling->setPosition($index + 1)->save();
+        // All or nothing: a renumbering that stops halfway would leave two actions
+        // on the same position and an order of execution nobody chose.
+        $connection = Propel::getConnection(OrderStatusActionTableMap::DATABASE_NAME);
+        $connection->beginTransaction();
+
+        try {
+            foreach (array_values($siblings) as $index => $sibling) {
+                $sibling->setPosition($index + 1)->save($connection);
+            }
+
+            $connection->commit();
+        } catch (\Throwable $throwable) {
+            $connection->rollBack();
+
+            throw $throwable;
         }
 
         $this->runner->reset();

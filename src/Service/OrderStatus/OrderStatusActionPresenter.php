@@ -23,7 +23,6 @@ use Thelia\Domain\Order\StatusAction\Effect\SendCustomerEmailAction;
 use Thelia\Domain\Order\StatusAction\Effect\SendShopManagersEmailAction;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionInterface;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRegistry;
-use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusAction;
 
 /**
@@ -92,11 +91,11 @@ final readonly class OrderStatusActionPresenter
     }
 
     /**
-     * @param array<int, OrderStatus> $statuses indexed by id
+     * @param array<int, string> $statusTitles localized titles by status id
      *
      * @return array<string, mixed>
      */
-    public function row(OrderStatusAction $action, array $statuses, int $failures): array
+    public function row(OrderStatusAction $action, array $statusTitles, int $failures): array
     {
         $type = $action->getActionType();
         $installed = $this->registry->has($type);
@@ -104,7 +103,7 @@ final readonly class OrderStatusActionPresenter
         return [
             'id' => (int) $action->getId(),
             'position' => (int) $action->getPosition(),
-            'trigger' => $this->triggerLabel($action, $statuses),
+            'trigger' => $this->triggerLabel($action, $statusTitles),
             'type' => $type,
             'type_label' => $installed ? $this->typeLabel($type) : $type,
             'installed' => $installed,
@@ -120,17 +119,15 @@ final readonly class OrderStatusActionPresenter
     }
 
     /**
-     * @param array<int, OrderStatus> $statuses
+     * @param array<int, string> $statusTitles
      */
-    private function triggerLabel(OrderStatusAction $action, array $statuses): string
+    private function triggerLabel(OrderStatusAction $action, array $statusTitles): string
     {
         if (OrderStatusActionTrigger::TRANSITION->value !== $action->getTriggerType()) {
             return $this->translator->trans('On entering this status');
         }
 
-        $from = $statuses[(int) $action->getFromStatusId()] ?? null;
-
-        return $this->translator->trans('Coming from %status%', ['%status%' => $from?->getTitle() ?? '#'.$action->getFromStatusId()]);
+        return $this->translator->trans('Coming from %status%', ['%status%' => $statusTitles[(int) $action->getFromStatusId()] ?? '#'.$action->getFromStatusId()]);
     }
 
     private function summary(OrderStatusAction $action): string
