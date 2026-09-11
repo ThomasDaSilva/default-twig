@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Order;
 
+use BackOfficeDefaultTwigBundle\Repository\AdminLogRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderStatusRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
@@ -28,7 +29,8 @@ use Thelia\Model\OrderStatusQuery;
 /**
  * The status controls of the order sheet: the statuses the graph lets the order
  * reach and, for an administrator entitled to it, the other statuses a forced
- * change may pick. Also words the refusal of a change the graph does not allow.
+ * change may pick, plus the forced changes the order has already received. Also
+ * words the refusal of a change the graph does not allow.
  */
 final readonly class OrderStatusChangeContextBuilder
 {
@@ -37,6 +39,7 @@ final readonly class OrderStatusChangeContextBuilder
         private AdminAccessChecker $access,
         private OrderRepository $orderRepository,
         private OrderStatusRepository $statusRepository,
+        private AdminLogRepository $adminLogRepository,
         private TranslatorInterface $translator,
     ) {
     }
@@ -72,7 +75,35 @@ final readonly class OrderStatusChangeContextBuilder
             'status_is_free' => $this->transitionGuard->isFree($currentId),
             'can_force_status' => $canForce,
             'can_cancel' => $cancelStatusId > 0 && $this->transitionGuard->isAllowed($currentId, $cancelStatusId),
+            'forced_status_changes' => $this->forcedStatusChanges($order, $locale),
         ];
+    }
+
+    /**
+     * The overrides this order went through, worded with the status titles of the
+     * interface rather than the codes the administration log stores.
+     *
+     * @return list<array{created_at: ?\DateTimeInterface, admin: string, from: string, to: string}>
+     */
+    private function forcedStatusChanges(Order $order, string $locale): array
+    {
+        $titlesByCode = [];
+        foreach ($this->statusRepository->findLocalized($locale) as $status) {
+            $titlesByCode[(string) $status->getCode()] = (string) $status->getTitle();
+        }
+
+        $changes = [];
+        foreach ($this->adminLogRepository->findForcedOrderStatusChanges((int) $order->getId()) as $change) {
+            $changes[] = [
+                'created_at' => $change['created_at'],
+                'admin' => $change['admin'],
+                // A status deleted since keeps its code on screen: it is all that is left of it.
+                'from' => $titlesByCode[$change['from_code']] ?? $change['from_code'],
+                'to' => $titlesByCode[$change['to_code']] ?? $change['to_code'],
+            ];
+        }
+
+        return $changes;
     }
 
     public function refusalMessage(Order $order, int $toStatusId, string $locale): string

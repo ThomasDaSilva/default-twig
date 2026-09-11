@@ -238,4 +238,8 @@ return [
     'Apply' => 'Apply',
     'Orders whose current status does not allow the transition are skipped and named.' => 'Orders whose current status does not allow the transition are skipped and named.',
     'Select this order' => 'Select this order',
+    'Run order' => 'Run order',
+    'Choose the status to force' => 'Choose the status to force',
+    'Statuses forced on this order' => 'Statuses forced on this order',
+    'No status can be reached from every order selected: narrow the selection.' => 'No status can be reached from every order selected: narrow the selection.',
 ];

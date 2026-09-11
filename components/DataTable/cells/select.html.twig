@@ -1,9 +1,11 @@
 {%- set valueKey = column.options.value_key|default('id') -%}
 {%- set labelKey = column.options.label_key|default(null) -%}
+{%- set stateKey = column.options.state_key|default(null) -%}
 <input type="checkbox"
        class="form-check-input"
        value="{{ row[valueKey]|default('') }}"
        {% if labelKey %}data-label="{{ row[labelKey]|default('') }}"{% endif %}
+       {% if stateKey %}data-bulk-state="{{ row[stateKey]|default('') }}"{% endif %}
        data-bo-bulk-select-target="row"
        data-action="change->bo-bulk-select#onRow"
        aria-label="{{ column.label }}"

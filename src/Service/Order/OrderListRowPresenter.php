@@ -129,6 +129,9 @@ final readonly class OrderListRowPresenter
                 $this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $orderId]),
             ),
             'status' => (string) ($status?->getTitle() ?? '-'),
+            // Carried by the selection checkbox, so the bulk toolbar can narrow its
+            // targets to what the graph allows from every ticked order.
+            'status_id' => (int) $order->getStatusId(),
             'status_code' => (string) ($status?->getCode() ?? ''),
             'status_color' => (string) ($status?->getColor() ?: self::FALLBACK_STATUS_COLOR),
             'customer_html' => $this->renderCustomer($order),

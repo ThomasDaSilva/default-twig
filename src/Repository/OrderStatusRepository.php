@@ -22,13 +22,28 @@ use Thelia\Model\OrderStatusQuery;
  * Reads the order statuses for display, titles included, in one query. The
  * screens work on these copies and never touch the objects the core keeps in
  * its per-request catalog.
+ *
+ * A status screen asks for the same list three times (the transitions tab, the
+ * unreachable-status warning, the actions tab), so the read is memoised per
+ * locale for the request, as the order filter catalog does.
  */
-final readonly class OrderStatusRepository
+final class OrderStatusRepository
 {
+    /** @var array<string, array<int, OrderStatus>> */
+    private array $statusesByLocale = [];
+
     /**
      * @return array<int, OrderStatus> indexed by id, in position order, localized
      */
     public function findLocalized(string $locale): array
+    {
+        return $this->statusesByLocale[$locale] ??= $this->readLocalized($locale);
+    }
+
+    /**
+     * @return array<int, OrderStatus>
+     */
+    private function readLocalized(string $locale): array
     {
         $statuses = [];
 

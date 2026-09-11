@@ -338,14 +338,21 @@
                             {{ 'selected'|trans }}
                         </span>
                         <label class="visually-hidden" for="order-bulk-status">{{ 'Move the selected orders to'|trans }}</label>
-                        <select id="order-bulk-status" name="status_id" class="form-select form-select-sm w-auto" required data-testid="order-bulk-status-select">
+                        {#- Each target names the statuses it is within reach of, so the
+                            browser can drop the ones no selected order could take. The
+                            server partitions again on submit whatever the browser did. -#}
+                        <select id="order-bulk-status" name="status_id" class="form-select form-select-sm w-auto" required
+                                data-bo-bulk-select-target="restrict" data-testid="order-bulk-status-select">
                             <option value="">{{ 'Move the selected orders to'|trans }}</option>
                             {% for status in bulk_statuses %}
-                                <option value="{{ status.id }}">{{ status.title }}</option>
+                                <option value="{{ status.id }}" data-bulk-from="{{ status.from_status_ids|join(',') }}">{{ status.title }}</option>
                             {% endfor %}
                         </select>
                         <button type="submit" class="btn btn-sm btn-primary" data-testid="order-bulk-status-submit">{{ 'Apply'|trans }}</button>
                         <span class="small text-muted">{{ 'Orders whose current status does not allow the transition are skipped and named.'|trans }}</span>
+                        <span class="small text-danger" data-bo-bulk-select-target="restrictHint" hidden data-testid="order-bulk-no-target">
+                            {{ 'No status can be reached from every order selected: narrow the selection.'|trans }}
+                        </span>
                         <button type="button" class="btn btn-sm btn-link" data-action="bo-bulk-select#clear" data-testid="order-bulk-clear">{{ 'Clear selection'|trans }}</button>
                     </form>
                 </div>
@@ -363,7 +370,7 @@
                 column_actions('_actions', 'Actions'|trans),
             ] %}
             {% if is_granted('UPDATE', 'admin.order') %}
-                {% set order_columns = [column_select('_select', 'Select this order'|trans, 'id', 'ref')]|merge(order_columns) %}
+                {% set order_columns = [column_select('_select', 'Select this order'|trans, 'id', 'ref', stateKey: 'status_id')]|merge(order_columns) %}
             {% endif %}
 
             {{ component('BoDataTable', {

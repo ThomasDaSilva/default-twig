@@ -1965,4 +1965,8 @@ return [
     'Move the selected orders to' => 'Passer les commandes sélectionnées en',
     'Orders whose current status does not allow the transition are skipped and named.' => 'Les commandes dont le statut actuel n\'autorise pas la transition sont ignorées et nommées.',
     'Select this order' => 'Sélectionner cette commande',
+    'Run order' => 'Ordre d\'exécution',
+    'Choose the status to force' => 'Choisir le statut à forcer',
+    'Statuses forced on this order' => 'Statuts forcés sur cette commande',
+    'No status can be reached from every order selected: narrow the selection.' => 'Aucun statut n\'est atteignable depuis toutes les commandes sélectionnées : réduisez la sélection.',
 ];

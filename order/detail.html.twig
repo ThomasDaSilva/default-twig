@@ -290,7 +290,9 @@
                                         <form action="{{ path('admin.order.update.status', { order_id: order.id }) }}?_token={{ token }}" method="post" class="mt-2" data-testid="order-status-force-form">
                                             <input type="hidden" name="force" value="1">
                                             <div class="input-group">
-                                                <select name="status_id" class="form-select border-danger" aria-label="{{ 'Status to force'|trans }}" data-testid="order-status-force-select">
+                                                <select name="status_id" class="form-select border-danger" required aria-label="{{ 'Status to force'|trans }}" data-testid="order-status-force-select">
+                                                    {#- Never preselected: forcing is always a deliberate pick. -#}
+                                                    <option value="" selected>{{ 'Choose the status to force'|trans }}</option>
                                                     {% for s in forced_only_statuses %}
                                                         <option value="{{ s.id }}">{{ s.title }}</option>
                                                     {% endfor %}
@@ -300,6 +302,24 @@
                                             <div class="form-text text-danger">{{ 'The transition graph is bypassed for this order only. The override is written to the administration log.'|trans }}</div>
                                         </form>
                                     </details>
+                                {% endif %}
+                                {% if forced_status_changes|length > 0 %}
+                                    <div class="mt-3" data-testid="order-forced-status-changes">
+                                        <h3 class="h6 mb-2">{{ 'Statuses forced on this order'|trans }}</h3>
+                                        <ul class="list-group list-group-flush small">
+                                            {% for change in forced_status_changes %}
+                                                <li class="list-group-item d-flex flex-wrap column-gap-2 px-0">
+                                                    <span class="text-muted">{{ change.created_at ? change.created_at|date('d/m/Y H:i') : '' }}</span>
+                                                    <span>{{ change.admin }}</span>
+                                                    <span>
+                                                        <span class="fw-semibold">{{ change.from }}</span>
+                                                        <i class="bi bi-arrow-right mx-1" aria-hidden="true"></i>
+                                                        <span class="fw-semibold">{{ change.to }}</span>
+                                                    </span>
+                                                </li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
                                 {% endif %}
                             </div>
                             <div class="col-md-6">

@@ -5,18 +5,28 @@ import { Controller } from '@hotwired/stimulus';
  * count, reveals the bulk toolbar and mirrors the selected ids into every bulk
  * form so each submit carries the current selection.
  *
+ * A "restrict" select narrows itself to the options every selected row can take:
+ * each row states what it is (data-bulk-state), each option lists the states it
+ * accepts (data-bulk-from). The list is a convenience, never the rule: the
+ * server decides again on submit.
+ *
  * Usage:
  *   <div data-controller="bo-bulk-select">
  *       <input type="checkbox" data-bo-bulk-select-target="all" data-action="change->bo-bulk-select#toggleAll">
- *       <input type="checkbox" data-bo-bulk-select-target="row" value="12" data-action="change->bo-bulk-select#onRow">
+ *       <input type="checkbox" data-bo-bulk-select-target="row" value="12" data-bulk-state="3" data-action="change->bo-bulk-select#onRow">
  *       <div data-bo-bulk-select-target="toolbar" hidden>
  *           <span data-bo-bulk-select-target="count">0</span>
- *           <form data-bo-bulk-select-target="form">…</form>
+ *           <form data-bo-bulk-select-target="form">
+ *               <select data-bo-bulk-select-target="restrict">
+ *                   <option value="7" data-bulk-from="3,4">Refunded</option>
+ *               </select>
+ *               <span data-bo-bulk-select-target="restrictHint" hidden>…</span>
+ *           </form>
  *       </div>
  *   </div>
  */
 export default class extends Controller {
-    static targets = ['all', 'row', 'toolbar', 'count', 'form', 'summary'];
+    static targets = ['all', 'row', 'toolbar', 'count', 'form', 'summary', 'restrict', 'restrictHint'];
 
     // The name of the hidden inputs carrying the selection, one listing may not be about products.
     static values = { param: { type: String, default: 'product_ids[]' } };
@@ -56,7 +66,43 @@ export default class extends Controller {
         const labels = selected.map((row) => row.dataset.label || row.value).join(', ');
         this.summaryTargets.forEach((node) => { node.textContent = labels; });
 
+        this.restrictTargetOptions(selected);
         this.syncForms(selected.map((row) => row.value));
+    }
+
+    /**
+     * Hides the options none of the selected rows could take, and says so when
+     * nothing is left.
+     */
+    restrictTargetOptions(selected) {
+        if (!this.hasRestrictTarget) {
+            return;
+        }
+
+        const states = [...new Set(selected.map((row) => row.dataset.bulkState).filter((state) => state))];
+        let available = 0;
+
+        this.restrictTargets.forEach((select) => {
+            Array.from(select.options).forEach((option) => {
+                if (option.value === '') {
+                    return;
+                }
+
+                const accepted = (option.dataset.bulkFrom || '').split(',').filter(Boolean);
+                const reachable = states.length > 0 && states.every((state) => accepted.includes(state));
+
+                option.hidden = !reachable;
+                option.disabled = !reachable;
+                available += reachable ? 1 : 0;
+            });
+
+            // A target that just went out of reach must not stay picked.
+            if (select.selectedOptions.length > 0 && select.selectedOptions[0].disabled) {
+                select.value = '';
+            }
+        });
+
+        this.restrictHintTargets.forEach((node) => { node.hidden = selected.length === 0 || available > 0; });
     }
 
     /** Rewrites the hidden selection inputs of every bulk form. */

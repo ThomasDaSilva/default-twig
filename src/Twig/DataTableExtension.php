@@ -53,6 +53,9 @@ final class DataTableExtension extends AbstractExtension
     /**
      * Row checkbox driving the bulk-action toolbar. The header renders the
      * select-all box, so the label is only used as its accessible name.
+     *
+     * @param string|null $stateKey row key whose value the checkbox carries, for a
+     *                              bulk action that only applies to some rows
      */
     public function selectColumn(
         string $key = '_select',
@@ -61,13 +64,14 @@ final class DataTableExtension extends AbstractExtension
         ?string $labelKey = null,
         ?string $hideBelow = null,
         string $visibleFrom = 'always',
+        ?string $stateKey = null,
     ): Column {
         return new Column(
             $key,
             $label,
             ColumnKind::SELECT,
             'center',
-            ['value_key' => $valueKey, 'label_key' => $labelKey],
+            ['value_key' => $valueKey, 'label_key' => $labelKey, 'state_key' => $stateKey],
             hideBelow: $hideBelow,
             visibleFrom: $visibleFrom,
         );

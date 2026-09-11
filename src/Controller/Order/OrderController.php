@@ -19,6 +19,8 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
+use BackOfficeDefaultTwigBundle\Service\Order\ForcedStatusChangeLog;
+use BackOfficeDefaultTwigBundle\Service\Order\OrderBulkStatusPlanner;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderDetailContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
@@ -81,6 +83,7 @@ final class OrderController
         private readonly CountryStateProvider $countryStates,
         private readonly OrderReturnContextBuilder $returnContextBuilder,
         private readonly OrderStatusTransitionGuard $transitionGuard,
+        private readonly OrderBulkStatusPlanner $bulkStatusPlanner,
         private readonly OrderStatusChangeContextBuilder $statusChangeContext,
         private readonly AdminLogger $adminLogger,
         private readonly RequestStack $requestStack,
@@ -102,7 +105,7 @@ final class OrderController
 
         return new Response($this->twig->render(self::LIST_TEMPLATE, [
             'rows' => $this->rowPresenter->presentAll($paginated['rows'], $locale),
-            'bulk_statuses' => $this->orderRepository->findStatusesLocalized($locale),
+            'bulk_statuses' => $this->bulkStatusPlanner->targets($locale),
             'bulk_status_url' => $this->urls->generate('admin.order.list.update.status'),
             'total' => $paginated['total'],
             'pages' => $paginated['lastPage'],
@@ -183,13 +186,13 @@ final class OrderController
             return $redirect;
         }
 
-        // The graph decides on the id, the reference and the current status: nothing else is loaded.
-        $orders = OrderQuery::create()->filterById($orderIds, Criteria::IN)->find();
-        $partition = $this->transitionGuard->partition($orders, $statusId);
+        // The graph decides on the id, the reference and the current status; only the
+        // orders it lets through are then read whole, for the event to work on.
+        $plan = $this->bulkStatusPlanner->plan($orderIds, $statusId);
         $updated = 0;
         $failed = [];
 
-        foreach ($partition['allowed'] as $order) {
+        foreach ($this->orderRepository->findByIds($plan['allowed_ids']) as $order) {
             try {
                 $event = new OrderEvent($order);
                 $event->setStatus($statusId);
@@ -207,10 +210,10 @@ final class OrderController
             $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Bulk status change to %s on %d order(s)', $status->getCode(), $updated));
         }
 
-        if ([] !== $partition['refused']) {
+        if ([] !== $plan['refused_refs']) {
             $this->flash('warning', $this->translator->trans('Skipped, the transition to "%status%" is not allowed from their current status: %refs%', [
                 '%status%' => (string) $status->getTitle(),
-                '%refs%' => implode(', ', array_map(static fn (Order $order): string => (string) $order->getRef(), $partition['refused'])),
+                '%refs%' => implode(', ', $plan['refused_refs']),
             ]));
         }
 
@@ -267,7 +270,11 @@ final class OrderController
             successRoute: self::DETAIL_ROUTE,
             successParameters: ['order_id' => $order_id],
             describeForLog: $forced ? static fn (OrderEvent $event): array => [
-                \sprintf('Forced order %s from status %s to status %s, outside the allowed transitions', $event->getOrder()->getRef(), $previousCode, $event->getOrder()->getOrderStatus()->getCode()),
+                ForcedStatusChangeLog::message(
+                    (string) $event->getOrder()->getRef(),
+                    $previousCode,
+                    (string) $event->getOrder()->getOrderStatus()->getCode(),
+                ),
                 $order_id,
             ] : null,
         );

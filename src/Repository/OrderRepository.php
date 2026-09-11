@@ -96,6 +96,48 @@ final class OrderRepository
         return OrderQuery::create()->findPk($orderId);
     }
 
+    /**
+     * What a bulk status change needs to decide: the identifier, the reference to
+     * name a skipped order with, and the status the graph starts from. Three
+     * columns, no object, nothing the decision does not read.
+     *
+     * @param list<int> $orderIds
+     *
+     * @return list<array{id: int, ref: string, status_id: int}>
+     */
+    public function findStatusDecisionRows(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return [];
+        }
+
+        $decisions = [];
+
+        foreach (OrderQuery::create()->filterById($orderIds, Criteria::IN)->select(['Id', 'Ref', 'StatusId'])->find() as $row) {
+            $decisions[] = [
+                'id' => (int) $row['Id'],
+                'ref' => (string) $row['Ref'],
+                'status_id' => (int) $row['StatusId'],
+            ];
+        }
+
+        return $decisions;
+    }
+
+    /**
+     * @param list<int> $orderIds
+     *
+     * @return list<Order>
+     */
+    public function findByIds(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return [];
+        }
+
+        return iterator_to_array(OrderQuery::create()->filterById($orderIds, Criteria::IN)->find(), false);
+    }
+
     public function countItemsForOrder(int $orderId): int
     {
         return OrderProductQuery::create()->filterByOrderId($orderId)->count();
