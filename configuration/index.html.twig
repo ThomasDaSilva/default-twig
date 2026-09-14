@@ -44,6 +44,7 @@
         hookBottom: 'configuration.order-path.bottom',
         items: [
             { route: 'admin.order-status.default', label: 'Order status'|trans, icon: 'bi-list-check', resource: 'admin.configuration.order-status' },
+            { route: 'admin.checkout-step.list', label: 'Checkout steps'|trans, icon: 'bi-signpost-split', resource: 'admin.configuration.checkout-step' },
             { route: 'admin.consent.default', label: 'Checkout consents'|trans, icon: 'bi-check2-square', resource: 'admin.configuration.consent' },
             { route: 'admin.order-return-reason.default', label: 'Return reasons'|trans, icon: 'bi-arrow-return-left', resource: 'admin.configuration.order-return-reason', enabled: thelia_config('order_return_enabled', '0') == '1' },
         ],

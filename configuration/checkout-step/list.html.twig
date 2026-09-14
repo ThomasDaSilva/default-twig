@@ -1,0 +1,81 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Checkout steps'|trans }}{% endblock %}
+{% block body_testid %}configuration-checkout-steps{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.index') }}">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Checkout steps'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {{ safe_hook('checkout-step.top') }}
+
+    <div class="container-fluid" data-testid="checkout-steps-page">
+        <h1 class="h3 mb-3">{{ 'Checkout steps management'|trans }}</h1>
+
+        <div class="card mb-4">
+            <div class="card-header">{{ 'Checkout layout'|trans }}</div>
+            <div class="card-body">
+                {% form_theme display_mode_form with bo_form_themes only %}
+                {{ form_start(display_mode_form, {
+                    action: path('admin.checkout-step.save-display-mode'),
+                    method: 'post',
+                    attr: { 'data-testid': 'checkout-display-mode-form' },
+                }) }}
+                    <div class="row">
+                        <div class="col-lg-6">
+                            {{ form_row(display_mode_form.checkout_display_mode, {
+                                attr: { 'data-testid': 'checkout-display-mode-select' },
+                            }) }}
+                        </div>
+                    </div>
+
+                    {{ component('BoSaveModeToolbar', {
+                        showSaveClose: false,
+                        saveVariant: 'primary',
+                        testid: 'checkout-display-mode',
+                    }) }}
+                {{ form_end(display_mode_form) }}
+            </div>
+        </div>
+
+        <p class="text-muted">
+            {{ 'Drag a row to change the order the buyer walks through the tunnel. The checkout opens on the cart, takes the payment next to last and ends on the confirmation: those three cannot be moved out of place, nor turned off.'|trans }}
+        </p>
+
+        {{ component('BoDataTable', {
+            id: 'checkout-steps',
+            columns: [
+                column('position', 'Position'|trans, 'center'),
+                column('title', 'Checkout step'|trans, 'start'),
+                column('code', 'Code'|trans, 'start', hideBelow: 'lg'),
+                column_toggle('mandatory', 'Mandatory'|trans, null),
+                column_toggle('active', 'Active'|trans, 'toggle_active_url'),
+            ],
+            rows: rows,
+            emptyMessage: 'No checkout step defined yet.'|trans,
+            extraColumnsHeaderHook: 'checkout-step.table-header',
+            extraColumnsHook: 'checkout-step.table-row',
+            rowHookArgs: { checkout_step_code: 'code' },
+            rowIdentifierKey: 'title',
+            tbodyAttributes: {
+                'data-controller': 'bo-sortable',
+                'data-bo-sortable-url-value': update_position_url,
+                'data-bo-sortable-token-value': update_position_token,
+                'data-bo-sortable-param-name-value': position_param_name,
+            },
+        }) }}
+    </div>
+
+    {{ safe_hook('checkout-step.bottom') }}
+{% endblock %}
+
+{% block scripts_extra %}
+    {{ safe_hook('checkout-step.js', { location: 'checkout-step-js' }) }}
+{% endblock %}
