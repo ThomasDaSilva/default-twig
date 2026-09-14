@@ -16,7 +16,6 @@ namespace BackOfficeDefaultTwigBundle\Controller\Order;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
-use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
@@ -27,12 +26,13 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderRoundingRule;
-use BackOfficeDefaultTwigBundle\Service\Order\OrderStatusChangeContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnContextBuilder;
+use BackOfficeDefaultTwigBundle\Service\Order\OrderStatusChangeContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Pdf\OrderPdfRenderer;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
@@ -69,7 +69,6 @@ final class OrderController
 
     public function __construct(
         private readonly AdminFormAction $action,
-        private readonly AdminFlash $flash,
         private readonly AdminAccessChecker $access,
         private readonly Environment $twig,
         private readonly UrlGeneratorInterface $urls,
@@ -88,6 +87,7 @@ final class OrderController
         private readonly OrderBulkStatusPlanner $bulkStatusPlanner,
         private readonly OrderStatusChangeContextBuilder $statusChangeContext,
         private readonly AdminLogger $adminLogger,
+        private readonly RequestStack $requestStack,
     ) {
     }
 
@@ -172,7 +172,7 @@ final class OrderController
         try {
             $this->tokens->checkToken((string) ($request->request->get('_token') ?? $request->query->get('_token', '')));
         } catch (TokenAuthenticationException) {
-            $this->flash->add('danger', $this->translator->trans('Invalid security token, please try again.'));
+            $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
 
             return $redirect;
         }
@@ -182,7 +182,7 @@ final class OrderController
         $status = OrderStatusQuery::create()->findPk($statusId);
 
         if ([] === $orderIds || null === $status) {
-            $this->flash->add('warning', $this->translator->trans('Select at least one order and a status.'));
+            $this->flash('warning', $this->translator->trans('Select at least one order and a status.'));
 
             return $redirect;
         }
@@ -207,23 +207,23 @@ final class OrderController
         $status->setLocale($request->getLocale());
 
         if ($updated > 0) {
-            $this->flash->add('success', $this->translator->trans('%count% order(s) moved to "%status%".', ['%count%' => $updated, '%status%' => (string) $status->getTitle()]));
+            $this->flash('success', $this->translator->trans('%count% order(s) moved to "%status%".', ['%count%' => $updated, '%status%' => (string) $status->getTitle()]));
             $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Bulk status change to %s on %d order(s)', $status->getCode(), $updated));
         }
 
         if ([] !== $plan['refused_refs']) {
-            $this->flash->add('warning', $this->translator->trans('Skipped, the transition to "%status%" is not allowed from their current status: %refs%', [
+            $this->flash('warning', $this->translator->trans('Skipped, the transition to "%status%" is not allowed from their current status: %refs%', [
                 '%status%' => (string) $status->getTitle(),
                 '%refs%' => implode(', ', $plan['refused_refs']),
             ]));
         }
 
         if ($plan['missing_count'] > 0) {
-            $this->flash->add('warning', $this->translator->trans('%count% order(s) no longer exist and were skipped.', ['%count%' => $plan['missing_count']]));
+            $this->flash('warning', $this->translator->trans('%count% order(s) no longer exist and were skipped.', ['%count%' => $plan['missing_count']]));
         }
 
         if ([] !== $failed) {
-            $this->flash->add('danger', $this->translator->trans('The status change failed for: %refs%', ['%refs%' => implode(', ', $failed)]));
+            $this->flash('danger', $this->translator->trans('The status change failed for: %refs%', ['%refs%' => implode(', ', $failed)]));
         }
 
         return $redirect;
@@ -249,7 +249,7 @@ final class OrderController
         // An empty selector, or a status deleted since the sheet was rendered: said
         // plainly, before the graph is asked about a status that is not one.
         if ($statusId <= 0 || null === OrderStatusQuery::create()->findPk($statusId)) {
-            $this->flash->add('warning', $this->translator->trans('Select a status.'));
+            $this->flash('warning', $this->translator->trans('Select a status.'));
 
             return $detail;
         }
@@ -260,7 +260,7 @@ final class OrderController
         }
 
         if (!$forced && !$this->transitionGuard->isAllowed((int) $order->getStatusId(), $statusId)) {
-            $this->flash->add('danger', $this->statusChangeContext->refusalMessage($order, $statusId, $request->getLocale()));
+            $this->flash('danger', $this->statusChangeContext->refusalMessage($order, $statusId, $request->getLocale()));
 
             return $detail;
         }
@@ -312,7 +312,7 @@ final class OrderController
         }
 
         if (!$this->transitionGuard->isAllowed((int) $order->getStatusId(), (int) $cancelStatus->getId())) {
-            $this->flash->add('danger', $this->statusChangeContext->refusalMessage($order, (int) $cancelStatus->getId(), $request->getLocale()));
+            $this->flash('danger', $this->statusChangeContext->refusalMessage($order, (int) $cancelStatus->getId(), $request->getLocale()));
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
@@ -433,7 +433,7 @@ final class OrderController
             // goes to the log, where it does not leak internals to the browser.
             Tlog::getInstance()->error(\sprintf('Order %d address update failed: %s', $order_id, $throwable->getMessage()));
 
-            $this->flash->add('danger', $this->translator->trans('The address could not be saved. See the system log for the details.'));
+            $this->flash('danger', $this->translator->trans('The address could not be saved. See the system log for the details.'));
         }
 
         return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
@@ -631,5 +631,13 @@ final class OrderController
     private function stateChoices(string $locale): array
     {
         return $this->countryStates->visibleStates($locale);
+    }
+
+    private function flash(string $type, string $message): void
+    {
+        $session = $this->requestStack->getSession();
+        if (method_exists($session, 'getFlashBag')) {
+            $session->getFlashBag()->add($type, $message);
+        }
     }
 }
