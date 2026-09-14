@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Order\OrderStatusType;
 use BackOfficeDefaultTwigBundle\Repository\OrderStatusActionRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
@@ -30,7 +31,6 @@ use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -64,6 +64,7 @@ final class OrderStatusController
 
     public function __construct(
         private readonly AdminFormAction $action,
+        private readonly AdminFlash $flash,
         private readonly AdminAccessChecker $access,
         private readonly Environment $twig,
         private readonly FormFactoryInterface $formFactory,
@@ -71,7 +72,6 @@ final class OrderStatusController
         private readonly TokenProvider $tokens,
         private readonly TranslatorInterface $translator,
         private readonly EditLocaleResolver $editLocale,
-        private readonly RequestStack $requestStack,
         private readonly AdminLogger $adminLogger,
         private readonly OrderStatusTransitionWriter $transitionWriter,
         private readonly OrderStatusActionRepository $actionRepository,
@@ -161,7 +161,7 @@ final class OrderStatusController
         $this->transitionWriter->replaceTargets($order_status_id, $targetIds);
 
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Transitions of order status %s set to [%s]', $status->getCode(), implode(', ', $targetIds)), $order_status_id);
-        $this->flash('success', [] === $targetIds
+        $this->flash->add('success', [] === $targetIds
             ? $this->translator->trans('This status is free again: an order in this status may move to any other status.')
             : $this->translator->trans('The allowed transitions have been saved.'));
 
@@ -195,13 +195,13 @@ final class OrderStatusController
             $trigger = OrderStatusActionTrigger::from((string) $request->request->get('trigger', OrderStatusActionTrigger::ENTER->value));
             $action = $this->actionWriter->create($order_status_id, $trigger, $fromStatusId > 0 ? $fromStatusId : null, $type, $payload);
         } catch (InvalidOrderStatusActionPayloadException|\InvalidArgumentException|\ValueError $exception) {
-            $this->flash('danger', $exception->getMessage());
+            $this->flash->add('danger', $exception->getMessage());
 
             return $redirect;
         }
 
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Action %s #%d added to order status %s', $type, $action->getId(), $status->getCode()), $order_status_id);
-        $this->flash('success', $this->translator->trans('The action has been added.'));
+        $this->flash->add('success', $this->translator->trans('The action has been added.'));
 
         return $redirect;
     }
@@ -280,20 +280,12 @@ final class OrderStatusController
         try {
             $this->tokens->checkToken($token);
         } catch (TokenAuthenticationException) {
-            $this->flash('danger', $this->translator->trans('Invalid security token, please try again.'));
+            $this->flash->add('danger', $this->translator->trans('Invalid security token, please try again.'));
 
             return false;
         }
 
         return true;
-    }
-
-    private function flash(string $type, string $message): void
-    {
-        $session = $this->requestStack->getSession();
-        if (method_exists($session, 'getFlashBag')) {
-            $session->getFlashBag()->add($type, $message);
-        }
     }
 
     #[Route('/save/{order_status_id}', name: 'save', methods: ['POST'], requirements: ['order_status_id' => '\d+'])]
