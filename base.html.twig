@@ -1,6 +1,14 @@
 <!DOCTYPE html>
 {# lang must be a valid BCP 47 tag: Thelia locales use underscores (en_US), browsers and Intl APIs require dashes (en-US) #}
-<html lang="{{ app.request.locale|default('en')|replace({'_': '-'}) }}" data-bs-theme="light">
+{# "ltr" or "rtl", from the working language of the administrator. The Thelia template
+   parser also publishes the value as a `lang_direction` variable, but a variable only
+   exists where something puts it: the back-office controllers render through the Twig
+   environment directly and never go through that parser, and neither does a live
+   component re-rendering itself nor a macro. The function is registered on the global
+   Twig environment by the TwigEngine module, so it answers on every one of those - and
+   it answers "ltr" rather than fail, this being the base template of every
+   administration screen. #}
+<html lang="{{ app.request.locale|default('en')|replace({'_': '-'}) }}" dir="{{ lang_direction() }}" data-bs-theme="light">
     {% block head %}
         <head>
             <meta charset="UTF-8">

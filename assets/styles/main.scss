@@ -5,7 +5,27 @@
 
 // Bootstrap 5 - Sass sources shipped by the twbs/bootstrap Composer package,
 // resolved through the sass-bundle load path (vendor/twbs).
+//
+// The two configuration partials are pulled in ahead of the framework so the
+// utility overrides below can read $spacers and $prefix. Neither emits any CSS,
+// and both are guarded by `!default`, so re-importing them from bootstrap.scss
+// right after changes nothing.
+@import "bootstrap/scss/functions";
+@import "bootstrap/scss/variables";
+
+// Redefines the direction-sensitive Bootstrap utilities with CSS logical
+// properties before the framework generates them - see the file header.
+@import "utilities-logical";
+
 @import "bootstrap/scss/bootstrap";
+
+// Horizontal offsets of the inset markers the theme paints with box-shadow.
+// box-shadow has no logical form, so the sign travels through a custom property
+// that _rtl.scss flips (the marker sits on the inline-start edge either way).
+:root {
+    --bo-inline-start-shadow-x: 4px;
+    --bo-sticky-actions-shadow-x: -1px;
+}
 
 // Bootstrap Icons - the font-dir is the on-disk path from this file to the
 // fonts of the twbs/bootstrap-icons Composer package: AssetMapper resolves
@@ -185,7 +205,7 @@ $bo-side-nav-hover-bg: rgba(255, 255, 255, .07);
             width: 1.4rem;
             text-align: center;
             color: rgba(255, 255, 255, .55);
-            margin-right: 0 !important;
+            margin-inline-end: 0 !important;
             transition: color .15s ease;
         }
 
@@ -202,7 +222,7 @@ $bo-side-nav-hover-bg: rgba(255, 255, 255, .07);
         &.active {
             background-color: rgba(255, 255, 255, .04);
             color: $bo-side-nav-text-active;
-            box-shadow: inset 4px 0 0 var(--bs-primary);
+            box-shadow: inset var(--bo-inline-start-shadow-x) 0 0 var(--bs-primary);
 
             > .bi {
                 color: var(--bs-primary);
@@ -216,7 +236,7 @@ $bo-side-nav-hover-bg: rgba(255, 255, 255, .07);
 
     &__chevron {
         font-size: .75rem;
-        margin-left: auto;
+        margin-inline-start: auto;
         transition: transform .18s ease;
         color: rgba(255, 255, 255, .4);
     }
@@ -253,7 +273,8 @@ $bo-side-nav-hover-bg: rgba(255, 255, 255, .07);
     .nav.collapsing .nav-link {
         font-size: .88rem;
         font-weight: 400;
-        padding: .85rem 1.25rem .85rem 2.75rem;
+        padding-block: .85rem;
+        padding-inline: 2.75rem 1.25rem;
         margin-bottom: 0;
         background: transparent;
         box-shadow: none;
@@ -270,7 +291,7 @@ $bo-side-nav-hover-bg: rgba(255, 255, 255, .07);
         // back to the transparent/no-box-shadow state every collapsed link starts from.
         &.active {
             background-color: rgba(255, 255, 255, .06);
-            box-shadow: inset 4px 0 0 var(--bs-primary);
+            box-shadow: inset var(--bo-inline-start-shadow-x) 0 0 var(--bs-primary);
             color: #fff;
         }
     }
@@ -428,7 +449,7 @@ label.FieldInput-label {
 // Symfony auto-renders the help (label_attr.help) right after the label text
 // in the same node; we normalize the spacing via a leading space + small font.
 .form-label small {
-    margin-left: 0;
+    margin-inline-start: 0;
 }
 
 // Legacy "(optionnel)" text is concatenated directly into the label as plain
@@ -485,8 +506,9 @@ input[type="file"] {
         background-color: #f1f3f6;
         border: 0;
         padding: $input-padding-y $input-padding-x;
-        margin: (-$input-padding-y) $input-padding-x (-$input-padding-y) (-$input-padding-x);
-        border-right: 1px solid #cbd0d6;
+        margin-block: (-$input-padding-y);
+        margin-inline: (-$input-padding-x) $input-padding-x;
+        border-inline-end: 1px solid #cbd0d6;
         font-weight: 500;
         color: #2c2c2c;
         cursor: pointer;
@@ -509,7 +531,7 @@ input[type="color"].form-control {
     content: " *";
     color: var(--bs-danger);
     font-weight: 600;
-    margin-left: .15rem;
+    margin-inline-start: .15rem;
 }
 
 // Cards - softer border, modern shadow, headers aligned with body padding
@@ -672,7 +694,7 @@ button.btn {
 .table-responsive {
     .datatable-sticky-actions {
         position: sticky;
-        right: 0;
+        inset-inline-end: 0;
         z-index: 1;
         // The cell paints an opaque background so the columns scrolling under it
         // stay hidden. Bootstrap 5.3 paints striping and hover through an inset
@@ -682,7 +704,7 @@ button.btn {
         background-color: var(--bs-body-bg);
         box-shadow:
             inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, transparent)),
-            -1px 0 0 0 #e6e8eb;
+            var(--bo-sticky-actions-shadow-x) 0 0 0 #e6e8eb;
     }
 }
 
@@ -698,11 +720,11 @@ th.bo-datatable__details-col,
 td.bo-datatable__details-col {
     min-width: 1.5rem;
     // margin is a no-op on table cells, hence padding here instead.
-    padding-right: 5px;
+    padding-inline-end: 5px;
 
     + th,
     + td {
-        padding-left: 8px;
+        padding-inline-start: 8px;
     }
 }
 
@@ -988,7 +1010,7 @@ td.bo-datatable__details-col {
 // Oversized brand mark filling the lower-right void
 .bo-auth__glyph {
     position: absolute;
-    right: -3.5rem;
+    inset-inline-end: -3.5rem;
     bottom: -5rem;
     font-size: 27rem;
     line-height: 1;
@@ -1301,8 +1323,8 @@ td.bo-datatable__details-col {
 
         .form-control {
             height: var(--bo-ctrl-h);
-            padding-left: 2.5rem;
-            padding-right: 2.2rem;
+            padding-inline-start: 2.5rem;
+            padding-inline-end: 2.2rem;
             font-size: .9rem;
         }
     }
@@ -1310,7 +1332,7 @@ td.bo-datatable__details-col {
     &__search-icon {
         position: absolute;
         top: 50%;
-        left: .95rem;
+        inset-inline-start: .95rem;
         transform: translateY(-50%);
         pointer-events: none;
         color: var(--bs-secondary-color, #8a9099);
@@ -1320,7 +1342,7 @@ td.bo-datatable__details-col {
     &__search-hint {
         position: absolute;
         top: 50%;
-        right: .55rem;
+        inset-inline-end: .55rem;
         transform: translateY(-50%);
         pointer-events: none;
         padding: .05rem .45rem;
@@ -1539,7 +1561,7 @@ td.bo-datatable__details-col {
     &__caption {
         flex: 1 1 auto;
         min-width: 0;
-        margin-left: .15rem;
+        margin-inline-start: .15rem;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -1550,7 +1572,7 @@ td.bo-datatable__details-col {
         // A faint separator makes the code name clearly lead, ahead of the title.
         &::before {
             content: "·";
-            margin-right: .5rem;
+            margin-inline-end: .5rem;
             color: var(--bs-border-color, #d9d9d9);
         }
     }
@@ -1562,9 +1584,9 @@ td.bo-datatable__details-col {
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-left: .35rem;
-        padding-left: .6rem;
-        border-left: 1px solid var(--bs-border-color-translucent, #eceef1);
+        margin-inline-start: .35rem;
+        padding-inline-start: .6rem;
+        border-inline-start: 1px solid var(--bs-border-color-translucent, #eceef1);
     }
 
     &__actions {
@@ -1604,20 +1626,20 @@ td.bo-datatable__details-col {
     &__knob {
         position: absolute;
         top: 2px;
-        left: 2px;
+        inset-inline-start: 2px;
         width: 14px;
         height: 14px;
         border-radius: 50%;
         background: #fff;
         box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
-        transition: left .15s ease;
+        transition: inset-inline-start .15s ease;
     }
 
     &--on {
         background: var(--bs-success, #198754);
 
         .bo-switch__knob {
-            left: 18px;
+            inset-inline-start: 18px;
         }
     }
 
@@ -1780,7 +1802,7 @@ main[data-testid="bo-main"] {
 }
 
 tr.bo-order-row--urgent {
-    box-shadow: inset 4px 0 0 var(--bs-danger);
+    box-shadow: inset var(--bo-inline-start-shadow-x) 0 0 var(--bs-danger);
 }
 
 .bo-order-urgent {
@@ -2115,8 +2137,7 @@ tr.bo-order-row--urgent {
 .bo-range-slider__track {
     position: absolute;
     top: 50%;
-    left: 0.5rem;
-    right: 0.5rem;
+    inset-inline: 0.5rem;
     height: 4px;
     transform: translateY(-50%);
     background: var(--bs-border-color);
@@ -2128,8 +2149,7 @@ tr.bo-order-row--urgent {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 0;
-    right: 0;
+    inset-inline: 0;
     background: var(--bs-primary);
     border-radius: 999px;
 }
@@ -2137,7 +2157,7 @@ tr.bo-order-row--urgent {
 .bo-range-slider__handle {
     position: absolute;
     top: 0;
-    left: 0;
+    inset-inline-start: 0;
     width: 100%;
     height: 100%;
     margin: 0;
@@ -2296,11 +2316,11 @@ tr.bo-order-row--urgent {
     h4, h5, h6 { font-size: 1rem; margin-top: 1rem; margin-bottom: .5rem; }
 
     p { margin-bottom: .75rem; }
-    ul, ol { padding-left: 1.5rem; }
+    ul, ol { padding-inline-start: 1.5rem; }
     code { padding: .15rem .35rem; background-color: var(--bs-tertiary-bg); border-radius: .25rem; font-size: .85em; }
     pre { padding: .75rem 1rem; background-color: var(--bs-tertiary-bg); border-radius: .375rem; overflow-x: auto; }
     pre code { padding: 0; background: transparent; }
-    blockquote { border-left: 3px solid var(--bs-border-color); padding-left: 1rem; color: var(--bs-secondary-color); margin: 0 0 .75rem; }
+    blockquote { border-inline-start: 3px solid var(--bs-border-color); padding-inline-start: 1rem; color: var(--bs-secondary-color); margin: 0 0 .75rem; }
     table { width: 100%; margin-bottom: .75rem; }
     img { max-width: 100%; height: auto; }
     a { word-break: break-word; }
@@ -2424,7 +2444,8 @@ tr.bo-order-row--urgent {
     align-items: center;
     gap: .375rem;
     max-width: 100%;
-    padding: .125rem .25rem .125rem .5rem;
+    padding-block: .125rem;
+    padding-inline: .5rem .25rem;
     font-size: .875rem;
     line-height: 1.4;
     background-color: var(--bs-secondary-bg);
@@ -2677,3 +2698,8 @@ tr.bo-order-row--urgent {
         margin-bottom: 1.25rem;
     }
 }
+
+// Right-to-left corrections for what the utility overrides above cannot reach:
+// Bootstrap component internals and this file's own directional rules. Last, so
+// every `[dir="rtl"]` rule sits after the declaration it corrects.
+@import "rtl";

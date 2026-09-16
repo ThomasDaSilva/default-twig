@@ -1,0 +1,117 @@
+// Thelia back-office Twig - direction-aware Bootstrap utilities
+//
+// Bootstrap 5.3 has no Sass-level right-to-left: `bootstrap.rtl.css` is a
+// PostCSS/rtlcss pass run over the already-compiled CSS by a Node toolchain
+// this theme deliberately does not have. Compiled from the Sass sources, the
+// utilities Bootstrap calls "logical" (ms-*, me-*, ps-*, pe-*, text-end,
+// float-end, border-start/-end) come out as *physical* properties -
+// `margin-left`, `float: right`, `text-align: right` - and therefore ignore
+// `dir="rtl"` entirely.
+//
+// Bootstrap's utility API lets a theme redefine a utility before the framework
+// generates it: `_utilities.scss` ends with `map-merge((defaults...),
+// $utilities)`, so every key set here wins over the shipped one. We keep the
+// class names, the values and the responsive variants byte-for-byte and only
+// swap the physical property for its CSS logical equivalent, so:
+//
+//  - left-to-right rendering is unchanged (inline-start *is* left there);
+//  - the 174 uses of these classes across the templates follow the document
+//    direction with no markup change, no second stylesheet and no Node step.
+//
+// Redefining rather than adding is the whole point. A `[dir="rtl"]` rule added
+// on top of Bootstrap's would not replace `margin-right: .25rem`, it would
+// stack with it and leave a margin on *both* sides.
+//
+// One utility escapes that rule and is *added* rather than redefined: `float`,
+// whose logical values are young enough to be worth a fallback. The "float-logical"
+// entry at the bottom of the map carries the reasoning.
+//
+// Only the utilities this back-office actually uses are redefined. `start-*` /
+// `end-*` (position) and `rounded-start` / `rounded-end` are left alone: they
+// have no occurrence in the templates, and flipping `start-50` would change
+// what the `translate-middle` pairing does.
+
+// `float` is the exception, and it is handled at the bottom of this map rather
+// than here: see the "float-logical" entry and the note above it.
+$utilities: (
+    "border-end": (
+        property: border-inline-end,
+        class: border-end,
+        values: (
+            null: var(--#{$prefix}border-width) var(--#{$prefix}border-style) var(--#{$prefix}border-color),
+            0: 0,
+        )
+    ),
+    "border-start": (
+        property: border-inline-start,
+        class: border-start,
+        values: (
+            null: var(--#{$prefix}border-width) var(--#{$prefix}border-style) var(--#{$prefix}border-color),
+            0: 0,
+        )
+    ),
+    "margin-end": (
+        responsive: true,
+        property: margin-inline-end,
+        class: me,
+        values: map-merge($spacers, (auto: auto))
+    ),
+    "margin-start": (
+        responsive: true,
+        property: margin-inline-start,
+        class: ms,
+        values: map-merge($spacers, (auto: auto))
+    ),
+    "padding-end": (
+        responsive: true,
+        property: padding-inline-end,
+        class: pe,
+        values: $spacers
+    ),
+    "padding-start": (
+        responsive: true,
+        property: padding-inline-start,
+        class: ps,
+        values: $spacers
+    ),
+    "text-align": (
+        responsive: true,
+        property: text-align,
+        class: text,
+        values: (
+            start: start,
+            end: end,
+            center: center,
+        )
+    ),
+
+    // `float: inline-start | inline-end` is the least portable value of the
+    // whole file - noticeably younger than `margin-inline-*`, `padding-inline-*`,
+    // `inset-inline-*`, `border-inline-*` and `text-align: start | end`. A
+    // browser that does not know it drops the declaration, and `.float-end`
+    // would then stop floating *in left-to-right too*: a regression paid by
+    // every visitor to fix a direction few shops use.
+    //
+    // So this one is written as a cascade instead of a replacement. Bootstrap's
+    // own "float" key is left untouched above, so the framework still emits
+    // `float: left | right`; this entry re-emits the same classes with the
+    // logical value right after. A browser that understands it keeps the second
+    // declaration, one that does not keeps the first.
+    //
+    // The ordering is what makes it work, and it is not incidental:
+    // `_utilities.scss` ends with `map-merge($bootstrap-utilities, $utilities)`,
+    // which keeps an overridden key at its original rank and *appends* a new
+    // one. "float-logical" is a new key, so it is generated last - after
+    // "float", inside every breakpoint block. Renaming it to "float" would put
+    // it back at Bootstrap's rank and silently reverse the cascade.
+    "float-logical": (
+        responsive: true,
+        property: float,
+        class: float,
+        values: (
+            start: inline-start,
+            end: inline-end,
+            none: none,
+        )
+    ),
+);

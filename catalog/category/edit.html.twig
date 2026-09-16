@@ -206,7 +206,7 @@
                                             data-action="change->bo-folder-content-picker#folderChanged">
                                         <option value="">{{ 'Select a folder...'|trans }}</option>
                                         {% for folder in folder_tree %}
-                                            <option value="{{ folder.id }}" {% if folder.id == selected_folder_id %}selected{% endif %} style="padding-left: {{ 3 + folder.level * 20 }}px">{{ folder.title }}</option>
+                                            <option value="{{ folder.id }}" {% if folder.id == selected_folder_id %}selected{% endif %} style="padding-inline-start: {{ 3 + folder.level * 20 }}px">{{ folder.title }}</option>
                                         {% endfor %}
                                     </select>
                                     <small class="form-text text-muted">{{ 'Select a folder to get its content'|trans }}</small>

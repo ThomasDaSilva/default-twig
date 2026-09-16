@@ -1,0 +1,383 @@
+// Thelia back-office Twig - right-to-left corrections
+//
+// `_utilities-logical.scss` handles everything the templates express through a
+// Bootstrap utility class. What is left is the CSS that lives inside Bootstrap's
+// *components* and inside this theme, where the physical property is written
+// straight into the framework and cannot be redefined through the utility API.
+// Those are corrected here, under `[dir="rtl"]`, and only for the components the
+// back-office actually renders: reboot lists, form-check / form-switch /
+// form-select, input-group, btn-group, dropdown, breadcrumb, pagination, modal,
+// offcanvas (the sidebar), alert-dismissible and list-inline.
+//
+// Everything here is scoped by `[dir="rtl"]`, which also buys one unit of
+// specificity over the Bootstrap rule it corrects - needed because several of
+// those rules carry four or five `:not()` and would otherwise win.
+//
+// ON EVERY BOOTSTRAP UPGRADE, RE-READ THE SELECTOR LISTS BELOW.
+// Three blocks copy Bootstrap's own selectors verbatim to correct the rule they
+// carry: the input-group mixins at the top of this file (against
+// `_forms/_input-group.scss` and the `.input-group` block of `_forms.scss`), the
+// button-group radii and collapsing margins (`_button-group.scss`), and the
+// pagination radii (`_pagination.scss`). A selector Bootstrap rewrites upstream
+// stops matching here, and nothing fails: the corner is simply wrong, only in
+// right-to-left, only on that component. `composer.json` therefore pins
+// `twbs/bootstrap` to `~5.3.x` so a minor upgrade is a deliberate act - and this
+// is what that act has to check, by opening the framework's partials next to
+// this file and diffing the selectors.
+//
+// Left alone, on purpose:
+//  - `.spinner-border` (`border-right-color: transparent`): a rotating ring, the
+//    mirrored and unmirrored renderings are indistinguishable;
+//  - `.list-group-horizontal*`, `.card-group`, `.accordion`, `.toast`,
+//    `.dropup` / `.dropend` / `.dropstart`, `.form-check-reverse`,
+//    `.form-floating`, `.nav-underline`: no occurrence in the templates;
+//  - Popper-positioned dropdowns and tooltips: Popper reads the computed
+//    direction and resolves `-start` / `-end` placements on its own.
+
+// Bootstrap squares the inner edges of an input-group with *physical* corner
+// radii, so right-to-left it squares the group's outer edges instead. These two
+// mixins carry its selector lists so the correction can be written twice over
+// the same targets without copying them (see the two passes below).
+@mixin bo-rtl-input-group-leading($group: ".input-group") {
+    #{$group}:not(.has-validation) > :not(:last-child):not(.dropdown-toggle):not(.dropdown-menu):not(.form-floating),
+    #{$group}:not(.has-validation) > .dropdown-toggle:nth-last-child(n+3),
+    #{$group}.has-validation > :nth-last-child(n+3):not(.dropdown-toggle):not(.dropdown-menu):not(.form-floating),
+    #{$group}.has-validation > .dropdown-toggle:nth-last-child(n+4) {
+        @content;
+    }
+}
+
+@mixin bo-rtl-input-group-trailing($group: ".input-group") {
+    #{$group} > :not(:first-child):not(.dropdown-menu):not(.valid-tooltip):not(.valid-feedback):not(.invalid-tooltip):not(.invalid-feedback) {
+        @content;
+    }
+}
+
+[dir="rtl"] {
+
+    // ---------- Signed offsets the theme paints with box-shadow ----------
+    // `box-shadow` has no logical form, so main.scss carries the horizontal
+    // offset of its inset edge markers in a custom property, and this is where
+    // the sign flips.
+    --bo-inline-start-shadow-x: -4px;
+    --bo-sticky-actions-shadow-x: 1px;
+
+    // ---------- Reboot ----------
+    ol,
+    ul {
+        padding-left: 0;
+        padding-right: 2rem;
+    }
+
+    caption {
+        text-align: right;
+    }
+
+    legend {
+        float: right;
+    }
+
+    legend + * {
+        clear: right;
+    }
+
+    .list-inline-item:not(:last-child) {
+        margin-right: 0;
+        margin-left: $list-inline-padding;
+    }
+
+    // ---------- Checkboxes, switches, selects ----------
+    .form-check {
+        padding-left: 0;
+        padding-right: $form-check-padding-start;
+    }
+
+    .form-check .form-check-input {
+        float: right;
+        margin-left: 0;
+        margin-right: $form-check-padding-start * -1;
+    }
+
+    .form-check-inline {
+        margin-right: 0;
+        margin-left: $form-check-inline-margin-end;
+    }
+
+    .form-switch {
+        padding-left: 0;
+        padding-right: $form-switch-padding-start;
+    }
+
+    .form-switch .form-check-input {
+        margin-left: 0;
+        margin-right: $form-switch-padding-start * -1;
+        background-position: right center;
+    }
+
+    .form-switch .form-check-input:checked {
+        background-position: left center;
+    }
+
+    .form-select {
+        padding-right: $form-select-padding-x;
+        padding-left: $form-select-indicator-padding;
+        background-position: left $form-select-padding-x center;
+    }
+
+    .form-select[multiple],
+    .form-select[size]:not([size="1"]) {
+        padding-left: $form-select-padding-x;
+    }
+
+    .form-select-sm {
+        padding-left: $form-select-padding-x-sm;
+    }
+
+    .form-select-lg {
+        padding-left: $form-select-padding-x-lg;
+    }
+
+    // ---------- Dropdowns ----------
+    // Popper places an open menu; these rules cover the static fallback (the
+    // pre-Popper `[data-bs-popper]` state and the alignment modifier) and the
+    // caret spacing.
+    .dropdown-menu {
+        text-align: right;
+    }
+
+    .dropdown-menu[data-bs-popper] {
+        left: auto;
+        right: 0;
+    }
+
+    .dropdown-menu-end[data-bs-popper] {
+        right: auto;
+        left: 0;
+    }
+
+    .dropdown-toggle::after {
+        margin-left: 0;
+        margin-right: $caret-spacing;
+    }
+
+    .dropdown-toggle:empty::after {
+        margin-right: 0;
+    }
+
+    // ---------- Grouped controls ----------
+    // CSS gives no way to read an element's own radius back, hence the explicit
+    // values below. The correction runs in two passes on purpose: a child that
+    // is neither first nor last matches both selector sets and must end up
+    // square on both edges. Restoring first and squaring second is what gets
+    // that right - one block per selector set would let the second one hand a
+    // radius back to a middle child.
+
+    // Pass 1 - give the radius back on the edge Bootstrap squared.
+    @include bo-rtl-input-group-leading {
+        border-top-right-radius: $input-border-radius;
+        border-bottom-right-radius: $input-border-radius;
+    }
+
+    @include bo-rtl-input-group-trailing {
+        border-top-left-radius: $input-border-radius;
+        border-bottom-left-radius: $input-border-radius;
+    }
+
+    @include bo-rtl-input-group-leading(".input-group-sm") {
+        border-top-right-radius: $input-border-radius-sm;
+        border-bottom-right-radius: $input-border-radius-sm;
+    }
+
+    @include bo-rtl-input-group-trailing(".input-group-sm") {
+        border-top-left-radius: $input-border-radius-sm;
+        border-bottom-left-radius: $input-border-radius-sm;
+    }
+
+    @include bo-rtl-input-group-leading(".input-group-lg") {
+        border-top-right-radius: $input-border-radius-lg;
+        border-bottom-right-radius: $input-border-radius-lg;
+    }
+
+    @include bo-rtl-input-group-trailing(".input-group-lg") {
+        border-top-left-radius: $input-border-radius-lg;
+        border-bottom-left-radius: $input-border-radius-lg;
+    }
+
+    // A button keeps its own radius token whatever size class the group carries.
+    .input-group > .btn:not(:last-child),
+    .btn-group > .btn:not(:last-child):not(.dropdown-toggle),
+    .btn-group > .btn.dropdown-toggle-split:first-child,
+    .btn-group > .btn-group:not(:last-child) > .btn {
+        border-top-right-radius: var(--#{$prefix}btn-border-radius);
+        border-bottom-right-radius: var(--#{$prefix}btn-border-radius);
+    }
+
+    .input-group > .btn:not(:first-child),
+    .btn-group > .btn:nth-child(n+3),
+    .btn-group > :not(.btn-check) + .btn,
+    .btn-group > .btn-group:not(:first-child) > .btn {
+        border-top-left-radius: var(--#{$prefix}btn-border-radius);
+        border-bottom-left-radius: var(--#{$prefix}btn-border-radius);
+    }
+
+    // Pass 2 - square the edge that is the inner one once the group runs
+    // right-to-left, and move the border-collapsing negative margin over.
+    @include bo-rtl-input-group-leading {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    @include bo-rtl-input-group-trailing {
+        margin-left: 0;
+        margin-right: calc(-1 * #{$input-border-width});
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .btn-group > .btn:not(:last-child):not(.dropdown-toggle),
+    .btn-group > .btn.dropdown-toggle-split:first-child,
+    .btn-group > .btn-group:not(:last-child) > .btn {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+    }
+
+    .btn-group > .btn:nth-child(n+3),
+    .btn-group > :not(.btn-check) + .btn,
+    .btn-group > .btn-group:not(:first-child) > .btn {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+
+    .btn-group > :not(.btn-check:first-child) + .btn,
+    .btn-group > .btn-group:not(:first-child) {
+        margin-left: 0;
+        margin-right: calc(-1 * var(--#{$prefix}border-width));
+    }
+
+    // ---------- Breadcrumb ----------
+    .breadcrumb-item + .breadcrumb-item {
+        padding-left: 0;
+        padding-right: var(--#{$prefix}breadcrumb-item-padding-x);
+    }
+
+    .breadcrumb-item + .breadcrumb-item::before {
+        float: right;
+        padding-right: 0;
+        padding-left: var(--#{$prefix}breadcrumb-item-padding-x);
+    }
+
+    // ---------- Pagination ----------
+    .page-item:not(:first-child) .page-link {
+        margin-left: 0;
+        margin-right: calc(-1 * var(--#{$prefix}border-width));
+    }
+
+    .page-item:first-child .page-link {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+        border-top-right-radius: var(--#{$prefix}pagination-border-radius);
+        border-bottom-right-radius: var(--#{$prefix}pagination-border-radius);
+    }
+
+    .page-item:last-child .page-link {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+        border-top-left-radius: var(--#{$prefix}pagination-border-radius);
+        border-bottom-left-radius: var(--#{$prefix}pagination-border-radius);
+    }
+
+    // ---------- Dismissible alerts, modals, offcanvas ----------
+    .alert-dismissible {
+        padding-right: var(--#{$prefix}alert-padding-x);
+        padding-left: $alert-dismissible-padding-r;
+    }
+
+    .alert-dismissible .btn-close {
+        right: auto;
+        left: 0;
+    }
+
+    .modal-header .btn-close {
+        margin-right: auto;
+        margin-left: calc(-.5 * var(--#{$prefix}modal-header-padding-x));
+    }
+
+    .offcanvas-header .btn-close {
+        margin-right: auto;
+        margin-left: calc(-.5 * var(--#{$prefix}offcanvas-padding-x));
+    }
+
+    // ---------- Icons ----------
+    // No stylesheet strategy ever mirrors an icon font: Bootstrap Icons draw a
+    // chevron or an arrow the same way whatever the document direction is, so
+    // the glyphs that carry a direction are mirrored here. Only those: the
+    // vertical ones (`bi-chevron-down` / `-up` on filter and tree toggles,
+    // `bi-sort-up` / `bi-sort-down` / `bi-arrow-down-up` on sortable headers)
+    // read the same both ways, and the circular ones (`bi-arrow-clockwise`,
+    // `bi-arrow-counterclockwise`, `bi-arrow-repeat`) would have their meaning
+    // reversed by a mirror. `bi-arrow-left-right` is its own mirror image.
+    //
+    // This covers the four chevrons of `_prev_next_buttons.html.twig`, the
+    // category tree toggles and the "Back" arrows, without a single template
+    // knowing which direction it is being rendered in.
+    .bi-chevron-left,
+    .bi-chevron-right:not(.bo-side-nav__chevron),
+    .bi-arrow-left,
+    .bi-arrow-right,
+    .bi-arrow-return-left,
+    .bi-box-arrow-right,
+    .bi-box-arrow-in-right {
+        display: inline-block;
+        transform: scaleX(-1);
+    }
+
+    // The sidebar chevron is the same glyph but animated: at rest it points into
+    // the page (leftwards here), expanded it rotates to point down. A rotation
+    // rather than a mirror keeps that transition continuous - and the expanded
+    // state is direction-neutral, so main.scss keeps owning it.
+    .bo-side-nav__chevron {
+        transform: rotate(180deg);
+    }
+
+    // The windowed pagination writes its previous/next arrows as `&lsaquo;` and
+    // `&rsaquo;`. Both are Bidi_Mirrored characters, which the browser mirrors
+    // on its own inside a right-to-left paragraph - a CSS mirror here would undo
+    // that.
+}
+
+// The sidebar is `offcanvas-lg offcanvas-start`: below lg it slides in, and it
+// has to slide in from the reading side. The responsive variants live in their
+// own media queries, so this mirrors Bootstrap's own loop rather than nesting.
+@each $breakpoint in map-keys($grid-breakpoints) {
+    $next: breakpoint-next($breakpoint, $grid-breakpoints);
+    $infix: breakpoint-infix($next, $grid-breakpoints);
+
+    @include media-breakpoint-down($next) {
+        [dir="rtl"] .offcanvas#{$infix}.offcanvas-start {
+            right: 0;
+            left: auto;
+            border-right: 0;
+            border-left: var(--#{$prefix}offcanvas-border-width) solid var(--#{$prefix}offcanvas-border-color);
+            transform: translateX(100%);
+        }
+
+        [dir="rtl"] .offcanvas#{$infix}.offcanvas-end {
+            left: 0;
+            right: auto;
+            border-left: 0;
+            border-right: var(--#{$prefix}offcanvas-border-width) solid var(--#{$prefix}offcanvas-border-color);
+            transform: translateX(-100%);
+        }
+
+        // The resting transforms above are what slides the panel off screen, and
+        // Bootstrap cancels them on the open states with `transform: none`. That rule
+        // lives higher up in the sheet and carries no `[dir]`, so it loses to the two
+        // blocks above on specificity and the panel would stay off screen once opened -
+        // voile painted, `show` class set, menu unreachable. Re-stating the open states
+        // here, at the same specificity and after, hands the panel back.
+        [dir="rtl"] .offcanvas#{$infix}.showing,
+        [dir="rtl"] .offcanvas#{$infix}.show:not(.hiding) {
+            transform: none;
+        }
+    }
+}

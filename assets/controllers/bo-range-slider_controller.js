@@ -76,8 +76,11 @@ export default class extends Controller {
         }
         const minPercent = ((Number(this.minRangeTarget.value) - this.minValue) / span) * 100;
         const maxPercent = ((Number(this.maxRangeTarget.value) - this.minValue) / span) * 100;
-        this.fillTarget.style.left = `${minPercent}%`;
-        this.fillTarget.style.right = `${100 - maxPercent}%`;
+        // Logical insets, not left/right: a native range input runs from its max
+        // to its min under dir="rtl", so the painted fill has to follow the
+        // reading direction the same way.
+        this.fillTarget.style.insetInlineStart = `${minPercent}%`;
+        this.fillTarget.style.insetInlineEnd = `${100 - maxPercent}%`;
     }
 
     clamp(value) {

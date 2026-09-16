@@ -20,7 +20,7 @@
                                         data-action="change->bo-folder-content-picker#folderChanged">
                                     <option value="">{{ 'Select a folder...'|trans }}</option>
                                     {% for folder in folder_tree %}
-                                        <option value="{{ folder.id }}" style="padding-left: {{ 3 + folder.level * 20 }}px">{{ folder.title }}</option>
+                                        <option value="{{ folder.id }}" style="padding-inline-start: {{ 3 + folder.level * 20 }}px">{{ folder.title }}</option>
                                     {% endfor %}
                                 </select>
                                 <small class="form-text text-muted">{{ 'Select a folder to get its content'|trans }}</small>
@@ -102,7 +102,7 @@
                         <select id="product-additional-category-id" name="category_id" class="form-select" required>
                             <option value="">{{ 'Select a category...'|trans }}</option>
                             {% for category in category_tree_for_additional %}
-                                <option value="{{ category.id }}" {% if category.disabled %}disabled{% endif %} style="padding-left: {{ 3 + category.level * 20 }}px">{{ category.title }}{% if category.id == default_category_id %} {{ '(default)'|trans }}{% endif %}</option>
+                                <option value="{{ category.id }}" {% if category.disabled %}disabled{% endif %} style="padding-inline-start: {{ 3 + category.level * 20 }}px">{{ category.title }}{% if category.id == default_category_id %} {{ '(default)'|trans }}{% endif %}</option>
                             {% endfor %}
                         </select>
                         <button type="submit" class="btn btn-primary" data-testid="product-additional-category-add">

@@ -19,7 +19,7 @@
                                 data-action="change->bo-category-product-picker#categoryChanged">
                             <option value="">{{ 'Select a category...'|trans }}</option>
                             {% for category in category_tree_for_relations %}
-                                <option value="{{ category.id }}" style="padding-left: {{ 3 + category.level * 20 }}px">{{ category.title }}</option>
+                                <option value="{{ category.id }}" style="padding-inline-start: {{ 3 + category.level * 20 }}px">{{ category.title }}</option>
                             {% endfor %}
                         </select>
                         <small class="form-text text-muted">{{ 'Select a category to get its products'|trans }}</small>

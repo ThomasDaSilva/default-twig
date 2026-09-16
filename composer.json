@@ -19,8 +19,8 @@
         "symfony/ux-twig-component": "^2.19 || ^3.0",
         "symfonycasts/sass-bundle": "^0.10.0",
         "thelia/tiptap-module": "^1.0",
-        "thelia/twig-engine-module": "^1.0.9",
-        "twbs/bootstrap": "^5.3.8",
+        "thelia/twig-engine-module": "^1.1",
+        "twbs/bootstrap": "~5.3.8",
         "twbs/bootstrap-icons": "^1.13"
     },
     "conflict": {

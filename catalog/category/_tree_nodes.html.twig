@@ -1,6 +1,6 @@
 {% for item in items %}
     <li class="bo-category-tree__item" data-bo-category-tree-target="node" data-category-id="{{ item.id }}" data-parent-id="{{ items.parentId|default('') }}" draggable="true" data-testid="category-tree-node-{{ item.id }}">
-        <div class="d-flex align-items-center py-1 border-bottom" style="padding-left: {{ depth * 24 }}px;">
+        <div class="d-flex align-items-center py-1 border-bottom" style="padding-inline-start: {{ depth * 24 }}px;">
             <button type="button" class="btn btn-sm btn-link p-0 me-2" data-action="bo-category-tree#toggle" aria-label="{{ 'Toggle children'|trans }}">
                 {% if item.children|length > 0 %}
                     <i class="bi bi-chevron-down bo-category-tree__chevron" aria-hidden="true"></i>
