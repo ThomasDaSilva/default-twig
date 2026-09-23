@@ -35,6 +35,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Checkout\Enum\GuestCheckoutMode;
 use Thelia\Domain\Media\Video\VideoProviderResolver;
+use Thelia\Domain\Taxation\Enum\VatExemptionMode;
 use Thelia\Model\ConfigQuery;
 use Twig\Environment;
 
@@ -144,6 +145,7 @@ final class ConfigStoreController
             'store_ape_code' => (string) ConfigQuery::read('store_ape_code', ''),
             'store_eori' => (string) ConfigQuery::read('store_eori', ''),
             'store_vat_exempt' => (string) ConfigQuery::read('store_vat_exempt', '0'),
+            'vat_exemption_mode' => (string) ConfigQuery::read(VatExemptionMode::CONFIG_KEY, VatExemptionMode::DISABLED->value),
             'store_registration_exempt' => (string) ConfigQuery::read('store_registration_exempt', '0'),
             'store_legal_mentions' => (string) ConfigQuery::read('store_legal_mentions', ''),
             'store_email' => ConfigQuery::read('store_email'),

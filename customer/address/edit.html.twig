@@ -40,6 +40,27 @@
                         {% if form.vat_number is defined %}
                             <div class="col-md-6">{{ form_row(form.vat_number) }}</div>
                         {% endif %}
+                        {% if address is defined and address and address.vatVerifiedAt %}
+                            <div class="col-12" data-testid="address-vat-verification">
+                                <div class="alert {{ address.vatVerificationValid ? 'alert-success' : 'alert-secondary' }} mb-0">
+                                    {% if address.vatVerificationValid %}
+                                        {{ 'VAT number verified on %date%'|trans({'%date%': address.vatVerifiedAt|format_date}) }}
+                                    {% else %}
+                                        {{ 'VAT number last verified on %date%, outside the validity period: this address no longer exempts.'|trans({'%date%': address.vatVerifiedAt|format_date}) }}
+                                    {% endif %}
+                                    {% if address.vatVerifiedName %}<span class="text-muted">({{ address.vatVerifiedName }})</span>{% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
+                        {% if vat_verification_available|default(false) and address is defined and address and address.vatNumber %}
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm"
+                                        form="address-vat-verify-form"
+                                        data-testid="address-vat-verify-submit">
+                                    <i class="bi bi-arrow-repeat" aria-hidden="true"></i> {{ 'Verify the VAT number again'|trans }}
+                                </button>
+                            </div>
+                        {% endif %}
                         {# A warning and not a block: an address saved before these columns
                            existed is legitimate, and only a submit has to be complete. #}
                         {% if form.company.vars.value|default('')|trim is not empty
@@ -76,6 +97,12 @@
                         </button>
                     </div>
                 {{ form_end(form) }}
+                {% if vat_verification_available|default(false) and address is defined and address and address.vatNumber %}
+                    <form id="address-vat-verify-form" method="post" action="{{ path('admin.address.vat.verify') }}" data-testid="address-vat-verify-form">
+                        <input type="hidden" name="address_id" value="{{ address.id }}">
+                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    </form>
+                {% endif %}
             </div>
         </div>
     </div>

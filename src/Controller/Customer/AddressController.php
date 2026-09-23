@@ -20,6 +20,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\Customer\VatVerificationAvailability;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\I18n\StateChoiceProvider;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -65,6 +66,7 @@ final class AddressController
         private readonly CustomerTitleService $titleService,
         private readonly StateChoiceProvider $stateChoices,
         private readonly CountryStateProvider $countryStates,
+        private readonly VatVerificationAvailability $vatVerification,
     ) {
     }
 
@@ -87,6 +89,7 @@ final class AddressController
         return new Response($this->twig->render(self::EDIT_TEMPLATE, [
             'form' => $form->createView(),
             'address' => $address,
+            'vat_verification_available' => $this->vatVerification->isAvailable(),
         ]));
     }
 

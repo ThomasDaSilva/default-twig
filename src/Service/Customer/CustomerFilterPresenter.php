@@ -61,6 +61,7 @@ final readonly class CustomerFilterPresenter
             'tristate_options' => $this->tristateOptions(),
             'newsletter_options' => $this->newsletterOptions(),
             'guest_options' => $this->guestOptions(),
+            'vat_verified_options' => $this->vatVerifiedOptions(),
 
             'selected_country_id' => $filters->countryId,
             'selected_lang_ids' => $filters->langIds,
@@ -68,6 +69,7 @@ final readonly class CustomerFilterPresenter
             'selected_tag_ids' => $filters->tagIds,
             'newsletter_value' => $this->triStateValue($filters->newsletter),
             'guest_value' => $this->triStateValue($filters->guest),
+            'vat_verified_value' => $this->triStateValue($filters->vatVerified),
 
             'created_from_input' => $filters->createdFrom?->format('Y-m-d') ?? '',
             'created_to_input' => $filters->createdTo?->format('Y-m-d') ?? '',
@@ -123,6 +125,17 @@ final readonly class CustomerFilterPresenter
                 $filters->guest
                     ? $this->translator->trans('Guest')
                     : $this->translator->trans('Registered customer'),
+            );
+        }
+
+        if ($filters->vatVerified !== null) {
+            $chips[] = $this->chip(
+                $filters,
+                CustomerFilters::KEY_VAT_VERIFIED,
+                $this->translator->trans('VAT verification'),
+                $filters->vatVerified
+                    ? $this->translator->trans('Verified address')
+                    : $this->translator->trans('No verified address'),
             );
         }
 
@@ -368,6 +381,18 @@ final readonly class CustomerFilterPresenter
         ];
     }
 
+    /**
+     * @return list<array{value: string, label: string}>
+     */
+    private function vatVerifiedOptions(): array
+    {
+        return [
+            ['value' => '', 'label' => $this->translator->trans('All')],
+            ['value' => CustomerFilters::TRISTATE_WITH, 'label' => $this->translator->trans('Verified address')],
+            ['value' => CustomerFilters::TRISTATE_WITHOUT, 'label' => $this->translator->trans('No verified address')],
+        ];
+    }
+
     private function countAdvancedFilters(CustomerFilters $filters): int
     {
         $count = 0;
@@ -376,6 +401,9 @@ final readonly class CustomerFilterPresenter
             ++$count;
         }
         if ($filters->guest !== null) {
+            ++$count;
+        }
+        if ($filters->vatVerified !== null) {
             ++$count;
         }
         if ($filters->createdFrom !== null || $filters->createdTo !== null) {

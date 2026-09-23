@@ -354,6 +354,7 @@
                             title: 'Invoice address'|trans,
                             address: order_addresses.invoice,
                             customer_email: customer ? customer.email : null,
+                            currency_symbol: currency.symbol,
                             hook: null,
                         } only %}
                     </div>
@@ -363,6 +364,7 @@
                             title: 'Delivery address'|trans,
                             address: order_addresses.delivery,
                             customer_email: null,
+                            currency_symbol: currency.symbol,
                             hook: safe_hook('order-edit.bill-delivery-address', { order_id: order.id, module: delivery.module_id, module_id: delivery.module_id }),
                         } only %}
                     </div>

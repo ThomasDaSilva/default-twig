@@ -28,7 +28,25 @@
                 {% endif %}
                 {% if address.vat_number is defined and address.vat_number %}
                     <dt class="col-sm-5 fw-normal text-muted">{{ 'VAT number'|trans }}</dt>
-                    <dd class="col-sm-7 mb-1">{{ address.vat_number }}</dd>
+                    <dd class="col-sm-7 mb-1">
+                        {{ address.vat_number }}
+                        {% if address.vat_exempted is defined and address.vat_exempted %}
+                            <span class="badge text-bg-success ms-1">{{ 'VAT exempted'|trans }}</span>
+                        {% endif %}
+                    </dd>
+                {% endif %}
+                {% if address.vat_exempted_amount is defined and address.vat_exempted_amount is not null %}
+                    <dt class="col-sm-5 fw-normal text-muted">{{ 'Exempted VAT'|trans }}</dt>
+                    <dd class="col-sm-7 mb-1" data-testid="order-{{ kind }}-address-vat-exempted-amount">
+                        {{ address.vat_exempted_amount|number_format(2, '.', ' ') }} {{ currency_symbol|default('') }}
+                    </dd>
+                {% endif %}
+                {% if address.vat_verified_at is defined and address.vat_verified_at %}
+                    <dt class="col-sm-5 fw-normal text-muted">{{ 'VAT verified on'|trans }}</dt>
+                    <dd class="col-sm-7 mb-1">
+                        {{ address.vat_verified_at|format_date }}
+                        {% if address.vat_verified_name %}<span class="text-muted">({{ address.vat_verified_name }})</span>{% endif %}
+                    </dd>
                 {% endif %}
                 <dt class="col-sm-5 fw-normal text-muted">{{ 'Name'|trans }}</dt>
                 <dd class="col-sm-7 mb-1 fw-semibold">{{ address.firstname }} {{ address.lastname }}</dd>

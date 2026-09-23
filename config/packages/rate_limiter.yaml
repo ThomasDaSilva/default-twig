@@ -1,11 +1,19 @@
-# Password reset links an administrator sends from the customer sheet. Keyed on the
-# customer: the mail goes to someone else's mailbox, and three an hour leaves room for
-# "it did not arrive, send it again" while stopping a sheet from being used to flood it.
-# Kept apart from the core limiters of the front-office request, which are keyed on the
-# caller's address and would spend the customer's own budget.
 framework:
     rate_limiter:
+        # Password reset links an administrator sends from the customer sheet. Keyed on the
+        # customer: the mail goes to someone else's mailbox, and three an hour leaves room for
+        # "it did not arrive, send it again" while stopping a sheet from being used to flood it.
+        # Kept apart from the core limiters of the front-office request, which are keyed on the
+        # caller's address and would spend the customer's own budget.
         admin_customer_password_reset:
             policy: sliding_window
             limit: 3
             interval: '1 hour'
+        # A re-verification reaches an outside authority, on a button an
+        # administrator can hold down. The window is per administrator, generous
+        # enough for a day of legitimate corrections and narrow enough that the
+        # back office cannot be turned into a probe against that authority.
+        vat_reverification:
+            policy: 'sliding_window'
+            limit: 30
+            interval: '15 minutes'

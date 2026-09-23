@@ -34,6 +34,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\Checkout\Enum\GuestCheckoutMode;
 use Thelia\Domain\Legal\CompanyIdentifier;
 use Thelia\Domain\Media\Video\VideoProvider;
+use Thelia\Domain\Taxation\Enum\VatExemptionMode;
 
 final class ConfigStoreType extends AbstractType
 {
@@ -122,6 +123,16 @@ final class ConfigStoreType extends AbstractType
                 'required' => false,
                 'label' => $this->translator->trans('VAT exemption (article 293 B of the French tax code)'),
                 'help' => $this->translator->trans('Prints the VAT exemption notice on invoices and disables the intra-community VAT number.'),
+            ])
+            ->add('vat_exemption_mode', ChoiceType::class, [
+                'constraints' => [new NotBlank()],
+                'label' => $this->translator->trans('Intra-community VAT exemption'),
+                'help' => $this->translator->trans('Requires a verification module: without one no address is ever verified, so no order is ever exempted.'),
+                'choices' => [
+                    $this->translator->trans('Disabled — every order is taxed') => VatExemptionMode::DISABLED->value,
+                    $this->translator->trans('Exempt an order billed to a verified VAT number in another member state') => VatExemptionMode::VERIFIED_VAT_NUMBER->value,
+                ],
+                'placeholder' => false,
             ])
             ->add('store_registration_exempt', CheckboxType::class, [
                 'required' => false,
@@ -288,14 +299,23 @@ final class ConfigStoreType extends AbstractType
             return;
         }
 
-        if (($value['store_vat_exempt'] ?? '0') !== '1' || ($value['store_vat_intracom'] ?? '') === '') {
+        if (($value['store_vat_exempt'] ?? '0') !== '1') {
             return;
         }
 
-        $context
-            ->buildViolation($this->translator->trans('A store under VAT exemption cannot declare an intra-community VAT number.'))
-            ->atPath('children[store_vat_intracom]')
-            ->addViolation();
+        if (($value['store_vat_intracom'] ?? '') !== '') {
+            $context
+                ->buildViolation($this->translator->trans('A store under VAT exemption cannot declare an intra-community VAT number.'))
+                ->atPath('children[store_vat_intracom]')
+                ->addViolation();
+        }
+
+        if (($value['vat_exemption_mode'] ?? VatExemptionMode::DISABLED->value) === VatExemptionMode::VERIFIED_VAT_NUMBER->value) {
+            $context
+                ->buildViolation($this->translator->trans('A store that charges no VAT has none to reverse onto its buyers.'))
+                ->atPath('children[vat_exemption_mode]')
+                ->addViolation();
+        }
     }
 
     /**

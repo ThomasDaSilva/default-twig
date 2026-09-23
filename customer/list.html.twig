@@ -109,6 +109,22 @@
 
                     <div class="col-md-6 col-lg-4">
                         <fieldset>
+                            <legend class="form-label">{{ 'VAT verification'|trans }}</legend>
+                            <div class="btn-group btn-group-sm w-100" role="group" aria-label="{{ 'VAT verification'|trans }}">
+                                {% for option in filters.vat_verified_options %}
+                                    {% set id = 'filter-vat-verified-' ~ (option.value ?: 'all') %}
+                                    <input type="radio" class="btn-check" name="vat_verified" id="{{ id }}"
+                                           value="{{ option.value }}"
+                                           {{ option.value == filters.vat_verified_value ? 'checked' : '' }}
+                                           data-testid="customer-filter-vat-verified-{{ option.value ?: 'all' }}">
+                                    <label class="btn btn-outline-secondary btn-sm" for="{{ id }}">{{ option.label }}</label>
+                                {% endfor %}
+                            </div>
+                        </fieldset>
+                    </div>
+
+                    <div class="col-md-6 col-lg-4">
+                        <fieldset>
                             <legend class="form-label">{{ 'Phone'|trans }}</legend>
                             <input type="search" name="phone" value="{{ filters.phone_input }}"
                                    class="form-control form-control-sm"

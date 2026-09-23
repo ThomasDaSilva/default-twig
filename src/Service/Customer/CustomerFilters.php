@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Customer;
 
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\Request;
+use Thelia\Model\ConfigQuery;
 use Thelia\Model\CustomerQuery;
 use Thelia\Model\Map\CustomerTableMap;
 use Thelia\Model\TagElement;
@@ -43,6 +44,7 @@ final readonly class CustomerFilters
 
     public const KEY_NEWSLETTER = 'newsletter';
     public const KEY_GUEST = 'guest';
+    public const KEY_VAT_VERIFIED = 'vat_verified';
     public const KEY_CREATED_RANGE = 'created_range';
     public const KEY_TOTAL_SPENT = 'total_spent';
     public const KEY_ORDER_COUNT = 'order_count';
@@ -68,6 +70,7 @@ final readonly class CustomerFilters
     public function __construct(
         public ?bool $newsletter = null,
         public ?bool $guest = null,
+        public ?bool $vatVerified = null,
         public ?\DateTimeImmutable $createdFrom = null,
         public ?\DateTimeImmutable $createdTo = null,
         public ?float $minTotalSpent = null,
@@ -143,6 +146,7 @@ final readonly class CustomerFilters
         return new self(
             newsletter: self::parseTriStateBool((string) $query->get('newsletter', '')),
             guest: self::parseTriStateBool((string) $query->get('guest', '')),
+            vatVerified: self::parseTriStateBool((string) $query->get('vat_verified', '')),
             createdFrom: $createdFrom,
             createdTo: $createdTo,
             minTotalSpent: $minTotalSpent,
@@ -165,6 +169,7 @@ final readonly class CustomerFilters
     {
         return $this->newsletter === null
             && $this->guest === null
+            && $this->vatVerified === null
             && $this->createdFrom === null
             && $this->createdTo === null
             && $this->minTotalSpent === null
@@ -190,6 +195,9 @@ final readonly class CustomerFilters
         }
         if ($this->guest !== null) {
             $params['guest'] = $this->guest ? self::TRISTATE_WITH : self::TRISTATE_WITHOUT;
+        }
+        if ($this->vatVerified !== null) {
+            $params['vat_verified'] = $this->vatVerified ? self::TRISTATE_WITH : self::TRISTATE_WITHOUT;
         }
         if ($this->createdFrom !== null) {
             $params['created_from'] = $this->createdFrom->format('Y-m-d');
@@ -259,6 +267,7 @@ final readonly class CustomerFilters
         $overrides = match ($key) {
             self::KEY_NEWSLETTER => ['newsletter' => null],
             self::KEY_GUEST => ['guest' => null],
+            self::KEY_VAT_VERIFIED => ['vatVerified' => null],
             self::KEY_CREATED_RANGE, self::KEY_PERIOD => [
                 'createdFrom' => null,
                 'createdTo' => null,
@@ -300,6 +309,7 @@ final readonly class CustomerFilters
 
         $this->applyNewsletter($query);
         $this->applyGuest($query);
+        $this->applyVatVerified($query);
         $this->applyCountry($query);
         $this->applyPhone($query);
         $this->applyTags($query);
@@ -349,6 +359,25 @@ final readonly class CustomerFilters
         // Direct column filter: is_guest lives on customer itself, unlike
         // newsletter (a join by email) or country (a join through address).
         $query->filterByIsGuest($this->guest ? 1 : 0);
+    }
+
+    private function applyVatVerified(CustomerQuery $query): void
+    {
+        if ($this->vatVerified === null) {
+            return;
+        }
+
+        $freshSince = (new \DateTimeImmutable())
+            ->modify(\sprintf('-%d days', ConfigQuery::getVatVerificationLifetimeDays()))
+            ->format('Y-m-d H:i:s');
+
+        $clause = $this->vatVerified ? 'EXISTS' : 'NOT EXISTS';
+        $query->where(
+            $clause.' (SELECT 1 FROM address a WHERE a.customer_id = '
+                .CustomerTableMap::COL_ID.' AND a.vat_verified_at >= ?)',
+            $freshSince,
+            \PDO::PARAM_STR,
+        );
     }
 
     private function applyCountry(CustomerQuery $query): void
@@ -415,6 +444,7 @@ final readonly class CustomerFilters
         return new self(
             newsletter: \array_key_exists('newsletter', $overrides) ? $overrides['newsletter'] : $this->newsletter,
             guest: \array_key_exists('guest', $overrides) ? $overrides['guest'] : $this->guest,
+            vatVerified: \array_key_exists('vatVerified', $overrides) ? $overrides['vatVerified'] : $this->vatVerified,
             createdFrom: \array_key_exists('createdFrom', $overrides) ? $overrides['createdFrom'] : $this->createdFrom,
             createdTo: \array_key_exists('createdTo', $overrides) ? $overrides['createdTo'] : $this->createdTo,
             minTotalSpent: \array_key_exists('minTotalSpent', $overrides) ? $overrides['minTotalSpent'] : $this->minTotalSpent,
