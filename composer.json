@@ -23,6 +23,9 @@
         "twbs/bootstrap": "^5.3.8",
         "twbs/bootstrap-icons": "^1.13"
     },
+    "conflict": {
+        "thelia/thelia-skeleton": "<3.2"
+    },
     "autoload": {
         "psr-4": {
             "BackOfficeDefaultTwigBundle\\": "src/"
