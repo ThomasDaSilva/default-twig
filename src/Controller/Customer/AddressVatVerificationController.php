@@ -112,7 +112,9 @@ final readonly class AddressVatVerificationController
 
         $result = $this->verifier->verify($vatNumber, (string) $address->getCountry()->getIsoalpha2());
 
-        $this->events->dispatch(new VatNumberVerifiedEvent($address, $result), TheliaEvents::VAT_NUMBER_VERIFIED);
+        if (VatVerificationStatus::UNDETERMINED !== $result->status) {
+            $this->events->dispatch(new VatNumberVerifiedEvent($address, $result), TheliaEvents::VAT_NUMBER_VERIFIED);
+        }
 
         $this->adminLogger->log(
             self::RESOURCE,
