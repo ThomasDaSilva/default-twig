@@ -148,7 +148,7 @@
                 </li>
             {% endif %}
 
-            {% if is_granted('VIEW', 'admin.folder') %}
+            {% if is_granted('VIEW', 'admin.folder') and backoffice_section_visible('folder') %}
                 {% set active = nav.is_section(current_path, ['/admin/folder', '/admin/content']) %}
                 {% set hookFragments = hook_block('main.top-menu-content', { fields: 'id,class,url,title' }) %}
                 <li class="nav-item" data-testid="bo-nav-folder">
