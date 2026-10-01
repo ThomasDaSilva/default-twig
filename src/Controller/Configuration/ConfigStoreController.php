@@ -145,7 +145,7 @@ final class ConfigStoreController
             'store_ape_code' => (string) ConfigQuery::read('store_ape_code', ''),
             'store_eori' => (string) ConfigQuery::read('store_eori', ''),
             'store_vat_exempt' => (string) ConfigQuery::read('store_vat_exempt', '0'),
-            'vat_exemption_mode' => (string) ConfigQuery::read(VatExemptionMode::CONFIG_KEY, VatExemptionMode::DISABLED->value),
+            'vat_exemption_mode' => VatExemptionMode::fromShopConfiguration()->value,
             'store_registration_exempt' => (string) ConfigQuery::read('store_registration_exempt', '0'),
             'store_legal_mentions' => (string) ConfigQuery::read('store_legal_mentions', ''),
             'store_email' => ConfigQuery::read('store_email'),

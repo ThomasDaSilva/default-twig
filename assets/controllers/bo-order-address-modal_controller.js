@@ -5,6 +5,8 @@ export default class extends Controller {
         'title',
         'id',
         'company',
+        'siret',
+        'vatNumber',
         'firstname',
         'lastname',
         'address1',
@@ -53,6 +55,9 @@ export default class extends Controller {
         this.setValue('id', payload.id ?? '');
         this.setSelect('title', payload.title_id ?? '');
         this.setValue('company', payload.company ?? '');
+        this.setValue('siret', payload.siret ?? '');
+        this.setValue('vatNumber', payload.vat_number ?? '');
+        this.setReadOnly(['company', 'siret', 'vatNumber'], payload.vat_exempted === true);
         this.setValue('firstname', payload.firstname ?? '');
         this.setValue('lastname', payload.lastname ?? '');
         this.setValue('address1', payload.address1 ?? '');
@@ -106,6 +111,15 @@ export default class extends Controller {
         if (this[target]) {
             this[target].value = value ?? '';
         }
+    }
+
+    setReadOnly(targetNames, readOnly) {
+        targetNames.forEach((targetName) => {
+            const target = `${targetName}Target`;
+            if (this[target]) {
+                this[target].readOnly = readOnly;
+            }
+        });
     }
 
     setSelect(targetName, value) {
