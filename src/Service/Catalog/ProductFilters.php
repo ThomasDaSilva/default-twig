@@ -248,9 +248,13 @@ final readonly class ProductFilters
             return;
         }
 
+        // The wildcards of LIKE typed in the box are searched for as characters: a
+        // "%" alone would otherwise list the whole catalogue.
+        $term = addcslashes($this->search, '%_\\');
+
         $titleIds = ProductI18nQuery::create()
             ->filterByLocale($locale)
-            ->filterByTitle('%'.$this->search.'%', Criteria::LIKE)
+            ->filterByTitle('%'.$term.'%', Criteria::LIKE)
             ->select(['Id'])
             ->find()
             ->toArray();
@@ -265,8 +269,8 @@ final readonly class ProductFilters
         // column, and Propel binds one value per condition, hence one each.
         $query
             ->condition('search_title', ProductTableMap::COL_ID.' IN ('.implode(',', $ids ?: [0]).')')
-            ->condition('search_ref', ProductTableMap::COL_REF.' LIKE ?', '%'.$this->search.'%', \PDO::PARAM_STR)
-            ->condition('search_mpn', $this->combinationExists('pse_mpn', 'mpn LIKE ?'), addcslashes($this->search, '%_\\').'%', \PDO::PARAM_STR);
+            ->condition('search_ref', ProductTableMap::COL_REF.' LIKE ?', '%'.$term.'%', \PDO::PARAM_STR)
+            ->condition('search_mpn', $this->combinationExists('pse_mpn', 'mpn LIKE ?'), $term.'%', \PDO::PARAM_STR);
         $conditions = ['search_title', 'search_ref', 'search_mpn'];
 
         // A term made only of spaces and hyphens leaves no code to look for, and an
