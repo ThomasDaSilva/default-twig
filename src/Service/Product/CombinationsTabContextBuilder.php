@@ -14,7 +14,10 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Product;
 
+use BackOfficeDefaultTwigBundle\Service\Catalog\ProductFilterCatalog;
 use Propel\Runtime\ActiveQuery\Criteria;
+use Thelia\Domain\Catalog\Product\Identifier\GtinDuplicateFinder;
+use Thelia\Domain\Catalog\Product\Identifier\GtinSharer;
 use Thelia\Model\Attribute;
 use Thelia\Model\AttributeAv;
 use Thelia\Model\AttributeAvQuery;
@@ -31,6 +34,12 @@ use Thelia\Model\TaxRuleQuery;
 
 final readonly class CombinationsTabContextBuilder
 {
+    public function __construct(
+        private GtinDuplicateFinder $duplicateFinder = new GtinDuplicateFinder(),
+        private ProductFilterCatalog $catalog = new ProductFilterCatalog(),
+    ) {
+    }
+
     /**
      * @return array{
      *     product: Product,
@@ -90,6 +99,9 @@ final readonly class CombinationsTabContextBuilder
                 'quantity' => (float) $pse->getQuantity(),
                 'weight' => (float) $pse->getWeight(),
                 'ean_code' => (string) $pse->getEanCode(),
+                'mpn' => (string) $pse->getMpn(),
+                'manufacturer_brand_id' => (int) $pse->getManufacturerBrandId(),
+                'gtin_shared_with' => [],
                 'onsale' => (bool) $pse->getPromo(),
                 'isnew' => (bool) $pse->getNewness(),
                 'isdefault' => (bool) $pse->getIsDefault(),
@@ -104,7 +116,7 @@ final readonly class CombinationsTabContextBuilder
         // in the order of their attributes and attribute values.
         usort($entries, $this->compareEntries(...));
 
-        $rows = array_column($entries, 'row');
+        $rows = $this->withSharedCodes(array_column($entries, 'row'));
         $defaultPse = null;
         foreach ($rows as $row) {
             if ($row['isdefault']) {
@@ -133,7 +145,39 @@ final readonly class CombinationsTabContextBuilder
             ],
             'available_currencies' => $this->collectCurrencies(),
             'template_attributes' => $this->collectTemplateAttributes($product, $locale),
+            'brand_options' => $this->catalog->brands($locale),
+            'product_brand_title' => $this->productBrandTitle($product, $locale),
         ];
+    }
+
+    /**
+     * Marks the rows whose GTIN another combination of the shop carries too, with the
+     * references of those combinations: the tab is rendered as a sub-request, so the
+     * warning shown after a save cannot be read from the flash messages here.
+     *
+     * @param list<array<string, mixed>> $rows
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withSharedCodes(array $rows): array
+    {
+        $sharersById = $this->duplicateFinder->sharersAmong(array_map(static fn (array $row): int => (int) $row['id'], $rows));
+
+        foreach ($rows as $index => $row) {
+            $rows[$index]['gtin_shared_with'] = array_map(
+                static fn (GtinSharer $sharer): string => $sharer->productRef.' / '.$sharer->productSaleElementsRef,
+                $sharersById[(int) $row['id']] ?? [],
+            );
+        }
+
+        return $rows;
+    }
+
+    private function productBrandTitle(Product $product, string $locale): ?string
+    {
+        $brand = $product->getBrand();
+
+        return $brand === null ? null : (string) $brand->setLocale($locale)->getTitle();
     }
 
     /**

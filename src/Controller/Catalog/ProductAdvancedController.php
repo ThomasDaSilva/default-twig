@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Catalog;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\File\ProductVideoPresenter;
+use BackOfficeDefaultTwigBundle\Service\Product\CombinationIdentifierNotices;
 use BackOfficeDefaultTwigBundle\Service\Product\CombinationsTabContextBuilder;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -40,6 +41,8 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\Catalog\Product\Identifier\InvalidGtinException;
+use Thelia\Domain\Catalog\Product\Identifier\InvalidMpnException;
 use Thelia\Model\AccessoryQuery;
 use Thelia\Model\Attribute;
 use Thelia\Model\AttributeAvQuery;
@@ -93,6 +96,7 @@ final class ProductAdvancedController
         private readonly EventDispatcherInterface $imageEvents,
         private readonly TokenProvider $tokens,
         private readonly ProductVideoPresenter $videoPresenter,
+        private readonly CombinationIdentifierNotices $identifierNotices,
     ) {
     }
 
@@ -578,8 +582,11 @@ final class ProductAdvancedController
         $quantities = $form->all('quantity');
         $salePrices = $form->all('sale_price');
         $eans = $form->all('ean_code');
+        $mpns = $form->all('mpn');
+        $manufacturerBrands = $form->all('manufacturer_brand_id');
         $onsale = $form->all('onsale');
         $isnew = $form->all('isnew');
+        $saved = [];
 
         foreach ($ids as $index => $rawId) {
             $pseId = (int) $rawId;
@@ -600,11 +607,22 @@ final class ProductAdvancedController
                 ->setIsnew(isset($isnew[$index]) ? 1 : 0)
                 ->setIsdefault($defaultPse === $pseId)
                 ->setEanCode((string) ($eans[$index] ?? ''))
+                ->setMpn(isset($mpns[$index]) ? (string) $mpns[$index] : null)
+                ->setManufacturerBrandId(isset($manufacturerBrands[$index]) ? (int) $manufacturerBrands[$index] : null)
                 ->setTaxRuleId($taxRule)
                 ->setFromDefaultCurrency($useExchangeRate);
 
-            $events->dispatch($event, TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT);
+            // A refused code costs its own row only: the other combinations of the grid
+            // are saved, and the refusal says which one and why.
+            try {
+                $events->dispatch($event, TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT);
+                $saved[] = $pseId;
+            } catch (InvalidGtinException|InvalidMpnException $refusal) {
+                $this->identifierNotices->refused($refusal);
+            }
         }
+
+        $this->identifierNotices->reportSharedCodes($saved);
 
         return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
     }
@@ -737,10 +755,17 @@ final class ProductAdvancedController
                 ->setIsnew($form->get('isnew') !== null ? 1 : 0)
                 ->setIsdefault(true)
                 ->setEanCode((string) $form->get('ean_code', ''))
+                ->setMpn($form->has('mpn') ? (string) $form->get('mpn') : null)
+                ->setManufacturerBrandId($form->has('manufacturer_brand_id') ? (int) $form->get('manufacturer_brand_id') : null)
                 ->setTaxRuleId((int) $form->get('tax_rule', (int) $product->getTaxRuleId()))
                 ->setFromDefaultCurrency((int) $form->get('use_exchange_rate', 0));
 
-            $events->dispatch($event, TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT);
+            try {
+                $events->dispatch($event, TheliaEvents::PRODUCT_UPDATE_PRODUCT_SALE_ELEMENT);
+                $this->identifierNotices->reportSharedCodes([$pseId]);
+            } catch (InvalidGtinException|InvalidMpnException $refusal) {
+                $this->identifierNotices->refused($refusal);
+            }
         }
 
         return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));

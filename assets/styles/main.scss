@@ -2327,6 +2327,18 @@ tr.bo-order-row--urgent {
     hr { margin: 1rem 0; }
 }
 
+// ---------- Catalog: combinations grid ----------
+
+// One field per column: the grid scrolls sideways in its `.table-responsive` rather
+// than squeezing a price or a barcode below what it takes to read it.
+.table.bo-combinations-grid {
+    .bo-combinations-grid__number { min-width: 5.5rem; }
+    .bo-combinations-grid__ref { min-width: 9rem; }
+    .bo-combinations-grid__gtin { min-width: 10.5rem; }
+    .bo-combinations-grid__mpn { min-width: 9rem; }
+    .bo-combinations-grid__brand { min-width: 10rem; }
+}
+
 // ---------- Reports: conversion funnel ----------
 
 // The funnel reads as two groups of steps, carts then orders: roomy rows, labels

@@ -145,6 +145,12 @@
                         {% if item.pse_ref and item.pse_ref != item.ref %}
                             <small class="text-muted d-block">{{ 'Combination reference'|trans }}: <code>{{ item.pse_ref }}</code></small>
                         {% endif %}
+                        {% if item.gtin %}
+                            <small class="text-muted d-block" data-testid="order-item-gtin">{{ 'GTIN'|trans }}: <code>{{ item.gtin }}</code></small>
+                        {% endif %}
+                        {% if item.mpn %}
+                            <small class="text-muted d-block" data-testid="order-item-mpn">{{ 'Manufacturer part number'|trans }}: <code>{{ item.mpn }}</code></small>
+                        {% endif %}
                         {% if item.combinations|length > 0 %}
                             <dl class="row mb-0 mt-1 small">
                                 {% for combination in item.combinations %}

@@ -53,7 +53,7 @@
                     {{ safe_hook('product.combinations-list-caption', { location: 'product_combinations_list_caption' }) }}
 
                     <div class="table-responsive">
-                        <table class="table table-sm align-middle" data-testid="combinations-table">
+                        <table class="table table-sm align-middle bo-combinations-grid" data-testid="combinations-table">
                             <thead class="table-light">
                                 <tr>
                                     <th class="text-center" style="width:1%" aria-label="{{ 'Position'|trans }}"></th>
@@ -64,7 +64,9 @@
                                     <th class="text-end">{{ 'Price'|trans }}</th>
                                     <th class="text-end">{{ 'Sale price'|trans }}</th>
                                     <th class="text-end">{{ 'Weight'|trans }}</th>
-                                    <th>{{ 'EAN'|trans }}</th>
+                                    <th title="{{ 'EAN-8, UPC-A, EAN-13 or GTIN-14'|trans }}">{{ 'GTIN'|trans }}</th>
+                                    <th>{{ 'Manufacturer part number'|trans }}</th>
+                                    <th>{{ 'Manufacturer'|trans }}</th>
                                     <th>{{ 'Promo'|trans }}</th>
                                     <th>{{ 'New'|trans }}</th>
                                     <th>{{ 'Visible'|trans }}</th>
@@ -84,12 +86,31 @@
                                             <input type="radio" name="default_pse" value="{{ row.id }}" {% if row.isdefault %}checked{% endif %} aria-label="{{ 'Default combination'|trans }}">
                                         </td>
                                         <td><small>{{ row.label }}</small></td>
-                                        <td><input type="hidden" name="product_sale_element_id[]" value="{{ row.id }}"><input type="text" name="reference[]" value="{{ row.ref }}" class="form-control form-control-sm"></td>
-                                        <td><input type="number" step="any" name="quantity[]" value="{{ row.quantity }}" class="form-control form-control-sm text-end"></td>
-                                        <td><input type="number" step="any" name="price[]" value="{{ row.price }}" class="form-control form-control-sm text-end"></td>
-                                        <td><input type="number" step="any" name="sale_price[]" value="{{ row.sale_price }}" class="form-control form-control-sm text-end"></td>
-                                        <td><input type="number" step="any" name="weight[]" value="{{ row.weight }}" class="form-control form-control-sm text-end"></td>
-                                        <td><input type="text" name="ean_code[]" value="{{ row.ean_code }}" class="form-control form-control-sm"></td>
+                                        <td><input type="hidden" name="product_sale_element_id[]" value="{{ row.id }}"><input type="text" name="reference[]" value="{{ row.ref }}" class="form-control form-control-sm bo-combinations-grid__ref"></td>
+                                        <td><input type="number" step="any" name="quantity[]" value="{{ row.quantity }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
+                                        <td><input type="number" step="any" name="price[]" value="{{ row.price }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
+                                        <td><input type="number" step="any" name="sale_price[]" value="{{ row.sale_price }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
+                                        <td><input type="number" step="any" name="weight[]" value="{{ row.weight }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
+                                        <td>
+                                            <input type="text" name="ean_code[]" value="{{ row.ean_code }}" maxlength="32" inputmode="numeric" autocomplete="off"
+                                                   class="form-control form-control-sm bo-combinations-grid__gtin{% if row.gtin_shared_with is not empty %} border-warning{% endif %}"
+                                                   aria-label="{{ 'GTIN'|trans }}" data-testid="combinations-gtin-{{ row.id }}">
+                                            {% if row.gtin_shared_with is not empty %}
+                                                <small class="text-warning-emphasis d-block" data-testid="combinations-gtin-shared-{{ row.id }}">
+                                                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                                    {{ 'Also carried by: %others%'|trans({ '%others%': row.gtin_shared_with|join(', ') }) }}
+                                                </small>
+                                            {% endif %}
+                                        </td>
+                                        <td><input type="text" name="mpn[]" value="{{ row.mpn }}" maxlength="255" autocomplete="off" class="form-control form-control-sm bo-combinations-grid__mpn" aria-label="{{ 'Manufacturer part number'|trans }}" data-testid="combinations-mpn-{{ row.id }}"></td>
+                                        <td>
+                                            <select name="manufacturer_brand_id[]" class="form-select form-select-sm bo-combinations-grid__brand" aria-label="{{ 'Manufacturer'|trans }}" data-testid="combinations-manufacturer-{{ row.id }}">
+                                                <option value="0">{{ product_brand_title is not null ? 'Brand of the product (%brand%)'|trans({ '%brand%': product_brand_title }) : 'Brand of the product'|trans }}</option>
+                                                {% for brand in brand_options %}
+                                                    <option value="{{ brand.id }}"{{ brand.id == row.manufacturer_brand_id ? ' selected' }}>{{ brand.title }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </td>
                                         <td class="text-center"><input type="checkbox" name="onsale[{{ loop.index0 }}]" value="1" {% if row.onsale %}checked{% endif %}></td>
                                         <td class="text-center"><input type="checkbox" name="isnew[{{ loop.index0 }}]" value="1" {% if row.isnew %}checked{% endif %}></td>
                                         <td class="text-center">
@@ -230,8 +251,32 @@
                                         <h2 class="h6 mb-3" data-testid="default-pse-stock-title">{{ 'Stock'|trans }}</h2>
 
                                         <div class="mb-3">
-                                            <label class="form-label" for="default_pse_ean">{{ 'EAN Code'|trans }}</label>
-                                            <input type="text" id="default_pse_ean" name="ean_code" value="{{ default_pse.ean_code }}" class="form-control" placeholder="{{ 'Product EAN code'|trans }}">
+                                            <label class="form-label" for="default_pse_ean">{{ 'GTIN'|trans }}</label>
+                                            <input type="text" id="default_pse_ean" name="ean_code" value="{{ default_pse.ean_code }}" maxlength="32" inputmode="numeric" autocomplete="off"
+                                                   class="form-control{% if default_pse.gtin_shared_with is not empty %} border-warning{% endif %}"
+                                                   aria-describedby="default_pse_ean_help" data-testid="default-pse-gtin">
+                                            <div id="default_pse_ean_help" class="form-text">{{ 'EAN-8, UPC-A, EAN-13 or GTIN-14. The check digit is verified.'|trans }}</div>
+                                            {% if default_pse.gtin_shared_with is not empty %}
+                                                <div class="form-text text-warning-emphasis" data-testid="default-pse-gtin-shared">
+                                                    <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                                    {{ 'Also carried by: %others%'|trans({ '%others%': default_pse.gtin_shared_with|join(', ') }) }}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label" for="default_pse_mpn">{{ 'Manufacturer part number'|trans }}</label>
+                                            <input type="text" id="default_pse_mpn" name="mpn" value="{{ default_pse.mpn }}" maxlength="255" autocomplete="off" class="form-control" data-testid="default-pse-mpn">
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label" for="default_pse_manufacturer">{{ 'Manufacturer'|trans }}</label>
+                                            <select id="default_pse_manufacturer" name="manufacturer_brand_id" class="form-select" data-testid="default-pse-manufacturer">
+                                                <option value="0">{{ product_brand_title is not null ? 'Brand of the product (%brand%)'|trans({ '%brand%': product_brand_title }) : 'Brand of the product'|trans }}</option>
+                                                {% for brand in brand_options %}
+                                                    <option value="{{ brand.id }}"{{ brand.id == default_pse.manufacturer_brand_id ? ' selected' }}>{{ brand.title }}</option>
+                                                {% endfor %}
+                                            </select>
                                         </div>
 
                                         <div class="mb-3">
@@ -446,8 +491,8 @@
                                         </div>
                                     </div>
                                     <div class="mb-3">
-                                        <label class="form-label" for="combination-builder-ean">{{ 'EAN code'|trans }}</label>
-                                        <input type="text" class="form-control" id="combination-builder-ean" name="ean_code">
+                                        <label class="form-label" for="combination-builder-ean">{{ 'GTIN'|trans }}</label>
+                                        <input type="text" class="form-control" id="combination-builder-ean" name="ean_code" maxlength="32" inputmode="numeric" autocomplete="off">
                                     </div>
                                     <div class="form-check">
                                         <input type="checkbox" class="form-check-input" id="combination-builder-onsale" name="onsale" value="1">

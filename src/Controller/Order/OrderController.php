@@ -506,6 +506,10 @@ final class OrderController
                 'ref' => $productRef,
                 'product_id' => $productId,
                 'pse_ref' => (string) $product->getProductSaleElementsRef(),
+                // Frozen on the line when the order was placed: a code corrected in
+                // the catalogue since does not change what was sold.
+                'gtin' => (string) $product->getEanCode(),
+                'mpn' => (string) $product->getMpn(),
                 'title' => (string) $product->getTitle(),
                 'quantity' => $quantity,
                 'price' => $unitPriceHt,
