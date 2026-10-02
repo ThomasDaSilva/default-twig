@@ -164,7 +164,7 @@
                         'quantity': item.quantity,
                         'line_ht': item.line_ht|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol,
                         'line_tax': item.line_tax|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol,
-                        'line_ttc': '<span class="fw-semibold">' ~ item.line_ttc|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol ~ '</span>',
+                        'line_ttc': '<span class="fw-semibold" dir="ltr">' ~ item.line_ttc|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol ~ '</span>',
                         '_attrs': { 'data-order-product-id': item.id, 'data-testid': 'order-item-row' },
                     }]) %}
                 {% endfor %}
@@ -176,11 +176,11 @@
                     columns: [
                         column_html('product_html', 'Product'|trans),
                         column('quantity', 'Quantity'|trans, 'end'),
-                        column('price', 'Unit price (excl. tax)'|trans, 'end', hideBelow: 'lg'),
-                        column('tax', 'Tax'|trans, 'end', hideBelow: 'xl'),
-                        column('unit_taxed_price', 'Unit price (incl. tax)'|trans, 'end', hideBelow: 'lg'),
-                        column('line_ht', 'Line total (excl. tax)'|trans, 'end', hideBelow: 'xl'),
-                        column('line_tax', 'Line tax'|trans, 'end', hideBelow: 'xl'),
+                        column('price', 'Unit price (excl. tax)'|trans, 'end', hideBelow: 'lg', leftToRight: true),
+                        column('tax', 'Tax'|trans, 'end', hideBelow: 'xl', leftToRight: true),
+                        column('unit_taxed_price', 'Unit price (incl. tax)'|trans, 'end', hideBelow: 'lg', leftToRight: true),
+                        column('line_ht', 'Line total (excl. tax)'|trans, 'end', hideBelow: 'xl', leftToRight: true),
+                        column('line_tax', 'Line tax'|trans, 'end', hideBelow: 'xl', leftToRight: true),
                         column_html('line_ttc', 'Line total (incl. tax)'|trans, 'end'),
                     ],
                     rows: order_rows,
@@ -197,7 +197,7 @@
                     <div class="card mb-3">
                         <div class="card-body py-2 d-flex justify-content-end">
                             <span class="fw-bold me-3">{{ 'Items subtotal (incl. tax)'|trans }}</span>
-                            <span class="fw-bold" data-testid="order-items-subtotal">{{ totals.subtotal_ttc|number_format(2, '.', ' ') }} {{ currency.symbol }}</span>
+                            <span dir="ltr" class="fw-bold" data-testid="order-items-subtotal">{{ totals.subtotal_ttc|number_format(2, '.', ' ') }} {{ currency.symbol }}</span>
                         </div>
                         {% if items_last_page|default(1) > 1 %}
                             <div class="card-footer">
@@ -241,7 +241,7 @@
                                     {% for label, amount in totals.items_taxes %}
                                         <li class="list-group-item d-flex justify-content-between px-0">
                                             <span>{{ label }}</span>
-                                            <strong>{{ amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                                            <strong dir="ltr">{{ amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                                         </li>
                                     {% else %}
                                         <li class="list-group-item px-0 text-muted">{{ 'None'|trans }}</li>
@@ -254,7 +254,7 @@
                                     {% if totals.postage_tax > 0 %}
                                         <li class="list-group-item d-flex justify-content-between px-0">
                                             <span>{{ totals.postage_tax_rule_title|default('-') }}</span>
-                                            <strong>{{ totals.postage_tax|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                                            <strong dir="ltr">{{ totals.postage_tax|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                                         </li>
                                     {% else %}
                                         <li class="list-group-item px-0 text-muted">{{ 'None'|trans }}</li>
@@ -265,7 +265,7 @@
                                     <ul class="list-group list-group-flush small" data-testid="order-taxes-discount">
                                         <li class="list-group-item d-flex justify-content-between px-0">
                                             <span>{{ 'Average rate'|trans }}</span>
-                                            <strong>- {{ totals.discount_tax|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                                            <strong dir="ltr">- {{ totals.discount_tax|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                                         </li>
                                     </ul>
                                 {% endif %}
@@ -274,7 +274,7 @@
                         <hr class="my-3">
                         <div class="d-flex justify-content-between">
                             <strong>{{ 'Taxes total'|trans }}</strong>
-                            <strong data-testid="order-taxes-total">{{ totals.total_tax|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                            <strong dir="ltr" data-testid="order-taxes-total">{{ totals.total_tax|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                         </div>
                     </div>
                 </div>
@@ -409,29 +409,29 @@
                     <ul class="list-group list-group-flush small">
                         <li class="list-group-item d-flex justify-content-between">
                             <span>{{ 'Total without tax'|trans }}</span>
-                            <strong data-testid="order-totals-subtotal-ht">{{ totals.subtotal_ht|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                            <strong dir="ltr" data-testid="order-totals-subtotal-ht">{{ totals.subtotal_ht|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>{{ 'Total with taxes before discount'|trans }}</span>
-                            <strong>{{ totals.subtotal_ttc|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                            <strong dir="ltr">{{ totals.subtotal_ttc|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                         </li>
                         {% if totals.discount > 0 %}
                             <li class="list-group-item d-flex justify-content-between text-danger">
                                 <span>{{ 'Discount with taxes'|trans }}</span>
-                                <strong data-testid="order-totals-discount">- {{ totals.discount|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                                <strong dir="ltr" data-testid="order-totals-discount">- {{ totals.discount|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                             </li>
                         {% endif %}
                         <li class="list-group-item d-flex justify-content-between">
                             <span>{{ 'Total with taxes after discount'|trans }}</span>
-                            <strong data-testid="order-totals-subtotal-ttc">{{ (totals.subtotal_ttc - totals.discount)|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                            <strong dir="ltr" data-testid="order-totals-subtotal-ttc">{{ (totals.subtotal_ttc - totals.discount)|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                         </li>
                         <li class="list-group-item d-flex justify-content-between">
                             <span>{{ 'Shipping with taxes'|trans }}</span>
-                            <strong data-testid="order-totals-postage">{{ totals.postage_ttc|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                            <strong dir="ltr" data-testid="order-totals-postage">{{ totals.postage_ttc|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                         </li>
                         <li class="list-group-item d-flex justify-content-between bg-light">
                             <span class="fw-bold">{{ 'Order total with taxes'|trans }}</span>
-                            <strong data-testid="order-totals-grand">{{ totals.grand_total|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                            <strong dir="ltr" data-testid="order-totals-grand">{{ totals.grand_total|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                         </li>
                         <li class="list-group-item d-flex justify-content-between text-muted">
                             <span>{{ 'Total weight'|trans }}</span>
@@ -447,7 +447,7 @@
                             {% for coupon in coupons %}
                                 <li class="list-group-item d-flex justify-content-between">
                                     <span><code>{{ coupon.code }}</code>{% if coupon.title %} <span class="text-muted">- {{ coupon.title }}</span>{% endif %}</span>
-                                    <strong class="text-danger">- {{ coupon.amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                                    <strong dir="ltr" class="text-danger">- {{ coupon.amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
                                 </li>
                             {% endfor %}
                         </ul>

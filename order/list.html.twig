@@ -365,7 +365,7 @@
                 column_badge('status_code', 'Status'|trans, {}, 'start', 'status', 'status_color'),
                 column_html('payment_html', 'Payment'|trans, visibleFrom: 'xl'),
                 column_html('delivery_html', 'Delivery'|trans, visibleFrom: 'xl'),
-                column_text('amount', 'Total'|trans, 'end', 'amount'),
+                column_text('amount', 'Total'|trans, 'end', 'amount', leftToRight: true),
                 column_html('date_html', 'Date'|trans, 'start', 'created_at', visibleFrom: 'lg'),
                 column_actions('_actions', 'Actions'|trans),
             ] %}

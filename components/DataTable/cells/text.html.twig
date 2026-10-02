@@ -1,1 +1,3 @@
-{{ value }}
+{#- An amount keeps its left-to-right order in a right-to-left page: dir="ltr" on an
+    inline element isolates the figure without moving the cell's own alignment. -#}
+{% if column.options.left_to_right|default(false) %}<span dir="ltr">{{ value }}</span>{% else %}{{ value }}{% endif %}

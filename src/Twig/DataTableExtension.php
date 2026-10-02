@@ -40,9 +40,14 @@ final class DataTableExtension extends AbstractExtension
         ];
     }
 
-    public function textColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always'): Column
+    /**
+     * $leftToRight marks a value that reads left to right in every language - an amount,
+     * a quantity with its unit: in a right-to-left page the browser would otherwise split
+     * "1 076,40 €" at its spaces and paint the groups in reverse order.
+     */
+    public function textColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always', bool $leftToRight = false): Column
     {
-        return new Column($key, $label, ColumnKind::TEXT, $cellAlign, sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
+        return new Column($key, $label, ColumnKind::TEXT, $cellAlign, $leftToRight ? ['left_to_right' => true] : [], sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
     }
 
     public function htmlColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always'): Column

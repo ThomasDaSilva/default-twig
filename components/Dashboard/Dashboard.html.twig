@@ -46,7 +46,7 @@
                             {% endif %}
                         </div>
                         <div class="text-muted small mt-3">{{ kpi.label }}</div>
-                        <div class="h4 mb-0 fw-semibold">{{ kpi.value }}</div>
+                        <div class="h4 mb-0 fw-semibold"><span dir="ltr">{{ kpi.value }}</span></div>
                     </div>
                 </{{ wrapper_tag }}>
             </div>
@@ -128,7 +128,7 @@
                                     <span class="text-muted ms-2">{{ order.customer.firstname }} {{ order.customer.lastname }}</span>
                                 {% endif %}
                             </div>
-                            <span class="badge text-bg-light">{{ (data.recentOrderAmounts[order.id] ?? 0)|number_format(2, ',', ' ') }}&nbsp;{{ order.currency.symbol }}</span>
+                            <span class="badge text-bg-light" dir="ltr">{{ (data.recentOrderAmounts[order.id] ?? 0)|number_format(2, ',', ' ') }}&nbsp;{{ order.currency.symbol }}</span>
                         </li>
                     {% else %}
                         <li class="list-group-item text-muted text-center">{{ 'No recent order'|trans }}</li>
@@ -157,7 +157,7 @@
                             </div>
                             <div class="text-end">
                                 <div class="fw-semibold">{{ product.quantity }} {{ 'sold'|trans }}</div>
-                                <div class="text-muted">{{ product.revenue|number_format(0, ',', ' ') }} €</div>
+                                <div class="text-muted"><span dir="ltr">{{ product.revenue|number_format(0, ',', ' ') }} €</span></div>
                             </div>
                         </li>
                     {% else %}

@@ -29,7 +29,8 @@ final readonly class Column
      *                                          - BADGE:  { variants: array<scalar, string> mapping row value → Bootstrap variant, label_key?: string optional row key holding the visible label, color_key?: string optional row key holding a CSS color taking precedence over variants }
      *                                          - RADIO:  { name: string, value_key: string, checked_when_key: string|null, label_key: string|null }
      *                                          - SELECT: { value_key: string, label_key: string|null } row checkbox feeding a bulk toolbar
-     *                                          - TEXT / HTML / ACTIONS: empty
+     *                                          - TEXT:   { left_to_right?: bool } value isolated in a left-to-right run (amounts, figures)
+     *                                          - HTML / ACTIONS: empty
      * @param ?string              $sortKey     Sort field this column maps to. When set, the header becomes a sortable link.
      *                                          Use the same string the consuming controller expects in its order query param.
      * @param ?string              $hideBelow   Bootstrap breakpoint under which the column is dropped from the render entirely,
