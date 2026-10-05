@@ -1577,4 +1577,11 @@ return [
     'Download' => 'Herunterladen',
     'Back to the export' => 'Zurück zum Export',
     'The form has expired, please try again.' => 'Das Formular ist abgelaufen, bitte versuchen Sie es erneut.',
+    'The import waits for a worker. This page refreshes on its own.' => 'Der Import wartet auf einen Worker. Diese Seite aktualisiert sich von selbst.',
+    'The import is running. This page refreshes on its own.' => 'Der Import läuft. Diese Seite aktualisiert sich von selbst.',
+    '%count% row(s) changed.' => '%count% Zeile(n) geändert.',
+    'Rows refused' => 'Abgelehnte Zeilen',
+    'Back to the import' => 'Zurück zum Import',
+    'Recent imports' => 'Letzte Importe',
+    'No import yet.' => 'Noch kein Import.',
 ];

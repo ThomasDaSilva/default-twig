@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Mailer\Messenger\SendEmailMessage;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\ErrorDetailsStamp;
@@ -29,6 +30,8 @@ use Thelia\Model\Admin;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\ExportJobQuery;
 use Thelia\Model\ExportQuery;
+use Thelia\Model\ImportJobQuery;
+use Thelia\Model\ImportQuery;
 use Thelia\Model\LangQuery;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
@@ -200,6 +203,41 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
 
         $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
+    }
+
+    /**
+     * Without a queue the import runs in the request and its outcome is told on the
+     * import page, as before; the job it was run as is listed on the jobs screen.
+     */
+    public function testWithoutAQueueAnImportIsDoneAtOnceAndListedAsAJob(): void
+    {
+        $import = ImportQuery::create()->findOneByRef('thelia.import.stock');
+        self::assertNotNull($import);
+        $product = $this->factory->product($this->factory->category(), $this->factory->taxRule(), $this->factory->currency());
+        $combination = $this->factory->productSaleElement($product, ['quantity' => 5]);
+        $this->loginAs($this->factory->admin());
+
+        $path = sys_get_temp_dir().'/bo-import-'.uniqid('', true).'.csv';
+        file_put_contents($path, "id,stock\n".$combination->getId().",21\n");
+        $this->files[] = $path;
+
+        $this->client->request('POST', '/admin/import/'.$import->getId(), [
+            '_token' => $this->token(),
+            'language' => (string) LangQuery::create()->findOneByByDefault(1)?->getId(),
+        ], ['file_upload' => new UploadedFile($path, 'stock.csv', 'text/csv', null, true)]);
+
+        self::assertTrue($this->client->getResponse()->isRedirect('/admin/import/'.$import->getId()), (string) $this->client->getResponse()->headers->get('Location'));
+
+        $job = ImportJobQuery::create()->filterByImportId($import->getId())->orderById('desc')->findOne();
+        self::assertNotNull($job);
+        self::assertSame('done', $job->getStatus());
+        self::assertSame(1, $job->getImportedRows());
+
+        $this->assertPageRenders(self::URL);
+        self::assertStringContainsString('background-jobs-import-'.$job->getId(), $this->html());
+
+        $this->assertPageRenders('/admin/import/job/'.$job->getId());
+        self::assertStringContainsString('data-testid="import-job-rows"', $this->html());
     }
 
     private function setAsideAMail(string $reason): string

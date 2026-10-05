@@ -1577,4 +1577,11 @@ return [
     'Download' => 'Скачать',
     'Back to the export' => 'Вернуться к экспорту',
     'The form has expired, please try again.' => 'Срок действия формы истёк, попробуйте ещё раз.',
+    'The import waits for a worker. This page refreshes on its own.' => 'Импорт ждёт обработчика. Страница обновляется сама.',
+    'The import is running. This page refreshes on its own.' => 'Импорт выполняется. Страница обновляется сама.',
+    '%count% row(s) changed.' => 'Изменено строк: %count%.',
+    'Rows refused' => 'Отклонённые строки',
+    'Back to the import' => 'Вернуться к импорту',
+    'Recent imports' => 'Последние импорты',
+    'No import yet.' => 'Импортов пока нет.',
 ];

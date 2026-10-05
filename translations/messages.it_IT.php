@@ -1670,4 +1670,11 @@ return [
     '%count% rows written.' => '%count% righe scritte.',
     'Download' => 'Scarica',
     'Back to the export' => 'Torna all\'esportazione',
+    'The import waits for a worker. This page refreshes on its own.' => 'L\'importazione attende un worker. Questa pagina si aggiorna da sola.',
+    'The import is running. This page refreshes on its own.' => 'L\'importazione è in corso. Questa pagina si aggiorna da sola.',
+    '%count% row(s) changed.' => '%count% riga/e modificata/e.',
+    'Rows refused' => 'Righe rifiutate',
+    'Back to the import' => 'Torna all\'importazione',
+    'Recent imports' => 'Importazioni recenti',
+    'No import yet.' => 'Ancora nessuna importazione.',
 ];

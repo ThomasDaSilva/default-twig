@@ -406,4 +406,13 @@ return [
     '%count% rows written.' => '%count% rows written.',
     'Download' => 'Download',
     'Back to the export' => 'Back to the export',
+    'The import waits for a worker. This page refreshes on its own.' => 'The import waits for a worker. This page refreshes on its own.',
+    'The import is running. This page refreshes on its own.' => 'The import is running. This page refreshes on its own.',
+    '%count% row(s) changed.' => '%count% row(s) changed.',
+    'Rows refused' => 'Rows refused',
+    'Back to the import' => 'Back to the import',
+    'Recent imports' => 'Recent imports',
+    'No import yet.' => 'No import yet.',
+    'File' => 'File',
+    'Import' => 'Import',
 ];

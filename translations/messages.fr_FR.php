@@ -2415,4 +2415,11 @@ return [
     '%count% rows written.' => '%count% lignes écrites.',
     'Download' => 'Télécharger',
     'Back to the export' => 'Retour à l\'export',
+    'The import waits for a worker. This page refreshes on its own.' => 'L\'import attend un worker. Cette page se met à jour toute seule.',
+    'The import is running. This page refreshes on its own.' => 'L\'import est en cours. Cette page se met à jour toute seule.',
+    '%count% row(s) changed.' => '%count% ligne(s) modifiée(s).',
+    'Rows refused' => 'Lignes refusées',
+    'Back to the import' => 'Retour à l\'import',
+    'Recent imports' => 'Imports récents',
+    'No import yet.' => 'Aucun import pour l\'instant.',
 ];

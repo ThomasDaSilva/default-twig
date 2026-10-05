@@ -1576,4 +1576,11 @@ return [
     'Download' => 'Downloaden',
     'Back to the export' => 'Terug naar de export',
     'The form has expired, please try again.' => 'Het formulier is verlopen, probeer het opnieuw.',
+    'The import waits for a worker. This page refreshes on its own.' => 'De import wacht op een worker. Deze pagina ververst vanzelf.',
+    'The import is running. This page refreshes on its own.' => 'De import is bezig. Deze pagina ververst vanzelf.',
+    '%count% row(s) changed.' => '%count% regel(s) gewijzigd.',
+    'Rows refused' => 'Geweigerde regels',
+    'Back to the import' => 'Terug naar de import',
+    'Recent imports' => 'Recente imports',
+    'No import yet.' => 'Nog geen import.',
 ];
