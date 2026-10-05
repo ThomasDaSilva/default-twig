@@ -15,9 +15,12 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Tests\Query;
 
 use BackOfficeDefaultTwigBundle\Service\Catalog\ProductFilters;
+use Propel\Runtime\Propel;
 use Symfony\Component\HttpFoundation\Request;
+use Thelia\Model\Map\ProductSaleElementsTableMap;
 use Thelia\Model\Product;
 use Thelia\Model\ProductQuery;
+use Thelia\Model\ProductSaleElementsQuery;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\IntegrationTestCase;
 
@@ -45,6 +48,25 @@ final class ProductListIdentifierSearchTest extends IntegrationTestCase
 
         self::assertContains($wanted->getId(), $found);
         self::assertNotContains($other->getId(), $found);
+    }
+
+    /**
+     * A code stored before the check, as a shop migrated from Thelia 2 holds it, keeps
+     * the spaces it was typed with.
+     */
+    public function testAProductIsFoundByAGtinStoredWithSpacesBeforeTheCheck(): void
+    {
+        $wanted = $this->productWithACombination([]);
+        $combination = ProductSaleElementsQuery::create()->filterByProductId($wanted->getId())->findOne()
+            ?? throw new \RuntimeException('The product has no combination.');
+        Propel::getWriteConnection(ProductSaleElementsTableMap::DATABASE_NAME)
+            ->prepare('UPDATE product_sale_elements SET ean_code = :code WHERE id = :id')
+            ->execute(['code' => '4006381 333-931', 'id' => $combination->getId()]);
+        ProductSaleElementsTableMap::clearInstancePool();
+
+        foreach (['4006381 333-931', '4006381333931'] as $typed) {
+            self::assertContains($wanted->getId(), $this->search($typed), $typed);
+        }
     }
 
     public function testAProductIsFoundByTheStartOfAManufacturerPartNumber(): void

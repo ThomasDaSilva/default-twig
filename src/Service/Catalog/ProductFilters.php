@@ -275,10 +275,23 @@ final readonly class ProductFilters
 
         // A term made only of spaces and hyphens leaves no code to look for, and an
         // empty one would match every combination without a GTIN.
+        //
+        // A code stored before the check may still hold the spaces or hyphens it was
+        // typed with: it is compared without them too.
         $gtin = Gtin::normalize($this->search);
         if ($gtin !== '') {
-            $query->condition('search_gtin', $this->combinationExists('pse_gtin', 'ean_code = ?'), $gtin, \PDO::PARAM_STR);
+            $query
+                ->condition('search_gtin', $this->combinationExists('pse_gtin', 'ean_code = ?'), $gtin, \PDO::PARAM_STR)
+                ->condition(
+                    'search_gtin_typed',
+                    'EXISTS (SELECT 1 FROM product_sale_elements pse_gtin_typed'
+                    .' WHERE pse_gtin_typed.product_id = '.ProductTableMap::COL_ID
+                    ." AND REPLACE(REPLACE(pse_gtin_typed.ean_code, ' ', ''), '-', '') = ?)",
+                    $gtin,
+                    \PDO::PARAM_STR,
+                );
             $conditions[] = 'search_gtin';
+            $conditions[] = 'search_gtin_typed';
         }
 
         $query->combine($conditions, Criteria::LOGICAL_OR);
