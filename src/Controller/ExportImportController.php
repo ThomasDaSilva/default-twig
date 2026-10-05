@@ -37,12 +37,15 @@ use Thelia\Core\Serializer\SerializerManager;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\DataTransfer\ExportHandler;
 use Thelia\Domain\DataTransfer\Job\ExportJobLauncher;
-use Thelia\Domain\DataTransfer\Job\ExportJobStatus;
+use Thelia\Domain\DataTransfer\Job\ImportJobLauncher;
+use Thelia\Domain\DataTransfer\Job\JobStatus;
 use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Form\Exception\FormValidationException;
 use Thelia\Model\Admin;
 use Thelia\Model\ExportJob;
 use Thelia\Model\ExportJobQuery;
+use Thelia\Model\ImportJob;
+use Thelia\Model\ImportJobQuery;
 use Thelia\Model\LangQuery;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
@@ -64,6 +67,7 @@ final class ExportImportController
         private readonly ImportTemplateBuilder $importTemplateBuilder,
         private readonly TokenProvider $tokens,
         private readonly ExportJobLauncher $exportJobLauncher,
+        private readonly ImportJobLauncher $importJobLauncher,
         private readonly SecurityContext $securityContext,
     ) {
     }
@@ -271,8 +275,8 @@ final class ExportImportController
         // Without a queue the export ran in this request: the file is served at once,
         // as before. With one, the page tells how far the worker got.
         return match ($job->getJobStatus()) {
-            ExportJobStatus::DONE => $this->exportFileResponse($job),
-            ExportJobStatus::FAILED => $this->failedExportResponse($job, $id),
+            JobStatus::DONE => $this->exportFileResponse($job),
+            JobStatus::FAILED => $this->failedExportResponse($job, $id),
             default => new RedirectResponse($this->urls->generate('export.job', ['jobId' => $job->getId()])),
         };
     }
@@ -293,7 +297,7 @@ final class ExportImportController
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
             'job' => $job,
-            'file_available' => $job->getJobStatus() === ExportJobStatus::DONE && is_file((string) $job->getFilePath()),
+            'file_available' => $job->getJobStatus() === JobStatus::DONE && is_file((string) $job->getFilePath()),
         ]));
     }
 
@@ -305,7 +309,7 @@ final class ExportImportController
         }
 
         $job = ExportJobQuery::create()->findPk($jobId);
-        if ($job === null || $job->getJobStatus() !== ExportJobStatus::DONE || !is_file((string) $job->getFilePath())) {
+        if ($job === null || $job->getJobStatus() !== JobStatus::DONE || !is_file((string) $job->getFilePath())) {
             $this->addFlash('error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
 
             return new RedirectResponse($this->urls->generate($job === null ? 'export.list' : 'export.job', $job === null ? [] : ['jobId' => $jobId]));
@@ -405,30 +409,61 @@ final class ExportImportController
             return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
         }
 
-        $targetDir = THELIA_CACHE_DIR.'import'.\DIRECTORY_SEPARATOR.(new \DateTime())->format('Ymd');
-        $movedFile = $uploaded->move(
-            $targetDir,
-            uniqid('', true).'-'.$uploaded->getClientOriginalName(),
-        );
-
         try {
-            $importEvent = $this->importHandler->import($import, $movedFile, $lang);
-            $errors = $importEvent->getErrors();
-            if (\count($errors) > 0) {
-                $this->addFlash('error', $this->translator->trans(
-                    'Error(s) in import : %errors',
-                    ['%errors' => implode(' | ', $errors)],
-                ));
-            }
-            $this->addFlash('success', $this->translator->trans(
-                'Import successfully done, %count row(s) have been changed',
-                ['%count' => (int) $importEvent->getImport()->getImportedRows()],
-            ));
+            $job = $this->importJobLauncher->launch($import, $uploaded, $uploaded->getClientOriginalName(), $lang, $this->adminId());
         } catch (\Throwable $exception) {
             $this->addFlash('error', $exception->getMessage());
+
+            return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
         }
 
+        // Without a queue the import ran in this request and is told here, as before.
+        // With one, the page tells how it went once a worker ran it.
+        if (!$job->isFinished()) {
+            return new RedirectResponse($this->urls->generate('import.job', ['jobId' => $job->getId()]));
+        }
+
+        $this->flashImportOutcome($job);
+
         return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
+    }
+
+    #[Route('/admin/import/job/{jobId}', name: 'import.job', methods: ['GET'], requirements: ['jobId' => '\\d+'])]
+    public function importJob(int $jobId): Response
+    {
+        if ($denied = $this->access->check(AdminResources::IMPORT, [], AccessManager::VIEW)) {
+            return $denied;
+        }
+
+        $job = ImportJobQuery::create()->findPk($jobId);
+        if ($job === null) {
+            return new RedirectResponse($this->urls->generate('import.list'));
+        }
+
+        $job->getImport()?->setLocale($this->defaultLocale());
+
+        return new Response($this->twig->render('@BackOfficeDefaultTwig/import/job.html.twig', ['job' => $job]));
+    }
+
+    private function flashImportOutcome(ImportJob $job): void
+    {
+        if ($job->getJobStatus() === JobStatus::FAILED) {
+            $this->addFlash('error', (string) $job->getError());
+
+            return;
+        }
+
+        $errors = $job->getRowErrorList();
+        if (\count($errors) > 0) {
+            $this->addFlash('error', $this->translator->trans(
+                'Error(s) in import : %errors',
+                ['%errors' => implode(' | ', $errors)],
+            ));
+        }
+        $this->addFlash('success', $this->translator->trans(
+            'Import successfully done, %count row(s) have been changed',
+            ['%count' => $job->getImportedRows()],
+        ));
     }
 
     #[Route('/admin/import/{id}/template', name: 'import.template', methods: ['GET'], requirements: ['id' => '\d+'])]

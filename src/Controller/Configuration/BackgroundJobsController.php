@@ -28,12 +28,13 @@ use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
 use Thelia\Model\ExportJobQuery;
+use Thelia\Model\ImportJobQuery;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
 /**
  * The background jobs: whether the shop has a queue, how many jobs wait in it, the
- * ones that failed and why, and the recent exports.
+ * ones that failed and why, and the recent exports and imports.
  *
  * A failed job keeps what it was dispatched with (the recipients of a mail, the
  * reason of a failure): the screen answers to a resource of its own, not to the
@@ -43,7 +44,7 @@ use Twig\Environment;
 final class BackgroundJobsController
 {
     private const RESOURCE = AdminResources::BACKGROUND_JOBS;
-    private const RECENT_EXPORTS = 20;
+    private const RECENT_JOBS = 20;
 
     public function __construct(
         private readonly AdminAccessChecker $access,
@@ -68,7 +69,8 @@ final class BackgroundJobsController
             'pending_count' => $this->monitor->pendingCount(),
             'failed_count' => $this->monitor->failedCount(),
             'failed_jobs' => $this->monitor->failedJobs(),
-            'recent_exports' => ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit(self::RECENT_EXPORTS)->find(),
+            'recent_exports' => ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit(self::RECENT_JOBS)->find(),
+            'recent_imports' => ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit(self::RECENT_JOBS)->find(),
             'can_retry' => null === $this->access->check(self::RESOURCE, [], AccessManager::UPDATE),
             'can_delete' => null === $this->access->check(self::RESOURCE, [], AccessManager::DELETE),
             'token' => $this->tokens->assignToken(),

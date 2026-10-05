@@ -144,6 +144,44 @@
                 </div>
             {% endif %}
         </div>
+
+        <div class="card mt-4" data-testid="background-jobs-imports">
+            <div class="card-header">
+                <h2 class="h5 mb-0">{{ 'Recent imports'|trans }}</h2>
+            </div>
+            {% if recent_imports is empty %}
+                <div class="card-body text-muted">{{ 'No import yet.'|trans }}</div>
+            {% else %}
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ 'Import'|trans }}</th>
+                                <th scope="col">{{ 'File'|trans }}</th>
+                                <th scope="col">{{ 'Status'|trans }}</th>
+                                <th scope="col" class="text-end">{{ 'Rows'|trans }}</th>
+                                <th scope="col">{{ 'Asked on'|trans }}</th>
+                                <th scope="col" class="text-end">{{ 'Actions'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for import_job in recent_imports %}
+                                <tr data-testid="background-jobs-import-{{ import_job.id }}">
+                                    <td>{{ import_job.import ? import_job.import.title : '-' }}</td>
+                                    <td class="text-break">{{ import_job.fileName }}</td>
+                                    <td><span class="badge text-bg-{{ export_badges[import_job.status] ?? 'secondary' }}">{{ (export_labels[import_job.status] ?? import_job.status)|trans }}</span></td>
+                                    <td class="text-end">{{ import_job.importedRows }}</td>
+                                    <td class="text-nowrap">{{ import_job.createdAt ? import_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
+                                    <td class="text-end">
+                                        <a href="{{ path('import.job', { jobId: import_job.id }) }}" class="btn btn-sm btn-outline-secondary">{{ 'Details'|trans }}</a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% endif %}
+        </div>
     </div>
 
     {{ safe_hook('background-jobs.bottom') }}

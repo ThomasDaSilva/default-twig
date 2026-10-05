@@ -1576,4 +1576,11 @@ return [
     'Download' => 'Stáhnout',
     'Back to the export' => 'Zpět na export',
     'The form has expired, please try again.' => 'Platnost formuláře vypršela, zkuste to prosím znovu.',
+    'The import waits for a worker. This page refreshes on its own.' => 'Import čeká na worker. Tato stránka se obnovuje sama.',
+    'The import is running. This page refreshes on its own.' => 'Import probíhá. Tato stránka se obnovuje sama.',
+    '%count% row(s) changed.' => 'Změněno řádků: %count%.',
+    'Rows refused' => 'Odmítnuté řádky',
+    'Back to the import' => 'Zpět na import',
+    'Recent imports' => 'Nedávné importy',
+    'No import yet.' => 'Zatím žádný import.',
 ];

@@ -1670,4 +1670,11 @@ return [
     '%count% rows written.' => '%count% filas escritas.',
     'Download' => 'Descargar',
     'Back to the export' => 'Volver a la exportación',
+    'The import waits for a worker. This page refreshes on its own.' => 'La importación espera a un worker. Esta página se actualiza sola.',
+    'The import is running. This page refreshes on its own.' => 'La importación está en curso. Esta página se actualiza sola.',
+    '%count% row(s) changed.' => '%count% fila(s) modificada(s).',
+    'Rows refused' => 'Filas rechazadas',
+    'Back to the import' => 'Volver a la importación',
+    'Recent imports' => 'Importaciones recientes',
+    'No import yet.' => 'Todavía no hay importaciones.',
 ];
