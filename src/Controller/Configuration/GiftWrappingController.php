@@ -151,7 +151,7 @@ final class GiftWrappingController
         );
     }
 
-    #[Route('/delete', name: 'delete', methods: ['POST', 'GET'])]
+    #[Route('/delete', name: 'delete', methods: ['POST'])]
     public function delete(Request $request): Response
     {
         $giftWrappingId = (int) ($request->query->get('gift_wrapping_id') ?? $request->request->get('gift_wrapping_id', 0));
@@ -167,7 +167,7 @@ final class GiftWrappingController
         );
     }
 
-    #[Route('/toggle-active', name: 'toggle-active', methods: ['GET', 'POST'])]
+    #[Route('/toggle-active', name: 'toggle-active', methods: ['POST'])]
     public function toggleActive(Request $request): Response
     {
         $giftWrappingId = (int) ($request->query->get('gift_wrapping_id') ?? $request->request->get('gift_wrapping_id', 0));
@@ -183,7 +183,7 @@ final class GiftWrappingController
         );
     }
 
-    #[Route('/update-position', name: 'update-position', methods: ['GET', 'POST'])]
+    #[Route('/update-position', name: 'update-position', methods: ['POST'])]
     public function updatePosition(Request $request): Response
     {
         $event = new UpdatePositionEvent(
@@ -310,7 +310,7 @@ final class GiftWrappingController
             'free' => $giftWrapping->isFree(),
             'tax_rule' => (string) $giftWrapping->getTaxRule()->setLocale((string) $giftWrapping->getLocale())->getTitle(),
             'active' => $giftWrapping->isActive(),
-            'toggle_active_url' => $this->tokenizedUrl('admin.gift-wrapping.toggle-active', ['gift_wrapping_id' => $id]),
+            'toggle_active_url' => $this->urls->generate('admin.gift-wrapping.toggle-active', ['gift_wrapping_id' => $id]),
             'position' => (int) $giftWrapping->getPosition(),
             '_actions' => [
                 new RowAction(
@@ -373,17 +373,6 @@ final class GiftWrappingController
         }
 
         return $map;
-    }
-
-    /**
-     * @param array<string, scalar> $parameters
-     */
-    private function tokenizedUrl(string $route, array $parameters): string
-    {
-        $url = $this->urls->generate($route, $parameters);
-        $separator = str_contains($url, '?') ? '&' : '?';
-
-        return $url.$separator.'_token='.$this->tokens->assignToken();
     }
 
     private function defaultLocale(): string
