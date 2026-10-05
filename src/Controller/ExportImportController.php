@@ -34,9 +34,15 @@ use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Serializer\SerializerManager;
+use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\DataTransfer\ExportHandler;
+use Thelia\Domain\DataTransfer\Job\ExportJobLauncher;
+use Thelia\Domain\DataTransfer\Job\ExportJobStatus;
 use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Form\Exception\FormValidationException;
+use Thelia\Model\Admin;
+use Thelia\Model\ExportJob;
+use Thelia\Model\ExportJobQuery;
 use Thelia\Model\LangQuery;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
@@ -57,6 +63,8 @@ final class ExportImportController
         private readonly DataTransferRepository $dataTransferRepository,
         private readonly ImportTemplateBuilder $importTemplateBuilder,
         private readonly TokenProvider $tokens,
+        private readonly ExportJobLauncher $exportJobLauncher,
+        private readonly SecurityContext $securityContext,
     ) {
     }
 
@@ -244,39 +252,93 @@ final class ExportImportController
         }
 
         try {
-            $exportEvent = $this->exportHandler->export(
+            $job = $this->exportJobLauncher->launch(
                 $export,
-                $serializer,
-                $archiver,
+                $serializerId,
+                $archiver?->getId(),
                 $lang,
                 $request->request->getBoolean('images'),
                 $request->request->getBoolean('documents'),
                 $rangeDate,
+                $this->adminId(),
             );
-
-            $contentType = $exportEvent->getSerializer()->getMimeType();
-            $fileExt = $exportEvent->getSerializer()->getExtension();
-            if ($exportEvent->getArchiver() !== null) {
-                $contentType = $exportEvent->getArchiver()->getMimeType();
-                $fileExt = $exportEvent->getArchiver()->getExtension();
-            }
-
-            $header = [
-                'Content-Type' => $contentType,
-                'Content-Disposition' => \sprintf(
-                    '%s; filename="%s.%s"',
-                    ResponseHeaderBag::DISPOSITION_ATTACHMENT,
-                    $exportEvent->getExport()->getFileName(),
-                    $fileExt,
-                ),
-            ];
-
-            return new BinaryFileResponse($exportEvent->getFilePath(), Response::HTTP_OK, $header, false);
         } catch (\Throwable $exception) {
             $this->addFlash('error', $exception->getMessage());
 
             return new RedirectResponse($this->urls->generate('export.view', ['id' => $id]));
         }
+
+        // Without a queue the export ran in this request: the file is served at once,
+        // as before. With one, the page tells how far the worker got.
+        return match ($job->getJobStatus()) {
+            ExportJobStatus::DONE => $this->exportFileResponse($job),
+            ExportJobStatus::FAILED => $this->failedExportResponse($job, $id),
+            default => new RedirectResponse($this->urls->generate('export.job', ['jobId' => $job->getId()])),
+        };
+    }
+
+    #[Route('/admin/export/job/{jobId}', name: 'export.job', methods: ['GET'], requirements: ['jobId' => '\d+'])]
+    public function exportJob(int $jobId): Response
+    {
+        if ($denied = $this->access->check(AdminResources::EXPORT, [], AccessManager::VIEW)) {
+            return $denied;
+        }
+
+        $job = ExportJobQuery::create()->findPk($jobId);
+        if ($job === null) {
+            return new RedirectResponse($this->urls->generate('export.list'));
+        }
+
+        $job->getExport()?->setLocale($this->defaultLocale());
+
+        return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
+            'job' => $job,
+            'file_available' => $job->getJobStatus() === ExportJobStatus::DONE && is_file((string) $job->getFilePath()),
+        ]));
+    }
+
+    #[Route('/admin/export/job/{jobId}/download', name: 'export.job.download', methods: ['GET'], requirements: ['jobId' => '\d+'])]
+    public function exportJobDownload(int $jobId): Response
+    {
+        if ($denied = $this->access->check(AdminResources::EXPORT, [], AccessManager::VIEW)) {
+            return $denied;
+        }
+
+        $job = ExportJobQuery::create()->findPk($jobId);
+        if ($job === null || $job->getJobStatus() !== ExportJobStatus::DONE || !is_file((string) $job->getFilePath())) {
+            $this->addFlash('error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
+
+            return new RedirectResponse($this->urls->generate($job === null ? 'export.list' : 'export.job', $job === null ? [] : ['jobId' => $jobId]));
+        }
+
+        return $this->exportFileResponse($job);
+    }
+
+    private function exportFileResponse(ExportJob $job): BinaryFileResponse
+    {
+        $archiverId = $job->getArchiver();
+        $contentType = $archiverId !== null
+            ? ($this->archiverManager->get($archiverId)?->getMimeType() ?? 'application/octet-stream')
+            : $this->serializerManager->get($job->getSerializer())->getMimeType();
+
+        return new BinaryFileResponse((string) $job->getFilePath(), Response::HTTP_OK, [
+            'Content-Type' => $contentType,
+            'Content-Disposition' => \sprintf('%s; filename="%s"', ResponseHeaderBag::DISPOSITION_ATTACHMENT, (string) $job->getFileName()),
+        ], false);
+    }
+
+    private function failedExportResponse(ExportJob $job, int $exportId): RedirectResponse
+    {
+        $this->addFlash('error', (string) $job->getError());
+
+        return new RedirectResponse($this->urls->generate('export.view', ['id' => $exportId]));
+    }
+
+    private function adminId(): ?int
+    {
+        $admin = $this->securityContext->getAdminUser();
+
+        return $admin instanceof Admin ? $admin->getId() : null;
     }
 
     #[Route('/admin/import/{id}', name: 'import.view', methods: ['GET'], requirements: ['id' => '\d+'])]
