@@ -15,14 +15,20 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Repository;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\ImportTemplateBuilder;
+use Propel\Runtime\Collection\ObjectCollection;
 use Thelia\Model\ExportCategoryQuery;
+use Thelia\Model\ExportJob;
+use Thelia\Model\ExportJobQuery;
 use Thelia\Model\ExportQuery;
 use Thelia\Model\ImportCategoryQuery;
+use Thelia\Model\ImportJob;
+use Thelia\Model\ImportJobQuery;
 use Thelia\Model\ImportQuery;
 
 /**
- * Localized export/import catalogues for the data-transfer back-office screens.
- * Each category carries its ordered definitions so the controller stays thin.
+ * Localized export/import catalogues for the data-transfer back-office screens, and
+ * the jobs they were run as. Each category carries its ordered definitions so the
+ * controller stays thin.
  */
 final readonly class DataTransferRepository
 {
@@ -97,5 +103,31 @@ final readonly class DataTransferRepository
         }
 
         return $categories;
+    }
+
+    public function findExportJob(int $jobId): ?ExportJob
+    {
+        return ExportJobQuery::create()->findPk($jobId);
+    }
+
+    public function findImportJob(int $jobId): ?ImportJob
+    {
+        return ImportJobQuery::create()->findPk($jobId);
+    }
+
+    /**
+     * @return ObjectCollection<ExportJob>
+     */
+    public function findRecentExportJobs(int $limit): ObjectCollection
+    {
+        return ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find();
+    }
+
+    /**
+     * @return ObjectCollection<ImportJob>
+     */
+    public function findRecentImportJobs(int $limit): ObjectCollection
+    {
+        return ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find();
     }
 }

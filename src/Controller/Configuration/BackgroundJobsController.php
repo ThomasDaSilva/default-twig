@@ -14,8 +14,11 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
+use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -26,17 +29,15 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Core\Security\SecurityContext;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
-use Thelia\Model\Admin;
-use Thelia\Model\ExportJobQuery;
-use Thelia\Model\ImportJobQuery;
+use Thelia\Scheduler\RecurringTaskFailures;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
 /**
  * The background jobs: whether the shop has a queue, how many jobs wait in it, the
- * ones that failed and why, and the recent exports and imports.
+ * ones that failed and why, the recurring tasks whose last run failed, and the recent
+ * exports and imports.
  *
  * A failed job keeps what it was dispatched with (the recipients of a mail, the
  * reason of a failure): the screen answers to a resource of its own, not to the
@@ -56,7 +57,10 @@ final class BackgroundJobsController
         private readonly TokenProvider $tokens,
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
-        private readonly SecurityContext $securityContext,
+        private readonly DataTransferRepository $dataTransferRepository,
+        private readonly DataTransferJobAccess $jobAccess,
+        private readonly RecurringTaskFailures $recurringTaskFailures,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -67,21 +71,20 @@ final class BackgroundJobsController
             return $denied;
         }
 
-        $admin = $this->securityContext->getAdminUser();
-
         return new Response($this->twig->render('@BackOfficeDefaultTwig/configuration/background-jobs/index.html.twig', [
             'has_queue' => $this->monitor->hasQueue(),
             'pending_count' => $this->monitor->pendingCount(),
             'failed_count' => $this->monitor->failedCount(),
             'failed_jobs' => $this->monitor->failedJobs(),
-            'recent_exports' => ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit(self::RECENT_JOBS)->find(),
-            'recent_imports' => ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit(self::RECENT_JOBS)->find(),
+            'failed_recurring_tasks' => $this->recurringTaskFailures->all(),
+            'recent_exports' => $this->dataTransferRepository->findRecentExportJobs(self::RECENT_JOBS),
+            'recent_imports' => $this->dataTransferRepository->findRecentImportJobs(self::RECENT_JOBS),
             'can_retry' => null === $this->access->check(self::RESOURCE, [], AccessManager::UPDATE),
             'can_delete' => null === $this->access->check(self::RESOURCE, [], AccessManager::DELETE),
             'token' => $this->tokens->assignToken(),
             // The page of an export or an import belongs to whoever asked for it.
-            'current_admin_id' => $admin instanceof Admin ? $admin->getId() : null,
-            'is_super_admin' => $admin instanceof Admin && $admin->getPermissions() === AdminResources::SUPERADMINISTRATOR,
+            'current_admin_id' => $this->jobAccess->currentAdminId(),
+            'is_super_admin' => $this->jobAccess->isSuperAdministrator(),
         ]));
     }
 
@@ -103,7 +106,10 @@ final class BackgroundJobsController
                 return $this->backToTheList();
             }
         } catch (\Throwable $exception) {
-            $this->flash($request, 'danger', $this->translator->trans('The job failed again: %reason%', ['%reason%' => $exception->getMessage()]));
+            // The reason may quote a query, a host or the content of the job: it goes to
+            // the log, the screen says where to find it.
+            $this->logger->error(\sprintf('The failed background job %s failed again when replayed: %s', $id, $exception->getMessage()), ['exception' => $exception]);
+            $this->flash($request, 'danger', $this->translator->trans('The job failed again. The details are in the server log.'));
 
             return $this->backToTheList();
         }

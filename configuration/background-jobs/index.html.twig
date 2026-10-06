@@ -16,8 +16,7 @@
 {% block content %}
     {{ safe_hook('background-jobs.top') }}
 
-    {% set export_badges = { 'queued': 'secondary', 'running': 'info', 'done': 'success', 'failed': 'danger' } %}
-    {% set export_labels = { 'queued': 'Waiting', 'running': 'Running', 'done': 'Done', 'failed': 'Failed' } %}
+    {% import '@BackOfficeDefaultTwig/fragments/_job_status.html.twig' as job_status %}
 
     <div class="container-fluid" data-testid="background-jobs-page">
         <h1 class="h3 mb-4">{{ 'Background jobs'|trans }}</h1>
@@ -80,11 +79,12 @@
                                         <div class="text-break">{{ job.description }}</div>
                                         <div class="small text-muted text-break">{{ job.messageClass }}</div>
                                     </td>
-                                    <td class="small text-break">{{ job.error }}</td>
+                                    <td class="small text-break">{{ job.error|trans }}</td>
                                     <td class="text-nowrap">{{ job.failedAt ? job.failedAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">{{ job.attempts }}</td>
                                     <td class="text-end text-nowrap">
-                                        {% if can_retry %}
+                                        {# Replayed, a job the shop cannot read fails the same way. #}
+                                        {% if can_retry and job.replayable %}
                                             <form method="post" action="{{ path('admin.configuration.background-jobs.retry', { id: job.id }) }}" class="d-inline">
                                                 <input type="hidden" name="_token" value="{{ token }}">
                                                 <button type="submit" class="btn btn-sm btn-outline-primary" data-testid="background-jobs-retry-{{ job.id }}">
@@ -109,6 +109,35 @@
             {% endif %}
         </div>
 
+        {% if failed_recurring_tasks is not empty %}
+            <div class="card mb-4" data-testid="background-jobs-recurring-failures">
+                <div class="card-header">
+                    <h2 class="h5 mb-0">{{ 'Recurring tasks that failed'|trans }}</h2>
+                </div>
+                <div class="card-body small text-muted pb-0">{{ 'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.'|trans }}</div>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0 bo-table-wrap">
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ 'Task'|trans }}</th>
+                                <th scope="col">{{ 'Reason'|trans }}</th>
+                                <th scope="col">{{ 'Failed on'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for task in failed_recurring_tasks %}
+                                <tr data-testid="background-jobs-recurring-failure">
+                                    <td class="text-break"><code>{{ task.task }}</code></td>
+                                    <td class="small text-break">{{ task.error|trans }}</td>
+                                    <td class="text-nowrap">{{ task.failedAt|date('Y-m-d H:i') }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        {% endif %}
+
         <div class="card" data-testid="background-jobs-exports">
             <div class="card-header">
                 <h2 class="h5 mb-0">{{ 'Recent exports'|trans }}</h2>
@@ -131,7 +160,7 @@
                             {% for export_job in recent_exports %}
                                 <tr data-testid="background-jobs-export-{{ export_job.id }}">
                                     <td>{{ export_job.export ? export_job.export.title : '-' }}</td>
-                                    <td><span class="badge text-bg-{{ export_badges[export_job.status] ?? 'secondary' }}">{{ (export_labels[export_job.status] ?? export_job.status)|trans }}</span></td>
+                                    <td>{{ job_status.badge(export_job.status) }}</td>
                                     <td class="text-end">{{ export_job.processedRows }}</td>
                                     <td class="text-nowrap">{{ export_job.createdAt ? export_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
@@ -171,7 +200,7 @@
                                 <tr data-testid="background-jobs-import-{{ import_job.id }}">
                                     <td>{{ import_job.import ? import_job.import.title : '-' }}</td>
                                     <td class="text-break">{{ import_job.fileName }}</td>
-                                    <td><span class="badge text-bg-{{ export_badges[import_job.status] ?? 'secondary' }}">{{ (export_labels[import_job.status] ?? import_job.status)|trans }}</span></td>
+                                    <td>{{ job_status.badge(import_job.status) }}</td>
                                     <td class="text-end">{{ import_job.importedRows }}</td>
                                     <td class="text-nowrap">{{ import_job.createdAt ? import_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
