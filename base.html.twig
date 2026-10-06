@@ -52,7 +52,8 @@
                         {% block flash %}
                             {% for type, messages in bo_flashes() %}
                                 {% for message in messages %}
-                                    <div class="alert alert-{{ type }} alert-dismissible fade show" role="alert" data-testid="bo-flash-{{ type }}">
+                                    {# Bootstrap has no alert-error: an error is shown as danger. #}
+                                    <div class="alert alert-{{ type == 'error' ? 'danger' : type }} alert-dismissible fade show" role="alert" data-testid="bo-flash-{{ type }}">
                                         {{ message }}
                                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                                     </div>

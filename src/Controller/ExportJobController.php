@@ -78,21 +78,17 @@ final readonly class ExportJobController
         }
 
         $job = $this->repository->findExportJob($jobId);
-        if (null === $job) {
-            return new RedirectResponse($this->urls->generate('export.list'));
-        }
-
-        if (!$this->jobAccess->maySee($job->getAdminId())) {
+        if (null !== $job && !$this->jobAccess->maySee($job->getAdminId())) {
             return $this->forbidden();
         }
 
-        if (!$this->exportJobFile->isAvailable($job)) {
+        if (null === $job || !$this->exportJobFile->isAvailable($job)) {
             $session = $request->getSession();
             if ($session instanceof FlashBagAwareSessionInterface) {
                 $session->getFlashBag()->add('error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
             }
 
-            return new RedirectResponse($this->urls->generate('export.job', ['jobId' => $jobId]));
+            return new RedirectResponse(null === $job ? $this->urls->generate('export.list') : $this->urls->generate('export.job', ['jobId' => $jobId]));
         }
 
         return $this->exportJobFile->response($job);
