@@ -414,7 +414,8 @@ final class ExportImportController
     #[Route('/admin/import/{id}', name: 'import.process', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function importProcess(int $id, Request $request): Response
     {
-        if ($denied = $this->access->check(AdminResources::IMPORT, [], AccessManager::VIEW)) {
+        // An import changes the catalog: seeing the imports is not enough to run one.
+        if ($denied = $this->access->check(AdminResources::IMPORT, [], AccessManager::UPDATE)) {
             return $denied;
         }
 
