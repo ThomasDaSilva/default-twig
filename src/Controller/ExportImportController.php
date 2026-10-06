@@ -355,7 +355,7 @@ final class ExportImportController
     {
         $admin = $this->securityContext->getAdminUser();
 
-        if ($admin instanceof Admin && ($admin->getProfileId() === null || ($ownerId !== null && $admin->getId() === $ownerId))) {
+        if ($admin instanceof Admin && ($admin->getPermissions() === AdminResources::SUPERADMINISTRATOR || ($ownerId !== null && $admin->getId() === $ownerId))) {
             return null;
         }
 
