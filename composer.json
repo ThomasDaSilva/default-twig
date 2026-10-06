@@ -14,6 +14,7 @@
         "symfony/asset": "^7.4",
         "symfony/asset-mapper": "^7.4",
         "symfony/framework-bundle": "^7.4",
+        "symfony/html-sanitizer": "^7.4",
         "symfony/twig-bundle": "^7.4",
         "symfony/ux-icons": "^2.21 || ^3.0",
         "symfony/ux-twig-component": "^2.19 || ^3.0",
