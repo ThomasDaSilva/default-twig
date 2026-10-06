@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Mailer\Messenger\SendEmailMessage;
 use Symfony\Component\Messenger\Envelope;
@@ -25,9 +26,11 @@ use Symfony\Component\Mime\Email;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\DataTransfer\Job\RunExportJob;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
 use Thelia\Model\Admin;
 use Thelia\Model\ConfigQuery;
+use Thelia\Model\ExportJob;
 use Thelia\Model\ExportJobQuery;
 use Thelia\Model\ExportQuery;
 use Thelia\Model\ImportJobQuery;
@@ -238,6 +241,80 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
 
         $this->assertPageRenders('/admin/import/job/'.$job->getId());
         self::assertStringContainsString('data-testid="import-job-rows"', $this->html());
+    }
+
+    /**
+     * An exported file holds customer and order data: it is for the administrator who
+     * asked for it and for a super-administrator, not for every colleague allowed to
+     * run an export.
+     */
+    public function testAnExportIsForItsAuthorAndTheSuperAdministratorsOnly(): void
+    {
+        $author = $this->factory->restrictedAdmin([AdminResources::EXPORT => [AccessManager::VIEW]]);
+        $colleague = $this->factory->restrictedAdmin([AdminResources::EXPORT => [AccessManager::VIEW]]);
+        $job = $this->doneExportJob((int) $author->getId());
+
+        $this->loginAs($colleague);
+        $this->client->request('GET', '/admin/export/job/'.$job->getId());
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+
+        $this->loginAs($author);
+        $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+    }
+
+    public function testAFileTheCacheAlreadyDroppedIsNotServed(): void
+    {
+        $job = $this->doneExportJob(null);
+        unlink((string) $job->getFilePath());
+        $this->loginAs($this->factory->admin());
+
+        $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
+
+        self::assertTrue($this->client->getResponse()->isRedirect('/admin/export/job/'.$job->getId()));
+    }
+
+    /**
+     * Replayed after the purge took its row, the export cannot run: the job says so
+     * and stays among the failures instead of being reported back in the queue.
+     */
+    public function testReplayingAJobWhoseRowIsGoneKeepsItAmongTheFailures(): void
+    {
+        $this->failureTransport()->send(new Envelope(new RunExportJob(999999999), [
+            new SentToFailureTransportStamp('async'),
+            new RedeliveryStamp(0, new \DateTimeImmutable('-1 hour')),
+            new ErrorDetailsStamp(\RuntimeException::class, 0, 'The export failed'),
+        ]));
+        $id = $this->monitor()->failedJobs()[0]->id;
+        $this->loginAs($this->factory->admin());
+
+        $this->client->request('POST', self::URL.'/'.$id.'/retry', ['_token' => $this->token()]);
+
+        self::assertSame(1, $this->monitor()->failedCount());
+    }
+
+    private function doneExportJob(?int $adminId): ExportJob
+    {
+        $file = THELIA_CACHE_DIR.'export'.\DIRECTORY_SEPARATOR.'background-jobs-screen-'.uniqid('', true).'.csv';
+        (new Filesystem())->dumpFile($file, "ref\nORD-1\n");
+        $this->files[] = $file;
+
+        $job = (new ExportJob())
+            ->setExportId((int) ExportQuery::create()->findOneByRef('thelia.export.orders')?->getId())
+            ->setAdminId($adminId)
+            ->setStatus('done')
+            ->setSerializer('thelia.csv')
+            ->setFilePath($file)
+            ->setFileName('order.csv');
+        $job->save($this->getPropelConnection());
+
+        return $job;
     }
 
     private function setAsideAMail(string $reason): string

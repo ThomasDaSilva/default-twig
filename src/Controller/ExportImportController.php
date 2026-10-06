@@ -293,6 +293,10 @@ final class ExportImportController
             return new RedirectResponse($this->urls->generate('export.list'));
         }
 
+        if ($denied = $this->deniedUnlessOwner($job->getAdminId())) {
+            return $denied;
+        }
+
         $job->getExport()?->setLocale($this->defaultLocale());
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
@@ -309,6 +313,10 @@ final class ExportImportController
         }
 
         $job = ExportJobQuery::create()->findPk($jobId);
+        if ($job !== null && ($denied = $this->deniedUnlessOwner($job->getAdminId()))) {
+            return $denied;
+        }
+
         if ($job === null || $job->getJobStatus() !== JobStatus::DONE || !is_file((string) $job->getFilePath())) {
             $this->addFlash('error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
 
@@ -336,6 +344,22 @@ final class ExportImportController
         $this->addFlash('error', (string) $job->getError());
 
         return new RedirectResponse($this->urls->generate('export.view', ['id' => $exportId]));
+    }
+
+    /**
+     * An exported file and the refused rows of an import hold customer and order data:
+     * they are the business of the administrator who asked for them, and of a
+     * super-administrator, not of every colleague who may run an export.
+     */
+    private function deniedUnlessOwner(?int $ownerId): ?Response
+    {
+        $admin = $this->securityContext->getAdminUser();
+
+        if ($admin instanceof Admin && ($admin->getProfileId() === null || ($ownerId !== null && $admin->getId() === $ownerId))) {
+            return null;
+        }
+
+        return new Response($this->translator->trans("Sorry, you're not allowed to perform this action"), Response::HTTP_FORBIDDEN);
     }
 
     private function adminId(): ?int
@@ -438,6 +462,10 @@ final class ExportImportController
         $job = ImportJobQuery::create()->findPk($jobId);
         if ($job === null) {
             return new RedirectResponse($this->urls->generate('import.list'));
+        }
+
+        if ($denied = $this->deniedUnlessOwner($job->getAdminId())) {
+            return $denied;
         }
 
         $job->getImport()?->setLocale($this->defaultLocale());
