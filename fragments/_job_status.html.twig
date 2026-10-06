@@ -1,0 +1,6 @@
+{# The status of an export or an import job, as a badge. #}
+{% macro badge(status, testid = null) %}
+    {%- set variants = { 'queued': 'secondary', 'running': 'info', 'done': 'success', 'failed': 'danger' } -%}
+    {%- set labels = { 'queued': 'Waiting', 'running': 'Running', 'done': 'Done', 'failed': 'Failed' } -%}
+    <span class="badge text-bg-{{ variants[status] ?? 'secondary' }}"{% if testid %} data-testid="{{ testid }}"{% endif %}>{{ (labels[status] ?? status)|trans }}</span>
+{%- endmacro %}

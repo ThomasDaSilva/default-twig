@@ -22,8 +22,7 @@
 {% endblock %}
 
 {% block content %}
-    {% set badges = { 'queued': 'secondary', 'running': 'info', 'done': 'success', 'failed': 'danger' } %}
-    {% set labels = { 'queued': 'Waiting', 'running': 'Running', 'done': 'Done', 'failed': 'Failed' } %}
+    {% import '@BackOfficeDefaultTwig/fragments/_job_status.html.twig' as job_status %}
 
     <div class="container-fluid" data-testid="import-job-page" data-import-job-status="{{ job.status }}">
         <h1 class="h3 mb-3">{{ 'Import'|trans }} : {{ import_title }}</h1>
@@ -31,7 +30,7 @@
         <div class="card">
             <div class="card-body">
                 <p class="mb-2">
-                    <span class="badge text-bg-{{ badges[job.status] ?? 'secondary' }}" data-testid="import-job-status">{{ (labels[job.status] ?? job.status)|trans }}</span>
+                    {{ job_status.badge(job.status, 'import-job-status') }}
                     <span class="text-muted ms-2">{{ job.fileName }}</span>
                 </p>
 
@@ -48,7 +47,7 @@
                         </ul>
                     {% endif %}
                 {% else %}
-                    <p class="text-danger mb-0 text-break" data-testid="import-job-error">{{ job.error }}</p>
+                    <p class="text-danger mb-0 text-break" data-testid="import-job-error">{{ job.error|trans }}</p>
                 {% endif %}
             </div>
         </div>

@@ -18,6 +18,9 @@ use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\ImportTemplateBuilder;
+use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use BackOfficeDefaultTwigBundle\Service\Admin\ExportJobFile;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -25,6 +28,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -35,18 +39,15 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Serializer\SerializerManager;
-use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\DataTransfer\ExportHandler;
 use Thelia\Domain\DataTransfer\Job\ExportJobLauncher;
 use Thelia\Domain\DataTransfer\Job\ImportJobLauncher;
 use Thelia\Domain\DataTransfer\Job\JobStatus;
 use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Form\Exception\FormValidationException;
-use Thelia\Model\Admin;
+use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\ExportJob;
-use Thelia\Model\ExportJobQuery;
 use Thelia\Model\ImportJob;
-use Thelia\Model\ImportJobQuery;
 use Thelia\Model\LangQuery;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
@@ -69,7 +70,10 @@ final class ExportImportController
         private readonly TokenProvider $tokens,
         private readonly ExportJobLauncher $exportJobLauncher,
         private readonly ImportJobLauncher $importJobLauncher,
-        private readonly SecurityContext $securityContext,
+        private readonly DataTransferJobAccess $jobAccess,
+        private readonly ExportJobFile $exportJobFile,
+        #[Autowire(service: 'limiter.admin_data_transfer_launch')]
+        private readonly RateLimiterFactoryInterface $launchLimiter,
     ) {
     }
 
@@ -90,6 +94,17 @@ final class ExportImportController
 
             return false;
         }
+    }
+
+    private function mayLaunch(): bool
+    {
+        if ($this->launchLimiter->create((string) $this->jobAccess->currentAdminId())->consume()->isAccepted()) {
+            return true;
+        }
+
+        $this->addFlash('error', $this->translator->trans('Too many exports and imports asked for in a short time: wait a few minutes before the next one.'));
+
+        return false;
     }
 
     #[Route('/admin/export', name: 'export.list', methods: ['GET'])]
@@ -234,7 +249,7 @@ final class ExportImportController
             return new RedirectResponse($this->urls->generate('export.list'));
         }
 
-        if (!$this->hasValidToken()) {
+        if (!$this->hasValidToken() || !$this->mayLaunch()) {
             return new RedirectResponse($this->urls->generate('export.view', ['id' => $id]));
         }
 
@@ -280,10 +295,10 @@ final class ExportImportController
                 $request->request->getBoolean('images'),
                 $request->request->getBoolean('documents'),
                 $rangeDate,
-                $this->adminId(),
+                $this->jobAccess->currentAdminId(),
             );
         } catch (\Throwable $exception) {
-            $this->addFlash('error', $exception->getMessage());
+            $this->addFlash('error', $this->translator->trans(JobFailureMessage::forAdministrator($exception)));
 
             return new RedirectResponse($this->urls->generate('export.view', ['id' => $id]));
         }
@@ -291,98 +306,17 @@ final class ExportImportController
         // Without a queue the export ran in this request: the file is served at once,
         // as before. With one, the page tells how far the worker got.
         return match ($job->getJobStatus()) {
-            JobStatus::DONE => $this->exportFileResponse($job),
+            JobStatus::DONE => $this->exportJobFile->response($job),
             JobStatus::FAILED => $this->failedExportResponse($job, $id),
             default => new RedirectResponse($this->urls->generate('export.job', ['jobId' => $job->getId()])),
         };
     }
 
-    #[Route('/admin/export/job/{jobId}', name: 'export.job', methods: ['GET'], requirements: ['jobId' => '\d+'])]
-    public function exportJob(int $jobId): Response
-    {
-        if ($denied = $this->access->check(AdminResources::EXPORT, [], AccessManager::VIEW)) {
-            return $denied;
-        }
-
-        $job = ExportJobQuery::create()->findPk($jobId);
-        if ($job === null) {
-            return new RedirectResponse($this->urls->generate('export.list'));
-        }
-
-        if ($denied = $this->deniedUnlessOwner($job->getAdminId())) {
-            return $denied;
-        }
-
-        $job->getExport()?->setLocale($this->defaultLocale());
-
-        return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
-            'job' => $job,
-            'file_available' => $job->getJobStatus() === JobStatus::DONE && is_file((string) $job->getFilePath()),
-        ]));
-    }
-
-    #[Route('/admin/export/job/{jobId}/download', name: 'export.job.download', methods: ['GET'], requirements: ['jobId' => '\d+'])]
-    public function exportJobDownload(int $jobId): Response
-    {
-        if ($denied = $this->access->check(AdminResources::EXPORT, [], AccessManager::VIEW)) {
-            return $denied;
-        }
-
-        $job = ExportJobQuery::create()->findPk($jobId);
-        if ($job !== null && ($denied = $this->deniedUnlessOwner($job->getAdminId()))) {
-            return $denied;
-        }
-
-        if ($job === null || $job->getJobStatus() !== JobStatus::DONE || !is_file((string) $job->getFilePath())) {
-            $this->addFlash('error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
-
-            return new RedirectResponse($this->urls->generate($job === null ? 'export.list' : 'export.job', $job === null ? [] : ['jobId' => $jobId]));
-        }
-
-        return $this->exportFileResponse($job);
-    }
-
-    private function exportFileResponse(ExportJob $job): BinaryFileResponse
-    {
-        $archiverId = $job->getArchiver();
-        $contentType = $archiverId !== null
-            ? ($this->archiverManager->get($archiverId)?->getMimeType() ?? 'application/octet-stream')
-            : $this->serializerManager->get($job->getSerializer())->getMimeType();
-
-        return new BinaryFileResponse((string) $job->getFilePath(), Response::HTTP_OK, [
-            'Content-Type' => $contentType,
-            'Content-Disposition' => \sprintf('%s; filename="%s"', ResponseHeaderBag::DISPOSITION_ATTACHMENT, (string) $job->getFileName()),
-        ], false);
-    }
-
     private function failedExportResponse(ExportJob $job, int $exportId): RedirectResponse
     {
-        $this->addFlash('error', (string) $job->getError());
+        $this->addFlash('error', $this->translator->trans((string) $job->getError()));
 
         return new RedirectResponse($this->urls->generate('export.view', ['id' => $exportId]));
-    }
-
-    /**
-     * An exported file and the refused rows of an import hold customer and order data:
-     * they are the business of the administrator who asked for them, and of a
-     * super-administrator, not of every colleague who may run an export.
-     */
-    private function deniedUnlessOwner(?int $ownerId): ?Response
-    {
-        $admin = $this->securityContext->getAdminUser();
-
-        if ($admin instanceof Admin && ($admin->getPermissions() === AdminResources::SUPERADMINISTRATOR || ($ownerId !== null && $admin->getId() === $ownerId))) {
-            return null;
-        }
-
-        return new Response($this->translator->trans("Sorry, you're not allowed to perform this action"), Response::HTTP_FORBIDDEN);
-    }
-
-    private function adminId(): ?int
-    {
-        $admin = $this->securityContext->getAdminUser();
-
-        return $admin instanceof Admin ? $admin->getId() : null;
     }
 
     #[Route('/admin/import/{id}', name: 'import.view', methods: ['GET'], requirements: ['id' => '\d+'])]
@@ -424,7 +358,7 @@ final class ExportImportController
             return new RedirectResponse($this->urls->generate('import.list'));
         }
 
-        if (!$this->hasValidToken()) {
+        if (!$this->hasValidToken() || !$this->mayLaunch()) {
             return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
         }
 
@@ -453,9 +387,9 @@ final class ExportImportController
         }
 
         try {
-            $job = $this->importJobLauncher->launch($import, $uploaded, $uploaded->getClientOriginalName(), $lang, $this->adminId());
+            $job = $this->importJobLauncher->launch($import, $uploaded, $uploaded->getClientOriginalName(), $lang, $this->jobAccess->currentAdminId());
         } catch (\Throwable $exception) {
-            $this->addFlash('error', $exception->getMessage());
+            $this->addFlash('error', $this->translator->trans(JobFailureMessage::forAdministrator($exception)));
 
             return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
         }
@@ -471,31 +405,10 @@ final class ExportImportController
         return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
     }
 
-    #[Route('/admin/import/job/{jobId}', name: 'import.job', methods: ['GET'], requirements: ['jobId' => '\\d+'])]
-    public function importJob(int $jobId): Response
-    {
-        if ($denied = $this->access->check(AdminResources::IMPORT, [], AccessManager::VIEW)) {
-            return $denied;
-        }
-
-        $job = ImportJobQuery::create()->findPk($jobId);
-        if ($job === null) {
-            return new RedirectResponse($this->urls->generate('import.list'));
-        }
-
-        if ($denied = $this->deniedUnlessOwner($job->getAdminId())) {
-            return $denied;
-        }
-
-        $job->getImport()?->setLocale($this->defaultLocale());
-
-        return new Response($this->twig->render('@BackOfficeDefaultTwig/import/job.html.twig', ['job' => $job]));
-    }
-
     private function flashImportOutcome(ImportJob $job): void
     {
         if ($job->getJobStatus() === JobStatus::FAILED) {
-            $this->addFlash('error', (string) $job->getError());
+            $this->addFlash('error', $this->translator->trans((string) $job->getError()));
 
             return;
         }

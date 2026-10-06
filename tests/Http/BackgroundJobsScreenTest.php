@@ -27,6 +27,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\DataTransfer\Job\RunExportJob;
+use Thelia\Messenger\Message\UndecodableJob;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
 use Thelia\Model\Admin;
 use Thelia\Model\ConfigQuery;
@@ -36,6 +37,7 @@ use Thelia\Model\ExportQuery;
 use Thelia\Model\ImportJobQuery;
 use Thelia\Model\ImportQuery;
 use Thelia\Model\LangQuery;
+use Thelia\Scheduler\RecurringTaskFailures;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
@@ -297,6 +299,70 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         $this->client->request('POST', self::URL.'/'.$id.'/retry', ['_token' => $this->token()]);
 
         self::assertSame(1, $this->monitor()->failedCount());
+
+        // Why it failed again goes to the log: the screen says where to look.
+        $this->client->followRedirect();
+        self::assertStringContainsString('The job failed again. The details are in the server log.', $this->html());
+        self::assertStringNotContainsString('999999999 no longer exists', $this->html());
+    }
+
+    /**
+     * Replayed, a job the shop cannot read fails the same way: it is only offered for
+     * deletion.
+     */
+    public function testAnUnreadableJobIsNotOfferedForReplay(): void
+    {
+        $this->failureTransport()->send(new Envelope(new UndecodableJob('Vendor\\Gone\\Job', 'The class no longer exists.', '{}'), [
+            new SentToFailureTransportStamp('async'),
+            new RedeliveryStamp(0, new \DateTimeImmutable('-1 hour')),
+            new ErrorDetailsStamp(\RuntimeException::class, 0, 'Unreadable'),
+        ]));
+        $id = $this->monitor()->failedJobs()[0]->id;
+        $this->loginAs($this->factory->admin());
+
+        $this->assertPageRenders(self::URL);
+
+        self::assertStringNotContainsString('background-jobs-retry-'.$id, $this->html());
+        self::assertStringContainsString('background-jobs-delete-'.$id, $this->html());
+    }
+
+    /**
+     * A recurring task never reaches the failed jobs: its last failure is listed on
+     * its own.
+     */
+    public function testARecurringTaskThatFailedIsListed(): void
+    {
+        $failures = $this->getService(RecurringTaskFailures::class);
+        $failures->record('maintenance:purge', 'Command "maintenance:purge" exited with code "1".');
+        $this->loginAs($this->factory->admin());
+
+        try {
+            $this->assertPageRenders(self::URL);
+
+            self::assertStringContainsString('data-testid="background-jobs-recurring-failure"', $this->html());
+            self::assertStringContainsString('maintenance:purge', $this->html());
+        } finally {
+            $failures->forget('maintenance:purge');
+        }
+    }
+
+    /**
+     * An export reads, an import rewrites, the whole catalog: a form sent over and over
+     * would hold the queue for hours.
+     */
+    public function testAnAdministratorWhoLaunchesTooManyImportsIsAskedToWait(): void
+    {
+        $import = ImportQuery::create()->findOneByRef('thelia.import.stock');
+        self::assertNotNull($import);
+        $this->loginAs($this->factory->admin());
+        $token = $this->token();
+
+        for ($launch = 1; $launch <= 11; ++$launch) {
+            $this->client->request('POST', '/admin/import/'.$import->getId(), ['_token' => $token, 'language' => '1']);
+        }
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('Too many exports and imports asked for in a short time', $this->html());
     }
 
     private function doneExportJob(?int $adminId): ExportJob
