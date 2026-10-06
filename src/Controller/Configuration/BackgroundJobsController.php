@@ -81,7 +81,7 @@ final class BackgroundJobsController
             'token' => $this->tokens->assignToken(),
             // The page of an export or an import belongs to whoever asked for it.
             'current_admin_id' => $admin instanceof Admin ? $admin->getId() : null,
-            'is_super_admin' => $admin instanceof Admin && $admin->getProfileId() === null,
+            'is_super_admin' => $admin instanceof Admin && $admin->getPermissions() === AdminResources::SUPERADMINISTRATOR,
         ]));
     }
 
