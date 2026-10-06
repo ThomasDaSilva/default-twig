@@ -26,7 +26,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Core\Security\SecurityContext;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
+use Thelia\Model\Admin;
 use Thelia\Model\ExportJobQuery;
 use Thelia\Model\ImportJobQuery;
 use Thelia\Tools\TokenProvider;
@@ -54,6 +56,7 @@ final class BackgroundJobsController
         private readonly TokenProvider $tokens,
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
+        private readonly SecurityContext $securityContext,
     ) {
     }
 
@@ -63,6 +66,8 @@ final class BackgroundJobsController
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
+
+        $admin = $this->securityContext->getAdminUser();
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/configuration/background-jobs/index.html.twig', [
             'has_queue' => $this->monitor->hasQueue(),
@@ -74,6 +79,9 @@ final class BackgroundJobsController
             'can_retry' => null === $this->access->check(self::RESOURCE, [], AccessManager::UPDATE),
             'can_delete' => null === $this->access->check(self::RESOURCE, [], AccessManager::DELETE),
             'token' => $this->tokens->assignToken(),
+            // The page of an export or an import belongs to whoever asked for it.
+            'current_admin_id' => $admin instanceof Admin ? $admin->getId() : null,
+            'is_super_admin' => $admin instanceof Admin && $admin->getProfileId() === null,
         ]));
     }
 
