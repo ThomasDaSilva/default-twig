@@ -271,6 +271,46 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
     }
 
+    /**
+     * The refused rows of an import quote its file: the same rule as an export.
+     */
+    public function testAnImportIsForItsAuthorAndTheSuperAdministratorsOnly(): void
+    {
+        $author = $this->factory->restrictedAdmin([AdminResources::IMPORT => [AccessManager::VIEW]]);
+        $colleague = $this->factory->restrictedAdmin([AdminResources::IMPORT => [AccessManager::VIEW]]);
+        $job = (new \Thelia\Model\ImportJob())
+            ->setImportId((int) ImportQuery::create()->findOneByRef('thelia.import.stock')?->getId())
+            ->setAdminId((int) $author->getId())
+            ->setStatus('done')
+            ->setFilePath('var/data-transfer/import/none.csv')
+            ->setFileName('stock.csv');
+        $job->save($this->getPropelConnection());
+
+        $this->loginAs($colleague);
+        $this->client->request('GET', '/admin/import/job/'.$job->getId());
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+
+        $this->loginAs($author);
+        $this->assertPageRenders('/admin/import/job/'.$job->getId());
+
+        $this->loginAs($this->factory->admin());
+        $this->assertPageRenders('/admin/import/job/'.$job->getId());
+    }
+
+    /**
+     * An error is shown in the colours of an error, as the forms used to show it.
+     */
+    public function testAnErrorMessageIsShownAsDanger(): void
+    {
+        $this->loginAs($this->factory->admin());
+
+        $this->client->request('GET', '/admin/export/job/999999999/download');
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('alert alert-danger', $this->html());
+        self::assertStringContainsString('The file of this export is no longer available', $this->html());
+    }
+
     public function testAFileTheCacheAlreadyDroppedIsNotServed(): void
     {
         $job = $this->doneExportJob(null);
