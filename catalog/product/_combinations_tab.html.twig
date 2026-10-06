@@ -88,7 +88,7 @@
                                         <td><small>{{ row.label }}</small></td>
                                         <td><input type="hidden" name="product_sale_element_id[]" value="{{ row.id }}"><input type="text" name="reference[]" value="{{ row.ref }}" class="form-control form-control-sm bo-combinations-grid__ref"></td>
                                         <td><input type="number" step="any" name="quantity[]" value="{{ row.quantity }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
-                                        <td><input type="number" step="any" name="price[]" value="{{ row.price }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
+                                        <td><input type="number" step="any" name="price[]" value="{{ row.price }}" class="form-control form-control-sm text-end bo-combinations-grid__number"{% if row.price is null %} required{% endif %}></td>
                                         <td><input type="number" step="any" name="sale_price[]" value="{{ row.sale_price }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
                                         <td><input type="number" step="any" name="weight[]" value="{{ row.weight }}" class="form-control form-control-sm text-end bo-combinations-grid__number"></td>
                                         <td>

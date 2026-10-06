@@ -2384,4 +2384,5 @@ return [
     'Also carried by: %others%' => 'Aussi porté par : %others%',
     'The GTIN %code% of the combination %ref% is also carried by: %others%. It was saved; check it is not a typing mistake.' => 'Le GTIN %code% de la combinaison %ref% est aussi porté par : %others%. Il a été enregistré ; vérifiez qu\'il ne s\'agit pas d\'une erreur de saisie.',
     'Title, reference, GTIN or manufacturer part number' => 'Titre, référence, GTIN ou référence fabricant',
+    'Not saved until a price is entered: %references%.' => 'Non enregistré tant qu\'aucun prix n\'est saisi : %references%.',
 ];

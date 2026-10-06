@@ -24,9 +24,11 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Action\Image as ImageAction;
 use Thelia\Core\Event\FeatureProduct\FeatureProductDeleteEvent;
 use Thelia\Core\Event\FeatureProduct\FeatureProductUpdateEvent;
@@ -97,6 +99,7 @@ final class ProductAdvancedController
         private readonly TokenProvider $tokens,
         private readonly ProductVideoPresenter $videoPresenter,
         private readonly CombinationIdentifierNotices $identifierNotices,
+        private readonly TranslatorInterface $translator,
     ) {
     }
 
@@ -588,6 +591,7 @@ final class ProductAdvancedController
         $isnew = $form->all('isnew');
         $saved = [];
 
+        $unpriced = [];
         foreach ($ids as $index => $rawId) {
             $pseId = (int) $rawId;
             if ($pseId <= 0) {
@@ -595,6 +599,13 @@ final class ProductAdvancedController
             }
 
             $storedPrice = $this->storedPrice($pseId, $currency);
+            // A combination without any price, sent with an empty one, is left as it
+            // is: the other combinations of the grid are saved, and the notice names it.
+            if ($this->savesAFreePrice($prices[$index] ?? null, $storedPrice)) {
+                $unpriced[] = $this->referenceOf($refs[$index] ?? null, $pseId);
+                continue;
+            }
+
             $event = new ProductSaleElementUpdateEvent($product, $pseId);
             $event
                 ->setReference((string) ($refs[$index] ?? ''))
@@ -623,6 +634,7 @@ final class ProductAdvancedController
         }
 
         $this->identifierNotices->reportSharedCodes($saved);
+        $this->noticeUnpricedCombinations($request, $unpriced);
 
         return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
     }
@@ -743,6 +755,11 @@ final class ProductAdvancedController
         if ($pseId > 0) {
             $currency = (int) $form->get('currency', $this->defaultCurrencyId());
             $storedPrice = $this->storedPrice($pseId, $currency);
+            if ($this->savesAFreePrice($form->get('price'), $storedPrice)) {
+                $this->noticeUnpricedCombinations($request, [$this->referenceOf($form->get('reference'), $pseId)]);
+
+                return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['product_id' => $productId, 'current_tab' => 'pse']));
+            }
             $event = new ProductSaleElementUpdateEvent($product, $pseId);
             $event
                 ->setReference((string) $form->get('reference', ''))
@@ -1108,6 +1125,45 @@ final class ProductAdvancedController
             ->filterByProductSaleElementsId($pseId)
             ->filterByCurrencyId($currencyId)
             ->findOne();
+    }
+
+    /**
+     * A combination with no stored price, saved with its price left empty. The
+     * update of the core always writes a price row, so it would be saved at 0
+     * and sold for free.
+     */
+    private function savesAFreePrice(mixed $submittedPrice, ?ProductPrice $storedPrice): bool
+    {
+        if ($storedPrice !== null) {
+            return false;
+        }
+
+        return !\is_scalar($submittedPrice) || trim((string) $submittedPrice) === '';
+    }
+
+    private function referenceOf(mixed $submittedReference, int $pseId): string
+    {
+        $reference = \is_scalar($submittedReference) ? trim((string) $submittedReference) : '';
+
+        return $reference !== '' ? $reference : '#'.$pseId;
+    }
+
+    /**
+     * @param list<string> $references
+     */
+    private function noticeUnpricedCombinations(Request $request, array $references): void
+    {
+        if ($references === [] || !$request->hasSession()) {
+            return;
+        }
+
+        $session = $request->getSession();
+        if ($session instanceof FlashBagAwareSessionInterface) {
+            $session->getFlashBag()->add('danger', $this->translator->trans(
+                'Not saved until a price is entered: %references%.',
+                ['%references%' => implode(', ', $references)],
+            ));
+        }
     }
 
     /**

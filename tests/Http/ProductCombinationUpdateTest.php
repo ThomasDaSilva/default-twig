@@ -33,7 +33,9 @@ use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
  * The two forms of the combinations tab of a product sheet, over HTTP: the
  * table of combinations and the default pricing of a product without any.
  * Both only save through a POST that carries the token of the form, and a
- * price the form did not send keeps its stored value.
+ * price the form did not send keeps its stored value. A combination without any
+ * price is shown with an empty one, and is not saved until one is typed: the
+ * update of the core would otherwise store it at 0.
  */
 final class ProductCombinationUpdateTest extends WebIntegrationTestCase
 {
@@ -195,6 +197,110 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         self::assertSame(20.0, (float) $price->getPromoPrice(), 'A sale price the form did not send keeps its stored value.');
     }
 
+    public function testACombinationWithoutPriceShowsAnEmptyPriceThatMustBeFilled(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $pse] = $this->productWithACombination();
+        $unpriced = $this->unpricedCombinationOf($product);
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $unpricedInput = $crawler->filter(\sprintf('tr[data-testid="combinations-row-%d"] input[name="price[]"]', $unpriced->getId()));
+        self::assertSame('', $unpricedInput->attr('value'), 'A combination without any price shows an empty price, not 0.');
+        self::assertNotNull($unpricedInput->attr('required'), 'The browser asks for the missing price before submitting.');
+        $pricedInput = $crawler->filter(\sprintf('tr[data-testid="combinations-row-%d"] input[name="price[]"]', $pse->getId()));
+        self::assertSame('25', $pricedInput->attr('value'));
+        self::assertNull($pricedInput->attr('required'), 'A priced combination is shown as before.');
+    }
+
+    public function testAnUnpricedCombinationSentWithoutAPriceIsLeftAsItIsAndTheOthersAreSaved(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $pse] = $this->productWithACombination();
+        $unpriced = $this->unpricedCombinationOf($product);
+
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
+            'product_id' => $product->getId(),
+            'tax_rule' => $product->getTaxRuleId(),
+            'default_pse' => $pse->getId(),
+            'product_sale_element_id' => [$pse->getId(), $unpriced->getId()],
+            'reference' => [$pse->getRef(), $unpriced->getRef()],
+            'quantity' => [42, 9],
+            'price' => ['25', ''],
+            'sale_price' => ['20', ''],
+            'weight' => [1.5, 0],
+        ]);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertNull($this->priceOf($unpriced), 'No price of 0 is written for a combination saved without a price.');
+        self::assertSame(3.0, (float) $this->freshSaleElement($unpriced)->getQuantity(), 'The unpriced combination is left as it is.');
+        self::assertSame(42.0, (float) $this->freshSaleElement($pse)->getQuantity(), 'The other combinations are saved.');
+        self::assertSame(25.0, (float) $this->storedPrice($pse)->getPrice());
+        $this->client->followRedirect();
+        self::assertStringContainsString(
+            $unpriced->getRef(),
+            $this->client->getCrawler()->filter('[data-testid="bo-flash-danger"]')->text(''),
+            'The merchant is told which combination needs a price.',
+        );
+    }
+
+    public function testAPriceEnteredForAnUnpricedCombinationIsSaved(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $pse] = $this->productWithACombination();
+        $unpriced = $this->unpricedCombinationOf($product);
+
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
+            'product_id' => $product->getId(),
+            'tax_rule' => $product->getTaxRuleId(),
+            'default_pse' => $pse->getId(),
+            'product_sale_element_id' => [$pse->getId(), $unpriced->getId()],
+            'reference' => [$pse->getRef(), $unpriced->getRef()],
+            'quantity' => [42, 3],
+            'price' => ['25', '12.5'],
+            'sale_price' => ['20', ''],
+            'weight' => [1.5, 0],
+        ]);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertSame(42.0, (float) $this->freshSaleElement($pse)->getQuantity());
+        self::assertSame(25.0, (float) $this->storedPrice($pse)->getPrice());
+        $price = $this->priceOf($unpriced);
+        self::assertNotNull($price);
+        self::assertSame(12.5, (float) $price->getPrice());
+    }
+
+    public function testTheDefaultPriceFormWritesNoPriceOfZeroForAnUnpricedProduct(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $pse] = $this->productWithoutCombination();
+        ProductPriceQuery::create()
+            ->filterByProductSaleElementsId($pse->getId())
+            ->delete($this->getPropelConnection());
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+        self::assertSame('', $crawler->filter('#default_pse_price')->attr('value'), 'A product without any price shows an empty price, not 0.');
+
+        $this->client->request('POST', self::DEFAULT_PRICE_URL, [
+            '_token' => $this->tokenOf($product, 'default-pse-form'),
+            'product_id' => $product->getId(),
+            'product_sale_element_id' => $pse->getId(),
+            'reference' => $pse->getRef(),
+            'tax_rule' => $product->getTaxRuleId(),
+            'quantity' => 43,
+            'weight' => 1.5,
+            'price' => '',
+            'sale_price' => '',
+        ]);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        self::assertNull($this->priceOf($pse), 'No price of 0 is written for a product saved without a price.');
+        self::assertSame(7.0, (float) $this->freshSaleElement($pse)->getQuantity(), 'Nothing is saved.');
+    }
+
     private function loginFullAdmin(): void
     {
         $admin = $this->factory->admin();
@@ -239,6 +345,20 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $this->factory->attributeCombination($pse, $this->factory->attributeAv($attribute, ['title' => 'Large']));
 
         return [$product, $pse];
+    }
+
+    /**
+     * A combination written without any price row, the way the API or an import
+     * can create one.
+     */
+    private function unpricedCombinationOf(Product $product): ProductSaleElements
+    {
+        $pse = $this->factory->productSaleElement($product, ['quantity' => 3]);
+        $attribute = $this->factory->attribute(['title' => 'Color']);
+        $this->factory->attributeCombination($pse, $this->factory->attributeAv($attribute, ['title' => 'Red']));
+        self::assertNull($this->priceOf($pse));
+
+        return $pse;
     }
 
     private function defaultCurrency(): Currency
@@ -292,13 +412,19 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
 
     private function storedPrice(ProductSaleElements $pse): ProductPrice
     {
-        ProductPriceTableMap::clearInstancePool();
-        $price = ProductPriceQuery::create()
-            ->filterByProductSaleElementsId($pse->getId())
-            ->filterByCurrencyId($this->defaultCurrency()->getId())
-            ->findOne($this->getPropelConnection());
+        $price = $this->priceOf($pse);
         self::assertNotNull($price);
 
         return $price;
+    }
+
+    private function priceOf(ProductSaleElements $pse): ?ProductPrice
+    {
+        ProductPriceTableMap::clearInstancePool();
+
+        return ProductPriceQuery::create()
+            ->filterByProductSaleElementsId($pse->getId())
+            ->filterByCurrencyId($this->defaultCurrency()->getId())
+            ->findOne($this->getPropelConnection());
     }
 }

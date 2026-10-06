@@ -121,6 +121,22 @@ final class CombinationsTabContextBuilderTest extends IntegrationTestCase
         self::assertSame([$sBlue, $mBlue, $sRed], $this->orderedIds([$sRed, $sBlue, $mBlue]));
     }
 
+    public function testACombinationWithoutPriceIsReadUnpricedRatherThanAtZero(): void
+    {
+        $priced = $this->givenCombination(0, 's', 'blue');
+        $unpricedSaleElement = $this->factory->productSaleElement($this->product);
+        $this->factory->attributeCombination($unpricedSaleElement, $this->values['m']);
+        $unpriced = (int) $unpricedSaleElement->getId();
+
+        $context = (new CombinationsTabContextBuilder())->build($this->product, (int) $this->currency->getId());
+        $rows = array_column($context['pse_rows'], null, 'id');
+
+        self::assertNull($rows[$unpriced]['price'], 'A combination without any price has no price to show, not a price of 0.');
+        self::assertNull($rows[$unpriced]['sale_price']);
+        self::assertSame(10.0, $rows[$priced]['price']);
+        self::assertSame(10.0, $rows[$priced]['sale_price']);
+    }
+
     /**
      * @param list<int> $createdIds
      *

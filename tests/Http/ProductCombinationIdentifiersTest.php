@@ -75,6 +75,7 @@ final class ProductCombinationIdentifiersTest extends WebIntegrationTestCase
         $this->loginFullAdmin();
         [$product, $refused] = $this->productWithACombination();
         $saved = $this->factory->productSaleElement($product, ['quantity' => 7]);
+        $this->factory->productPrice($saved, $this->defaultCurrency());
 
         $this->postGrid($product, [
             [$refused, ['ean_code' => '4006381333932', 'quantity' => 42]],

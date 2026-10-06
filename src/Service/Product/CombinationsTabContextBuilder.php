@@ -103,8 +103,9 @@ final readonly class CombinationsTabContextBuilder
                 'id' => (int) $pse->getId(),
                 'label' => $combinationLabels === [] ? 'default' : implode(' / ', $combinationLabels),
                 'ref' => (string) $pse->getRef(),
-                'price' => $price !== null ? (float) $price->getPrice() : 0.0,
-                'sale_price' => $price !== null ? (float) $price->getPromoPrice() : 0.0,
+                // Null, never 0: a 0 shown here would be saved back as a free price.
+                'price' => $price?->getPrice(),
+                'sale_price' => $price?->getPromoPrice(),
                 'quantity' => (float) $pse->getQuantity(),
                 'weight' => (float) $pse->getWeight(),
                 'ean_code' => (string) $pse->getEanCode(),
