@@ -1569,6 +1569,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'Задача не выполнена из-за ошибки сервера. Подробности в журнале сервера.',
     'The job could not be queued. The details are in the server log.' => 'Не удалось поставить задачу в очередь. Подробности в журнале сервера.',
     'The job failed again. The details are in the server log.' => 'Задача снова не выполнена. Подробности в журнале сервера.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Ошибка(и) при импорте: %errors и ещё %count отклонённых строк.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Слишком много экспортов и импортов за короткое время: подождите несколько минут перед следующим.',
     'Recurring tasks that failed' => 'Регулярные задачи с ошибкой',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Регулярная задача не сохраняется среди задач с ошибкой: она снова запустится в своё следующее время. Её последняя ошибка остаётся здесь до успешного запуска.',

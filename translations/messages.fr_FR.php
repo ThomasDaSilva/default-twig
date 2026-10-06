@@ -2408,6 +2408,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'La tâche a échoué à cause d\'une erreur du serveur. Le détail est dans le journal du serveur.',
     'The job could not be queued. The details are in the server log.' => 'La tâche n\'a pas pu être mise en file d\'attente. Le détail est dans le journal du serveur.',
     'The job failed again. The details are in the server log.' => 'La tâche a de nouveau échoué. Le détail est dans le journal du serveur.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Erreur(s) lors de l\'import : %errors et %count autres lignes refusées.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Trop d\'exports et d\'imports demandés en peu de temps : attendez quelques minutes avant le suivant.',
     'Recurring tasks that failed' => 'Tâches planifiées en échec',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Une tâche planifiée n\'est pas conservée avec les tâches en échec : elle repart à son prochain horaire. Son dernier échec reste affiché ici jusqu\'à une exécution réussie.',

@@ -27,7 +27,6 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Model\LangQuery;
 use Twig\Environment;
 
 /**
@@ -59,11 +58,11 @@ final readonly class ExportJobController
         }
 
         if (!$this->jobAccess->maySee($job->getAdminId())) {
-            return $this->forbidden();
+            return $this->jobAccess->forbidden();
         }
 
         // Never null: the row goes with its export (foreign key on delete cascade).
-        $job->getExport()->setLocale((string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US'));
+        $job->getExport()->setLocale($this->repository->defaultLocale());
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
             'job' => $job,
@@ -80,7 +79,7 @@ final readonly class ExportJobController
 
         $job = $this->repository->findExportJob($jobId);
         if (null !== $job && !$this->jobAccess->maySee($job->getAdminId())) {
-            return $this->forbidden();
+            return $this->jobAccess->forbidden();
         }
 
         if (null === $job || !$this->exportJobFile->isAvailable($job)) {
@@ -93,10 +92,5 @@ final readonly class ExportJobController
         }
 
         return $this->exportJobFile->response($job);
-    }
-
-    private function forbidden(): Response
-    {
-        return new Response($this->translator->trans("Sorry, you're not allowed to perform this action"), Response::HTTP_FORBIDDEN);
     }
 }

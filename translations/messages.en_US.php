@@ -399,6 +399,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'The job failed because of a server error. The details are in the server log.',
     'The job could not be queued. The details are in the server log.' => 'The job could not be queued. The details are in the server log.',
     'The job failed again. The details are in the server log.' => 'The job failed again. The details are in the server log.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Error(s) in import : %errors and %count more rows refused.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Too many exports and imports asked for in a short time: wait a few minutes before the next one.',
     'Recurring tasks that failed' => 'Recurring tasks that failed',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.',

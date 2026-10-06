@@ -1569,6 +1569,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'Die Aufgabe ist wegen eines Serverfehlers fehlgeschlagen. Die Einzelheiten stehen im Serverprotokoll.',
     'The job could not be queued. The details are in the server log.' => 'Die Aufgabe konnte nicht in die Warteschlange gestellt werden. Die Einzelheiten stehen im Serverprotokoll.',
     'The job failed again. The details are in the server log.' => 'Die Aufgabe ist erneut fehlgeschlagen. Die Einzelheiten stehen im Serverprotokoll.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Fehler beim Import: %errors und %count weitere abgelehnte Zeilen.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Zu viele Exporte und Importe in kurzer Zeit angefordert: Warten Sie einige Minuten vor dem nächsten.',
     'Recurring tasks that failed' => 'Fehlgeschlagene wiederkehrende Aufgaben',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Eine wiederkehrende Aufgabe wird nicht bei den fehlgeschlagenen Aufgaben aufbewahrt: Sie läuft zu ihrem nächsten Termin erneut. Ihr letzter Fehler bleibt hier, bis ein Lauf gelingt.',

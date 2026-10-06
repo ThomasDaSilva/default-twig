@@ -1568,6 +1568,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'Úloha selhala kvůli chybě serveru. Podrobnosti jsou v protokolu serveru.',
     'The job could not be queued. The details are in the server log.' => 'Úlohu se nepodařilo zařadit do fronty. Podrobnosti jsou v protokolu serveru.',
     'The job failed again. The details are in the server log.' => 'Úloha znovu selhala. Podrobnosti jsou v protokolu serveru.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Chyba/chyby při importu: %errors a dalších %count odmítnutých řádků.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Příliš mnoho exportů a importů v krátké době: počkejte několik minut před dalším.',
     'Recurring tasks that failed' => 'Opakované úlohy, které selhaly',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Opakovaná úloha se neukládá mezi selhané úlohy: spustí se znovu v příštím termínu. Její poslední chyba zůstane zde, dokud běh neproběhne úspěšně.',

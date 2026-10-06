@@ -1663,6 +1663,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'La tarea ha fallado por un error del servidor. Los detalles están en el registro del servidor.',
     'The job could not be queued. The details are in the server log.' => 'No se ha podido poner la tarea en la cola. Los detalles están en el registro del servidor.',
     'The job failed again. The details are in the server log.' => 'La tarea ha vuelto a fallar. Los detalles están en el registro del servidor.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Error(es) en la importación: %errors y %count filas rechazadas más.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Demasiadas exportaciones e importaciones solicitadas en poco tiempo: espere unos minutos antes de la siguiente.',
     'Recurring tasks that failed' => 'Tareas periódicas que han fallado',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Una tarea periódica no se guarda con las tareas fallidas: vuelve a ejecutarse en su próxima hora. Su último fallo se muestra aquí hasta que una ejecución salga bien.',

@@ -21,10 +21,8 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Model\LangQuery;
 use Twig\Environment;
 
 /**
@@ -38,7 +36,6 @@ final readonly class ImportJobController
         private DataTransferRepository $repository,
         private Environment $twig,
         private UrlGeneratorInterface $urls,
-        private TranslatorInterface $translator,
     ) {
     }
 
@@ -55,11 +52,11 @@ final readonly class ImportJobController
         }
 
         if (!$this->jobAccess->maySee($job->getAdminId())) {
-            return new Response($this->translator->trans("Sorry, you're not allowed to perform this action"), Response::HTTP_FORBIDDEN);
+            return $this->jobAccess->forbidden();
         }
 
         // Never null: the row goes with its import (foreign key on delete cascade).
-        $job->getImport()->setLocale((string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US'));
+        $job->getImport()->setLocale($this->repository->defaultLocale());
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/import/job.html.twig', ['job' => $job]));
     }

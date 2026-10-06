@@ -22,6 +22,7 @@ use Thelia\Model\ExportQuery;
 use Thelia\Model\ImportCategoryQuery;
 use Thelia\Model\ImportJob;
 use Thelia\Model\ImportJobQuery;
+use Thelia\Model\LangQuery;
 use Thelia\Model\ImportQuery;
 
 /**
@@ -119,12 +120,7 @@ final readonly class DataTransferRepository
      */
     public function findRecentExportJobs(int $limit): array
     {
-        $jobs = [];
-        foreach (ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find() as $job) {
-            $jobs[] = $job;
-        }
-
-        return $jobs;
+        return self::listOf(ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find());
     }
 
     /**
@@ -132,11 +128,31 @@ final readonly class DataTransferRepository
      */
     public function findRecentImportJobs(int $limit): array
     {
-        $jobs = [];
-        foreach (ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find() as $job) {
-            $jobs[] = $job;
+        return self::listOf(ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find());
+    }
+
+    /**
+     * The locale the screens show the exports and imports in.
+     */
+    public function defaultLocale(): string
+    {
+        return (string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US');
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param iterable<T> $rows
+     *
+     * @return list<T>
+     */
+    private static function listOf(iterable $rows): array
+    {
+        $list = [];
+        foreach ($rows as $row) {
+            $list[] = $row;
         }
 
-        return $jobs;
+        return $list;
     }
 }

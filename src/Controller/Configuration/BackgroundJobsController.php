@@ -29,6 +29,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Messenger\JobFailureMessage;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
 use Thelia\Scheduler\RecurringTaskFailures;
 use Thelia\Tools\TokenProvider;
@@ -106,9 +107,9 @@ final class BackgroundJobsController
                 return $this->backToTheList();
             }
         } catch (\Throwable $exception) {
-            // The reason may quote a query, a host or the content of the job: it goes to
-            // the log, the screen says where to find it.
-            $this->logger->error(\sprintf('The failed background job %s failed again when replayed: %s', $id, $exception->getMessage()), ['exception' => $exception]);
+            // The reason may quote a query, a host or the content of the job: the screen
+            // says to read the log, and the log names the exception, not its text.
+            $this->logger->error(\sprintf('The failed background job %s failed again when replayed: %s', $id, JobFailureMessage::forLog($exception)));
             $this->flash($request, 'danger', $this->translator->trans('The job failed again. The details are in the server log.'));
 
             return $this->backToTheList();

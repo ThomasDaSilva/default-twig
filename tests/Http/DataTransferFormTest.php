@@ -130,6 +130,67 @@ final class DataTransferFormTest extends WebIntegrationTestCase
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
 
+    /**
+     * The description of an import is HTML a module wrote: it keeps its lists, never
+     * what would run in the page of the administrator reading it.
+     */
+    public function testTheDescriptionOfAnImportKeepsItsHtmlButNotItsScripts(): void
+    {
+        $import = $this->stockImport();
+        $locale = (string) LangQuery::create()->findOneByByDefault(1)?->getLocale();
+        $import->setLocale($locale)
+            ->setDescription('<ul><li onclick="steal()">id: the combination</li></ul><script>steal()</script>')
+            ->save($this->getPropelConnection());
+        $this->loginAs($this->factory->admin());
+
+        $this->client->request('GET', '/admin/import/'.$import->getId());
+        $html = (string) $this->client->getResponse()->getContent();
+
+        self::assertStringContainsString('<li>id: the combination</li>', $html);
+        self::assertStringNotContainsString('steal()', $html);
+    }
+
+    /**
+     * Thousands of refused rows do not go into the session: a few are quoted, and the
+     * page of the job lists them all.
+     */
+    public function testAnImportWithManyRefusedRowsLeadsToItsJobPage(): void
+    {
+        $import = $this->stockImport();
+        $this->loginAs($this->factory->admin());
+        $token = $this->tokenOf('/admin/import/'.$import->getId());
+        $path = $this->csvFile();
+        file_put_contents($path, "id,stock\n".implode('', array_map(static fn (int $row): string => (999999000 + $row).",1\n", range(1, 12))));
+
+        $this->client->request('POST', '/admin/import/'.$import->getId(), [
+            '_token' => $token,
+            'language' => $this->defaultLanguageId(),
+        ], ['file_upload' => new UploadedFile($path, 'stock.csv', 'text/csv', null, true)]);
+
+        self::assertMatchesRegularExpression('#^/admin/import/job/\d+$#', (string) $this->client->getResponse()->headers->get('Location'));
+        $this->client->followRedirect();
+        self::assertStringContainsString('2 more rows refused', (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
+     * A file the server did not take whole is told for what it is, not as a file of
+     * the wrong format.
+     */
+    public function testAnUploadTheServerRefusedSaysWhy(): void
+    {
+        $import = $this->stockImport();
+        $this->loginAs($this->factory->admin());
+        $token = $this->tokenOf('/admin/import/'.$import->getId());
+
+        $this->client->request('POST', '/admin/import/'.$import->getId(), [
+            '_token' => $token,
+            'language' => $this->defaultLanguageId(),
+        ], ['file_upload' => new UploadedFile($this->csvFile(), 'stock.csv', 'text/csv', \UPLOAD_ERR_INI_SIZE, true)]);
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('upload_max_filesize', (string) $this->client->getResponse()->getContent());
+    }
+
     private function stockImport(): Import
     {
         $import = ImportQuery::create()->findOneByRef('thelia.import.stock');
