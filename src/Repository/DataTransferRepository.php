@@ -15,7 +15,6 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Repository;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\ImportTemplateBuilder;
-use Propel\Runtime\Collection\ObjectCollection;
 use Thelia\Model\ExportCategoryQuery;
 use Thelia\Model\ExportJob;
 use Thelia\Model\ExportJobQuery;
@@ -116,18 +115,28 @@ final readonly class DataTransferRepository
     }
 
     /**
-     * @return ObjectCollection<ExportJob>
+     * @return list<ExportJob>
      */
-    public function findRecentExportJobs(int $limit): ObjectCollection
+    public function findRecentExportJobs(int $limit): array
     {
-        return ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find();
+        $jobs = [];
+        foreach (ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find() as $job) {
+            $jobs[] = $job;
+        }
+
+        return $jobs;
     }
 
     /**
-     * @return ObjectCollection<ImportJob>
+     * @return list<ImportJob>
      */
-    public function findRecentImportJobs(int $limit): ObjectCollection
+    public function findRecentImportJobs(int $limit): array
     {
-        return ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find();
+        $jobs = [];
+        foreach (ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find() as $job) {
+            $jobs[] = $job;
+        }
+
+        return $jobs;
     }
 }

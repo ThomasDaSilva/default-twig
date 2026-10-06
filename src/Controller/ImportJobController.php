@@ -58,7 +58,8 @@ final readonly class ImportJobController
             return new Response($this->translator->trans("Sorry, you're not allowed to perform this action"), Response::HTTP_FORBIDDEN);
         }
 
-        $job->getImport()?->setLocale((string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US'));
+        // Never null: the row goes with its import (foreign key on delete cascade).
+        $job->getImport()->setLocale((string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US'));
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/import/job.html.twig', ['job' => $job]));
     }

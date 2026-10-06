@@ -62,7 +62,8 @@ final readonly class ExportJobController
             return $this->forbidden();
         }
 
-        $job->getExport()?->setLocale((string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US'));
+        // Never null: the row goes with its export (foreign key on delete cascade).
+        $job->getExport()->setLocale((string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US'));
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
             'job' => $job,
