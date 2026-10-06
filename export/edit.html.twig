@@ -26,7 +26,7 @@
             <div class="card">
                 <div class="card-body">
                     {% if export.description %}
-                        <div class="alert alert-info">{{ export.description|raw }}</div>
+                        <div class="alert alert-info">{{ export.description|bo_safe_html }}</div>
                     {% endif %}
 
                     {{ safe_hook('export.top', { id: export_id, type: 'page' }) }}

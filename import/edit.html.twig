@@ -23,7 +23,7 @@
             <div class="card">
                 <div class="card-body">
                     {% if import.description %}
-                        <div class="alert alert-info">{{ import.description|raw }}</div>
+                        <div class="alert alert-info">{{ import.description|bo_safe_html }}</div>
                     {% endif %}
 
                     {% if not handler_available %}
