@@ -119,17 +119,17 @@ final class NewsletterController
                 return;
             }
 
-            fputcsv($handle, ['email', 'firstname', 'lastname', 'locale', 'created_at']);
+            fwrite($handle, self::csvLine(['email', 'firstname', 'lastname', 'locale', 'created_at']));
 
             foreach (NewsletterQuery::create()->orderByCreatedAt()->find() as $subscriber) {
                 \assert($subscriber instanceof Newsletter);
-                fputcsv($handle, [
+                fwrite($handle, self::csvLine(array_map(self::asSpreadsheetText(...), [
                     (string) $subscriber->getEmail(),
                     (string) $subscriber->getFirstname(),
                     (string) $subscriber->getLastname(),
                     (string) $subscriber->getLocale(),
                     $subscriber->getCreatedAt() instanceof \DateTimeInterface ? $subscriber->getCreatedAt()->format('Y-m-d H:i:s') : '',
-                ]);
+                ])));
             }
 
             fclose($handle);
@@ -139,6 +139,37 @@ final class NewsletterController
         $response->headers->set('Content-Disposition', 'attachment; filename="newsletter-subscribers-'.date('Y-m-d').'.csv"');
 
         return $response;
+    }
+
+    /**
+     * A spreadsheet reads a cell starting with = + - @, a tab or a carriage return as
+     * a formula: such a value is written behind a quote, as text. A plain signed number
+     * (-5.00, +33612345678) calls nothing and stays a number.
+     */
+    private static function asSpreadsheetText(string $value): string
+    {
+        if ($value === '' || preg_match('/^[+-]?[0-9]+([.,][0-9]+)?$/', $value) === 1) {
+            return $value;
+        }
+
+        return \in_array($value[0], ['=', '+', '-', '@', "\t", "\r"], true) ? "'".$value : $value;
+    }
+
+    /**
+     * The line fputcsv() writes, except that a cell holding a semicolon is enclosed too: a
+     * spreadsheet set to a French locale splits the line on it, and the part after it
+     * would start a new cell, unguarded.
+     *
+     * @param list<string> $cells
+     */
+    private static function csvLine(array $cells): string
+    {
+        return implode(',', array_map(
+            static fn (string $cell): string => preg_match('/[,;"\s]/', $cell) === 1
+                ? '"'.str_replace('"', '""', $cell).'"'
+                : $cell,
+            $cells,
+        ))."\n";
     }
 
     /** @return array<string, mixed> */
