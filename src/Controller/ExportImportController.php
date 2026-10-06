@@ -32,6 +32,7 @@ use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Serializer\SerializerManager;
 use Thelia\Core\Security\SecurityContext;
@@ -72,10 +73,23 @@ final class ExportImportController
     ) {
     }
 
-    private function checkCsrf(): void
+    /**
+     * A form left open past its token is sent back with a message, never answered
+     * with a server error.
+     */
+    private function hasValidToken(): bool
     {
         $request = $this->requestStack->getCurrentRequest();
-        $this->tokens->checkToken((string) ($request?->request->get('_token') ?? ''));
+
+        try {
+            $this->tokens->checkToken((string) ($request?->request->get('_token') ?? ''));
+
+            return true;
+        } catch (TokenAuthenticationException) {
+            $this->addFlash('error', $this->translator->trans('The form has expired, please try again.'));
+
+            return false;
+        }
     }
 
     #[Route('/admin/export', name: 'export.list', methods: ['GET'])]
@@ -220,7 +234,9 @@ final class ExportImportController
             return new RedirectResponse($this->urls->generate('export.list'));
         }
 
-        $this->checkCsrf();
+        if (!$this->hasValidToken()) {
+            return new RedirectResponse($this->urls->generate('export.view', ['id' => $id]));
+        }
 
         @set_time_limit(0);
 
@@ -407,7 +423,9 @@ final class ExportImportController
             return new RedirectResponse($this->urls->generate('import.list'));
         }
 
-        $this->checkCsrf();
+        if (!$this->hasValidToken()) {
+            return new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
+        }
 
         $uploaded = $request->files->get('file_upload');
         if (!$uploaded instanceof UploadedFile) {
