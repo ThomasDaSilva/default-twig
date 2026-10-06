@@ -397,12 +397,24 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         $this->loginAs($this->factory->admin());
         $token = $this->token();
 
-        for ($launch = 1; $launch <= 11; ++$launch) {
-            $this->client->request('POST', '/admin/import/'.$import->getId(), ['_token' => $token, 'language' => '1']);
-        }
-        $this->client->followRedirect();
+        $language = (string) LangQuery::create()->findOneByByDefault(1)?->getId();
 
-        self::assertStringContainsString('Too many exports and imports asked for in a short time', $this->html());
+        // A form sent without its file is answered without spending a launch.
+        $this->client->request('POST', '/admin/import/'.$import->getId(), ['_token' => $token, 'language' => $language]);
+        $this->client->followRedirect();
+        self::assertStringNotContainsString('Too many exports and imports', $this->html());
+
+        for ($launch = 1; $launch <= 11; ++$launch) {
+            $path = sys_get_temp_dir().'/bo-import-limit-'.uniqid('', true).'.csv';
+            file_put_contents($path, "id,stock\n");
+            $this->files[] = $path;
+
+            $this->client->request('POST', '/admin/import/'.$import->getId(), ['_token' => $token, 'language' => $language], ['file_upload' => new UploadedFile($path, 'stock.csv', 'text/csv', null, true)]);
+            $this->client->followRedirect();
+
+            // Ten launches in ten minutes are allowed, the eleventh is not.
+            self::assertSame(11 === $launch, str_contains($this->html(), 'Too many exports and imports asked for in a short time'), 'Launch '.$launch);
+        }
     }
 
     private function doneExportJob(?int $adminId): ExportJob

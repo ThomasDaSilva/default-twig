@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Model\Admin;
@@ -29,7 +31,16 @@ final readonly class DataTransferJobAccess
 {
     public function __construct(
         private SecurityContext $securityContext,
+        private TranslatorInterface $translator,
     ) {
+    }
+
+    /**
+     * What an administrator gets for a job that is not theirs.
+     */
+    public function forbidden(): Response
+    {
+        return new Response($this->translator->trans("Sorry, you're not allowed to perform this action"), Response::HTTP_FORBIDDEN);
     }
 
     public function maySee(?int $ownerId): bool

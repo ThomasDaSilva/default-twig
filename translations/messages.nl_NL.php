@@ -1568,6 +1568,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'De taak is mislukt door een serverfout. De details staan in het serverlogboek.',
     'The job could not be queued. The details are in the server log.' => 'De taak kon niet in de wachtrij worden gezet. De details staan in het serverlogboek.',
     'The job failed again. The details are in the server log.' => 'De taak is opnieuw mislukt. De details staan in het serverlogboek.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Fout(en) bij import: %errors en nog %count geweigerde regels.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Te veel exports en imports in korte tijd aangevraagd: wacht enkele minuten voor de volgende.',
     'Recurring tasks that failed' => 'Mislukte terugkerende taken',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Een terugkerende taak wordt niet bij de mislukte taken bewaard: ze draait opnieuw op haar volgende tijdstip. Haar laatste fout blijft hier staan tot een uitvoering slaagt.',

@@ -1663,6 +1663,7 @@ return [
     'The job failed because of a server error. The details are in the server log.' => 'L\'attività non è riuscita a causa di un errore del server. I dettagli sono nel registro del server.',
     'The job could not be queued. The details are in the server log.' => 'Non è stato possibile mettere l\'attività in coda. I dettagli sono nel registro del server.',
     'The job failed again. The details are in the server log.' => 'L\'attività non è riuscita di nuovo. I dettagli sono nel registro del server.',
+    'Error(s) in import : %errors and %count more rows refused.' => 'Errore/i nell\'importazione: %errors e altre %count righe rifiutate.',
     'Too many exports and imports asked for in a short time: wait a few minutes before the next one.' => 'Troppe esportazioni e importazioni richieste in poco tempo: attendere qualche minuto prima della prossima.',
     'Recurring tasks that failed' => 'Attività ricorrenti non riuscite',
     'A recurring task is not kept with the failed jobs: it runs again at its next time. Its last failure stays here until a run goes through.' => 'Un\'attività ricorrente non viene conservata con le attività non riuscite: viene rieseguita al prossimo orario. Il suo ultimo errore resta qui finché un\'esecuzione non va a buon fine.',
