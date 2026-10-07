@@ -59,6 +59,9 @@ final readonly class BackgroundJobsScreen
             // Asked without an audit entry: the screen adapts, nobody tried anything.
             'can_retry' => $this->access->can(AdminResources::BACKGROUND_JOBS, AccessManager::UPDATE),
             'can_delete' => $this->access->can(AdminResources::BACKGROUND_JOBS, AccessManager::DELETE),
+            // The page of a job needs the right on the exports, or on the imports.
+            'can_view_exports' => $this->access->canView(AdminResources::EXPORT),
+            'can_view_imports' => $this->access->canView(AdminResources::IMPORT),
             'token' => $this->tokens->assignToken(),
         ];
     }

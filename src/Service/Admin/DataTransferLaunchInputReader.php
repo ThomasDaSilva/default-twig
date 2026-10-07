@@ -23,7 +23,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Serializer\SerializerManager;
 use Thelia\Domain\DataTransfer\ImportHandler;
-use Thelia\Form\Exception\FormValidationException;
+use Thelia\Domain\DataTransfer\Exception\UploadRefusedException;
 use Thelia\Model\Lang;
 use Thelia\Model\LangQuery;
 
@@ -96,7 +96,7 @@ final readonly class DataTransferLaunchInputReader
         // here does not spend a launch.
         try {
             $this->importHandler->validateUpload($file->getClientOriginalName(), $file);
-        } catch (FormValidationException $refusal) {
+        } catch (UploadRefusedException $refusal) {
             return new LaunchRefusal($refusal->getMessage());
         }
 
