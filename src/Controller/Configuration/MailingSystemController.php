@@ -25,6 +25,7 @@ use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
+use Symfony\Component\Mime\Exception\RfcComplianceException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -133,6 +134,12 @@ final class MailingSystemController
             return new JsonResponse([
                 'success' => false,
                 'message' => TransportCredentials::hide($refusal->getMessage()),
+            ]);
+        } catch (RfcComplianceException $mistypedAddress) {
+            // It quotes the address typed, nothing else.
+            return new JsonResponse([
+                'success' => false,
+                'message' => $mistypedAddress->getMessage(),
             ]);
         } catch (\Throwable $exception) {
             $this->logger->error(\sprintf('The test mail could not be sent: %s', JobFailureMessage::forLog($exception)));
