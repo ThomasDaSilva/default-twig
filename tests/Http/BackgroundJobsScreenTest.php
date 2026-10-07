@@ -102,6 +102,33 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         self::assertStringContainsString('data-testid="background-jobs-failed-empty"', $html);
     }
 
+    /**
+     * The login page shows the flashes of the session: a gesture posted by a visitor
+     * who is not signed in is sent there before anything is said of the job.
+     */
+    public function testAVisitorWhoIsNotSignedInLearnsNothingOfTheJobs(): void
+    {
+        $id = $this->setAsideAMail('SMTP down for buyer@example.com');
+        $export = ExportQuery::create()->findOne();
+        $import = ImportQuery::create()->findOne();
+
+        foreach (array_filter([
+            self::URL.'/'.$id.'/retry',
+            self::URL.'/'.$id.'/delete',
+            null === $export ? null : '/admin/export/'.$export->getId(),
+            null === $import ? null : '/admin/import/'.$import->getId(),
+        ]) as $url) {
+            $this->client->request('POST', $url, ['_token' => 'forged']);
+
+            self::assertTrue($this->client->getResponse()->isRedirection(), $url);
+            self::assertStringContainsString('/admin/login', (string) $this->client->getResponse()->headers->get('Location'), $url);
+            $this->client->followRedirect();
+            self::assertCount(0, $this->client->getCrawler()->filter('[data-testid^="bo-flash-"]'), $url);
+        }
+
+        self::assertSame(1, $this->monitor()->failedCount());
+    }
+
     public function testAFailedJobIsListedWithItsReason(): void
     {
         $this->setAsideAMail('Connection could not be established with host "smtp.example.com"');
