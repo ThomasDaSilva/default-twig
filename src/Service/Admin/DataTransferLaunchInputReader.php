@@ -22,8 +22,8 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Serializer\SerializerManager;
-use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Domain\DataTransfer\Exception\UploadRefusedException;
+use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Model\Lang;
 use Thelia\Model\LangQuery;
 
