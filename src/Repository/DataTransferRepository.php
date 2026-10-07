@@ -22,8 +22,8 @@ use Thelia\Model\ExportQuery;
 use Thelia\Model\ImportCategoryQuery;
 use Thelia\Model\ImportJob;
 use Thelia\Model\ImportJobQuery;
-use Thelia\Model\LangQuery;
 use Thelia\Model\ImportQuery;
+use Thelia\Model\LangQuery;
 
 /**
  * Localized export/import catalogues for the data-transfer back-office screens, and
