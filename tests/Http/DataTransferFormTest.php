@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Model\Admin;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\Import;
@@ -139,7 +140,7 @@ final class DataTransferFormTest extends WebIntegrationTestCase
         $import = $this->stockImport();
         $locale = (string) LangQuery::create()->findOneByByDefault(1)?->getLocale();
         $import->setLocale($locale)
-            ->setDescription('<ul><li onclick="steal()">id: the combination</li></ul><script>steal()</script>')
+            ->setDescription('<ul><li onclick="steal()" id="bo-token">id: the combination</li></ul><script>steal()</script><link rel="stylesheet" href="https://elsewhere.example/a.css"><img src="https://elsewhere.example/pixel.gif">')
             ->save($this->getPropelConnection());
         $this->loginAs($this->factory->admin());
 
@@ -148,6 +149,8 @@ final class DataTransferFormTest extends WebIntegrationTestCase
 
         self::assertStringContainsString('<li>id: the combination</li>', $html);
         self::assertStringNotContainsString('steal()', $html);
+        self::assertStringNotContainsString('elsewhere.example', $html);
+        self::assertStringNotContainsString('id="bo-token"', $html);
     }
 
     /**
@@ -189,6 +192,26 @@ final class DataTransferFormTest extends WebIntegrationTestCase
         $this->client->followRedirect();
 
         self::assertStringContainsString('upload_max_filesize', (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
+     * The order of the exports is changed from their list, with its token.
+     */
+    public function testAnExportIsMovedInItsList(): void
+    {
+        $export = \Thelia\Model\ExportQuery::create()->filterByExportCategoryId(
+            (int) \Thelia\Model\ExportQuery::create()->findOneByRef('thelia.export.orders')?->getExportCategoryId(),
+        )->orderByPosition()->findOne();
+        self::assertNotNull($export);
+        $this->loginAs($this->factory->admin());
+        $html = (string) $this->client->request('GET', '/admin/export')->html();
+        self::assertSame(1, preg_match('/data-[a-z-]*token[a-z-]*="([^"]+)"|name="_token" value="([^"]+)"/', $html, $matches), 'The list renders its token.');
+        $token = '' !== ($matches[1] ?? '') ? $matches[1] : $matches[2];
+
+        $this->client->request('POST', '/admin/export/position', ['_token' => $token, 'export_id' => $export->getId(), 'mode' => UpdatePositionEvent::POSITION_ABSOLUTE, 'position' => 2]);
+
+        self::assertTrue($this->client->getResponse()->isRedirect('/admin/export'), (string) $this->client->getResponse()->getStatusCode());
+        self::assertSame(2, (int) \Thelia\Model\ExportQuery::create()->findPk($export->getId())?->getPosition());
     }
 
     private function stockImport(): Import
