@@ -164,7 +164,9 @@
                                     <td class="text-end">{{ export_job.processedRows }}</td>
                                     <td class="text-nowrap">{{ export_job.createdAt ? export_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
-                                        <a href="{{ path('export.job', { jobId: export_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-export-details-{{ export_job.id }}" aria-label="{{ 'Details'|trans }} {{ export_job.export ? export_job.export.title : '' }}">{{ 'Details'|trans }}</a>
+                                        {% if can_view_exports %}
+                                            <a href="{{ path('export.job', { jobId: export_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-export-details-{{ export_job.id }}" aria-label="{{ 'Details'|trans }} {{ export_job.export ? export_job.export.title : '' }}">{{ 'Details'|trans }}</a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -202,7 +204,9 @@
                                     <td class="text-end">{{ import_job.importedRows }}</td>
                                     <td class="text-nowrap">{{ import_job.createdAt ? import_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
-                                        <a href="{{ path('import.job', { jobId: import_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-import-details-{{ import_job.id }}" aria-label="{{ 'Details'|trans }} {{ import_job.fileName }}">{{ 'Details'|trans }}</a>
+                                        {% if can_view_imports %}
+                                            <a href="{{ path('import.job', { jobId: import_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-import-details-{{ import_job.id }}" aria-label="{{ 'Details'|trans }} {{ import_job.fileName }}">{{ 'Details'|trans }}</a>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}

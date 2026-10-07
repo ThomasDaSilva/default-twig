@@ -354,6 +354,22 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
     /**
      * The page of a job reloads itself for five minutes at most, and stops when asked.
      */
+    /**
+     * The page of a job needs the right on the exports: without it, the job is listed
+     * but not offered as a link that would answer 403.
+     */
+    public function testNoDetailsLinkIsOfferedWithoutTheRightToFollowIt(): void
+    {
+        $admin = $this->factory->restrictedAdmin([AdminResources::BACKGROUND_JOBS => [AccessManager::VIEW]]);
+        $job = $this->doneExportJob((int) $admin->getId());
+        $this->loginAs($admin);
+
+        $this->assertPageRenders(self::URL);
+
+        self::assertStringContainsString('background-jobs-export-'.$job->getId().'"', $this->html());
+        self::assertStringNotContainsString('background-jobs-export-details-'.$job->getId(), $this->html());
+    }
+
     public function testTheJobPageStopsReloadingWhenAskedOrAfterAWhile(): void
     {
         $job = $this->doneExportJob(null);

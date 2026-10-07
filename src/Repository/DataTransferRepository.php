@@ -129,7 +129,14 @@ final readonly class DataTransferRepository
             $query->filterByAdminId($authorId ?? 0);
         }
 
-        return self::listOf($query->find());
+        $jobs = self::listOf($query->find());
+        $locale = $this->defaultLocale();
+
+        foreach ($jobs as $job) {
+            $job->getExport()->setLocale($locale);
+        }
+
+        return $jobs;
     }
 
     /**
@@ -146,7 +153,14 @@ final readonly class DataTransferRepository
             $query->filterByAdminId($authorId ?? 0);
         }
 
-        return self::listOf($query->find());
+        $jobs = self::listOf($query->find());
+        $locale = $this->defaultLocale();
+
+        foreach ($jobs as $job) {
+            $job->getImport()->setLocale($locale);
+        }
+
+        return $jobs;
     }
 
     /**

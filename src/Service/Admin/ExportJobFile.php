@@ -34,9 +34,6 @@ final readonly class ExportJobFile
     }
 
     /**
-     * False once the cache has dropped the file, or when the export never wrote one.
-     */
-    /**
      * False once the cache has dropped the file, when the export never wrote one, or
      * when its format went with its module since.
      */

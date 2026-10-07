@@ -91,7 +91,7 @@ final readonly class BackgroundJobsController
             // The reason may quote a query, a host or the content of the job: the screen
             // says to read the log, and the log names the exception, not its text.
             $this->logger->error(\sprintf('The failed background job %s failed again when replayed: %s', $id, JobFailureMessage::forLog($exception)));
-            $this->flash->add($request, 'danger', $this->translator->trans('The job failed again. The details are in the server log.'));
+            $this->flash->add($request, 'error', $this->translator->trans('The job failed again. The details are in the server log.'));
 
             return $this->backToTheList();
         }
