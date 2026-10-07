@@ -17,12 +17,14 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Configuration\MailingSystemType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -31,6 +33,8 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Mailer\MailerFactory;
+use Thelia\Mailer\TransportCredentials;
+use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\ConfigQuery;
 use Twig\Environment;
 
@@ -49,6 +53,7 @@ final class MailingSystemController
         private readonly UrlGeneratorInterface $urls,
         private readonly MailerFactory $mailer,
         private readonly TranslatorInterface $translator,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -107,23 +112,34 @@ final class MailingSystemController
         $subject = $this->translator->trans('Email test from : %store%', ['%store%' => $storeName]);
         $html = '<p>'.$subject.'</p>';
 
+        // Handed to the mail server now, even when the shop delivers its mails through a
+        // queue: the point of a test is the server's answer.
         try {
-            $this->mailer->sendSimpleEmailMessage(
+            $this->mailer->sendNow($this->mailer->createSimpleEmailMessage(
                 [$contactEmail => $storeName],
                 [$recipient => $storeName],
                 $subject,
                 $subject,
                 $html,
-            );
+            ));
 
             return new JsonResponse([
                 'success' => true,
                 'message' => $this->translator->trans('Your configuration seems to be ok. Checked out your mailbox : %email%', ['%email%' => $recipient]),
             ]);
-        } catch (\Throwable $exception) {
+        } catch (TransportExceptionInterface $refusal) {
+            // What the mail server answered is what the administrator came for; the
+            // credentials it may quote are hidden.
             return new JsonResponse([
                 'success' => false,
-                'message' => $exception->getMessage(),
+                'message' => TransportCredentials::hide($refusal->getMessage()),
+            ]);
+        } catch (\Throwable $exception) {
+            $this->logger->error(\sprintf('The test mail could not be sent: %s', JobFailureMessage::forLog($exception)));
+
+            return new JsonResponse([
+                'success' => false,
+                'message' => $this->translator->trans('The test mail could not be sent. The details are in the server log.'),
             ]);
         }
     }
