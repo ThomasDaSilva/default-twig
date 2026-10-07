@@ -18,8 +18,6 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Thelia\Core\Security\Exception\TokenAuthenticationException;
-use Thelia\Tools\TokenProvider;
 
 /**
  * What an export or an import form must pass before anything is launched: its token,
@@ -33,7 +31,7 @@ use Thelia\Tools\TokenProvider;
 final readonly class DataTransferLaunchGuard
 {
     public function __construct(
-        private TokenProvider $tokens,
+        private AdminFormToken $formToken,
         private TranslatorInterface $translator,
         private DataTransferJobAccess $jobAccess,
         private AdminFlash $flash,
@@ -42,21 +40,9 @@ final readonly class DataTransferLaunchGuard
     ) {
     }
 
-    /**
-     * A form left open past its token is sent back with a message, never answered
-     * with a server error.
-     */
     public function hasValidToken(Request $request): bool
     {
-        try {
-            $this->tokens->checkToken((string) $request->request->get('_token', ''));
-
-            return true;
-        } catch (TokenAuthenticationException) {
-            $this->flash->add($request, 'error', $this->translator->trans('The form has expired, please try again.'));
-
-            return false;
-        }
+        return $this->formToken->isValid($request);
     }
 
     public function mayLaunch(Request $request): bool

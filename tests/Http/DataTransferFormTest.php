@@ -214,6 +214,17 @@ final class DataTransferFormTest extends WebIntegrationTestCase
         self::assertSame(2, (int) \Thelia\Model\ExportQuery::create()->findPk($export->getId())?->getPosition());
     }
 
+    public function testAnAdministratorWhoMayOnlySeeTheImportsIsOfferedNoButtonToRunOne(): void
+    {
+        $import = $this->stockImport();
+        $this->loginAs($this->factory->restrictedAdmin([AdminResources::IMPORT => [AccessManager::VIEW]]));
+
+        $html = (string) $this->client->request('GET', '/admin/import/'.$import->getId())->html();
+
+        self::assertStringContainsString('data-testid="import-not-allowed"', $html);
+        self::assertStringNotContainsString('Import this file', $html);
+    }
+
     private function stockImport(): Import
     {
         $import = ImportQuery::create()->findOneByRef('thelia.import.stock');

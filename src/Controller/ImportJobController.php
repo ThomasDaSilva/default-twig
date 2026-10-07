@@ -17,7 +17,9 @@ namespace BackOfficeDefaultTwigBundle\Controller;
 use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use BackOfficeDefaultTwigBundle\Service\Admin\JobPageRefresh;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -40,7 +42,7 @@ final readonly class ImportJobController
     }
 
     #[Route('/admin/import/job/{jobId}', name: 'import.job', methods: ['GET'], requirements: ['jobId' => '\d+'])]
-    public function show(int $jobId): Response
+    public function show(int $jobId, Request $request): Response
     {
         if ($denied = $this->access->check(AdminResources::IMPORT, [], AccessManager::VIEW)) {
             return $denied;
@@ -58,6 +60,6 @@ final readonly class ImportJobController
         // Never null: the row goes with its import (foreign key on delete cascade).
         $job->getImport()->setLocale($this->repository->defaultLocale());
 
-        return new Response($this->twig->render('@BackOfficeDefaultTwig/import/job.html.twig', ['job' => $job]));
+        return new Response($this->twig->render('@BackOfficeDefaultTwig/import/job.html.twig', ['job' => $job, ...JobPageRefresh::of($job->isFinished(), $request)]));
     }
 }

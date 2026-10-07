@@ -19,6 +19,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
 use BackOfficeDefaultTwigBundle\Service\Admin\ExportJobFile;
+use BackOfficeDefaultTwigBundle\Service\Admin\JobPageRefresh;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -47,7 +48,7 @@ final readonly class ExportJobController
     }
 
     #[Route('/admin/export/job/{jobId}', name: 'export.job', methods: ['GET'], requirements: ['jobId' => '\d+'])]
-    public function show(int $jobId): Response
+    public function show(int $jobId, Request $request): Response
     {
         if ($denied = $this->access->check(AdminResources::EXPORT, [], AccessManager::VIEW)) {
             return $denied;
@@ -68,6 +69,7 @@ final readonly class ExportJobController
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/job.html.twig', [
             'job' => $job,
             'file_available' => $this->exportJobFile->isAvailable($job),
+            ...JobPageRefresh::of($job->isFinished(), $request),
         ]));
     }
 

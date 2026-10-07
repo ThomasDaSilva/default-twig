@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Tests\Http;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\Mailer\Messenger\SendEmailMessage;
+use Symfony\Component\Mailer\Exception\TransportException as MailerTransportException;
 use Symfony\Component\Messenger\Envelope;
 use Symfony\Component\Messenger\Stamp\ErrorDetailsStamp;
 use Symfony\Component\Messenger\Stamp\RedeliveryStamp;
@@ -27,6 +28,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\DataTransfer\Job\RunExportJob;
+use Thelia\Messenger\JobSetAsideException;
 use Thelia\Messenger\Message\UndecodableJob;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
 use Thelia\Model\Admin;
@@ -311,6 +313,74 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         self::assertStringContainsString('The file of this export is no longer available', $this->html());
     }
 
+    /**
+     * The screen adapts to what the administrator may do, without writing that they
+     * tried what they may not.
+     */
+    public function testAReadOnlyAdministratorLeavesNoAuditEntryByLooking(): void
+    {
+        $admin = $this->factory->restrictedAdmin([AdminResources::BACKGROUND_JOBS => [AccessManager::VIEW]]);
+        $this->loginAs($admin);
+        $before = \Thelia\Model\AdminLogQuery::create()->count();
+
+        $this->assertPageRenders(self::URL);
+
+        self::assertSame($before, \Thelia\Model\AdminLogQuery::create()->count());
+    }
+
+    /**
+     * The recent exports are the business of their author and of the super
+     * administrators: a colleague's are not listed, not even by name.
+     */
+    public function testTheRecentExportsListOnlyWhatTheAdministratorMaySee(): void
+    {
+        $author = $this->factory->restrictedAdmin([AdminResources::BACKGROUND_JOBS => [AccessManager::VIEW], AdminResources::EXPORT => [AccessManager::VIEW]]);
+        $colleague = $this->factory->restrictedAdmin([AdminResources::BACKGROUND_JOBS => [AccessManager::VIEW], AdminResources::EXPORT => [AccessManager::VIEW]]);
+        $job = $this->doneExportJob((int) $author->getId());
+
+        $this->loginAs($colleague);
+        $this->assertPageRenders(self::URL);
+        self::assertStringNotContainsString('background-jobs-export-'.$job->getId().'"', $this->html());
+
+        $this->loginAs($author);
+        $this->assertPageRenders(self::URL);
+        self::assertStringContainsString('background-jobs-export-'.$job->getId().'"', $this->html());
+
+        $this->loginAs($this->factory->admin());
+        $this->assertPageRenders(self::URL);
+        self::assertStringContainsString('background-jobs-export-'.$job->getId().'"', $this->html());
+    }
+
+    /**
+     * The page of a job reloads itself for five minutes at most, and stops when asked.
+     */
+    public function testTheJobPageStopsReloadingWhenAskedOrAfterAWhile(): void
+    {
+        $job = $this->doneExportJob(null);
+        $job->setStatus('queued')->save($this->getPropelConnection());
+        $this->loginAs($this->factory->admin());
+
+        $this->assertPageRenders('/admin/export/job/'.$job->getId());
+        self::assertStringContainsString('http-equiv="refresh"', $this->html());
+        self::assertStringContainsString('round=1', $this->html());
+
+        $this->assertPageRenders('/admin/export/job/'.$job->getId().'?round=100');
+        self::assertStringNotContainsString('http-equiv="refresh"', $this->html());
+        self::assertStringContainsString('This page no longer refreshes on its own.', $this->html());
+    }
+
+    public function testAnExportedFileIsNeverKeptByACache(): void
+    {
+        $job = $this->doneExportJob(null);
+        $this->loginAs($this->factory->admin());
+
+        $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('no-store', (string) $this->client->getResponse()->headers->get('Cache-Control'));
+        self::assertStringContainsString('attachment', (string) $this->client->getResponse()->headers->get('Content-Disposition'));
+    }
+
     public function testAFileTheCacheAlreadyDroppedIsNotServed(): void
     {
         $job = $this->doneExportJob(null);
@@ -331,7 +401,7 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         $this->failureTransport()->send(new Envelope(new RunExportJob(999999999), [
             new SentToFailureTransportStamp('async'),
             new RedeliveryStamp(0, new \DateTimeImmutable('-1 hour')),
-            new ErrorDetailsStamp(\RuntimeException::class, 0, 'The export failed'),
+            new ErrorDetailsStamp(JobSetAsideException::class, 0, 'The export failed'),
         ]));
         $id = $this->monitor()->failedJobs()[0]->id;
         $this->loginAs($this->factory->admin());
@@ -355,7 +425,7 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         $this->failureTransport()->send(new Envelope(new UndecodableJob('Vendor\\Gone\\Job', 'The class no longer exists.', '{}'), [
             new SentToFailureTransportStamp('async'),
             new RedeliveryStamp(0, new \DateTimeImmutable('-1 hour')),
-            new ErrorDetailsStamp(\RuntimeException::class, 0, 'Unreadable'),
+            new ErrorDetailsStamp(JobSetAsideException::class, 0, 'Unreadable'),
         ]));
         $id = $this->monitor()->failedJobs()[0]->id;
         $this->loginAs($this->factory->admin());
@@ -449,7 +519,7 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         $this->failureTransport()->send(new Envelope(new SendEmailMessage($email), [
             new SentToFailureTransportStamp('async'),
             new RedeliveryStamp(0, new \DateTimeImmutable('-1 hour')),
-            new ErrorDetailsStamp(\RuntimeException::class, 0, $reason),
+            new ErrorDetailsStamp(MailerTransportException::class, 0, $reason),
         ]));
 
         return $this->monitor()->failedJobs()[0]->id;

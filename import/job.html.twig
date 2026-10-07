@@ -7,7 +7,9 @@
 
 {% block head_extra %}
     {# The worker records the outcome on the row: the page reads it again until the import is over. #}
-    {% if not job.finished %}<meta http-equiv="refresh" content="3">{% endif %}
+    {# Five minutes at most, and the administrator may stop it: a page that reloads for
+       ever loses the place of a screen reader, and a job without a worker never ends. #}
+    {% if auto_refresh %}<meta http-equiv="refresh" content="3;url={{ path('import.job', { jobId: job.id, round: refresh_round + 1 }) }}">{% endif %}
 {% endblock %}
 
 {% block breadcrumb %}
@@ -28,7 +30,7 @@
         <h1 class="h3 mb-3">{{ 'Import'|trans }} : {{ import_title }}</h1>
 
         <div class="card">
-            <div class="card-body">
+            <div class="card-body" role="status">
                 <p class="mb-2">
                     {{ job_status.badge(job.status, 'import-job-status') }}
                     <span class="text-muted ms-2">{{ job.fileName }}</span>
@@ -51,6 +53,17 @@
                 {% endif %}
             </div>
         </div>
+
+        {% if not job.finished %}
+            <p class="small mt-2 mb-0" data-testid="import-job-refresh">
+                {% if auto_refresh %}
+                    <a href="{{ path('import.job', { jobId: job.id, round: max_refresh_rounds }) }}">{{ 'Stop refreshing'|trans }}</a>
+                {% else %}
+                    {{ 'This page no longer refreshes on its own.'|trans }}
+                    <a href="{{ path('import.job', { jobId: job.id }) }}">{{ 'Refresh'|trans }}</a>
+                {% endif %}
+            </p>
+        {% endif %}
 
         {% if job.import %}
             <a href="{{ path('import.view', { id: job.importId }) }}" class="btn btn-outline-secondary mt-3">{{ 'Back to the import'|trans }}</a>
