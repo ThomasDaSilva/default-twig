@@ -16,12 +16,12 @@ namespace BackOfficeDefaultTwigBundle\Controller;
 
 use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
 use BackOfficeDefaultTwigBundle\Service\Admin\ExportJobFile;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -42,6 +42,7 @@ final readonly class ExportJobController
         private Environment $twig,
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
+        private AdminFlash $flash,
     ) {
     }
 
@@ -83,10 +84,7 @@ final readonly class ExportJobController
         }
 
         if (null === $job || !$this->exportJobFile->isAvailable($job)) {
-            $session = $request->getSession();
-            if ($session instanceof FlashBagAwareSessionInterface) {
-                $session->getFlashBag()->add('error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
-            }
+            $this->flash->add($request, 'error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
 
             return new RedirectResponse(null === $job ? $this->urls->generate('export.list') : $this->urls->generate('export.job', ['jobId' => $jobId]));
         }

@@ -16,7 +16,6 @@ namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
@@ -37,6 +36,7 @@ final readonly class DataTransferLaunchGuard
         private TokenProvider $tokens,
         private TranslatorInterface $translator,
         private DataTransferJobAccess $jobAccess,
+        private AdminFlash $flash,
         #[Autowire(service: 'limiter.admin_data_transfer_launch')]
         private RateLimiterFactoryInterface $launchLimiter,
     ) {
@@ -53,7 +53,7 @@ final readonly class DataTransferLaunchGuard
 
             return true;
         } catch (TokenAuthenticationException) {
-            self::flash($request, $this->translator->trans('The form has expired, please try again.'));
+            $this->flash->add($request, 'error', $this->translator->trans('The form has expired, please try again.'));
 
             return false;
         }
@@ -65,17 +65,8 @@ final readonly class DataTransferLaunchGuard
             return true;
         }
 
-        self::flash($request, $this->translator->trans('Too many exports and imports asked for in a short time: wait a few minutes before the next one.'));
+        $this->flash->add($request, 'error', $this->translator->trans('Too many exports and imports asked for in a short time: wait a few minutes before the next one.'));
 
         return false;
-    }
-
-    private static function flash(Request $request, string $message): void
-    {
-        $session = $request->hasSession() ? $request->getSession() : null;
-
-        if ($session instanceof FlashBagAwareSessionInterface) {
-            $session->getFlashBag()->add('error', $message);
-        }
     }
 }

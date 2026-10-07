@@ -399,10 +399,17 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
 
         $language = (string) LangQuery::create()->findOneByByDefault(1)?->getId();
 
-        // A form sent without its file is answered without spending a launch.
+        // A form sent without its file, or with a file the shop refuses, is answered
+        // without spending a launch.
         $this->client->request('POST', '/admin/import/'.$import->getId(), ['_token' => $token, 'language' => $language]);
         $this->client->followRedirect();
         self::assertStringNotContainsString('Too many exports and imports', $this->html());
+        $refused = sys_get_temp_dir().'/bo-import-limit-'.uniqid('', true).'.exe';
+        file_put_contents($refused, "MZ\x90\x00");
+        $this->files[] = $refused;
+        $this->client->request('POST', '/admin/import/'.$import->getId(), ['_token' => $token, 'language' => $language], ['file_upload' => new UploadedFile($refused, 'stock.exe', 'application/octet-stream', null, true)]);
+        $this->client->followRedirect();
+        self::assertStringContainsString('is not allowed', $this->html());
 
         for ($launch = 1; $launch <= 11; ++$launch) {
             $path = sys_get_temp_dir().'/bo-import-limit-'.uniqid('', true).'.csv';
