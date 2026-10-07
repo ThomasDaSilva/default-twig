@@ -111,13 +111,15 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         $id = $this->setAsideAMail('SMTP down for buyer@example.com');
         $export = ExportQuery::create()->findOne();
         $import = ImportQuery::create()->findOne();
+        self::assertNotNull($export, 'The test shop has exports.');
+        self::assertNotNull($import, 'The test shop has imports.');
 
-        foreach (array_filter([
+        foreach ([
             self::URL.'/'.$id.'/retry',
             self::URL.'/'.$id.'/delete',
-            null === $export ? null : '/admin/export/'.$export->getId(),
-            null === $import ? null : '/admin/import/'.$import->getId(),
-        ]) as $url) {
+            '/admin/export/'.$export->getId(),
+            '/admin/import/'.$import->getId(),
+        ] as $url) {
             $this->client->request('POST', $url, ['_token' => 'forged']);
 
             self::assertTrue($this->client->getResponse()->isRedirection(), $url);
