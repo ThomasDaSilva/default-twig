@@ -14,25 +14,22 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
-use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormToken;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
-use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use BackOfficeDefaultTwigBundle\Service\Admin\BackgroundJobsScreen;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
-use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Messenger\JobFailureMessage;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
-use Thelia\Scheduler\RecurringTaskFailures;
-use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
 /**
@@ -45,23 +42,21 @@ use Twig\Environment;
  * advanced configuration.
  */
 #[Route('/admin/configuration/background-jobs', name: 'admin.configuration.background-jobs')]
-final class BackgroundJobsController
+final readonly class BackgroundJobsController
 {
     private const RESOURCE = AdminResources::BACKGROUND_JOBS;
-    private const RECENT_JOBS = 20;
 
     public function __construct(
-        private readonly AdminAccessChecker $access,
-        private readonly AdminLogger $adminLogger,
-        private readonly Environment $twig,
-        private readonly BackgroundJobsMonitor $monitor,
-        private readonly TokenProvider $tokens,
-        private readonly UrlGeneratorInterface $urls,
-        private readonly TranslatorInterface $translator,
-        private readonly DataTransferRepository $dataTransferRepository,
-        private readonly DataTransferJobAccess $jobAccess,
-        private readonly RecurringTaskFailures $recurringTaskFailures,
-        private readonly LoggerInterface $logger,
+        private AdminAccessChecker $access,
+        private AdminLogger $adminLogger,
+        private Environment $twig,
+        private BackgroundJobsMonitor $monitor,
+        private BackgroundJobsScreen $screen,
+        private UrlGeneratorInterface $urls,
+        private TranslatorInterface $translator,
+        private LoggerInterface $logger,
+        private AdminFormToken $formToken,
+        private AdminFlash $flash,
     ) {
     }
 
@@ -72,21 +67,7 @@ final class BackgroundJobsController
             return $denied;
         }
 
-        return new Response($this->twig->render('@BackOfficeDefaultTwig/configuration/background-jobs/index.html.twig', [
-            'has_queue' => $this->monitor->hasQueue(),
-            'pending_count' => $this->monitor->pendingCount(),
-            'failed_count' => $this->monitor->failedCount(),
-            'failed_jobs' => $this->monitor->failedJobs(),
-            'failed_recurring_tasks' => $this->recurringTaskFailures->all(),
-            'recent_exports' => $this->dataTransferRepository->findRecentExportJobs(self::RECENT_JOBS),
-            'recent_imports' => $this->dataTransferRepository->findRecentImportJobs(self::RECENT_JOBS),
-            'can_retry' => null === $this->access->check(self::RESOURCE, [], AccessManager::UPDATE),
-            'can_delete' => null === $this->access->check(self::RESOURCE, [], AccessManager::DELETE),
-            'token' => $this->tokens->assignToken(),
-            // The page of an export or an import belongs to whoever asked for it.
-            'current_admin_id' => $this->jobAccess->currentAdminId(),
-            'is_super_admin' => $this->jobAccess->isSuperAdministrator(),
-        ]));
+        return new Response($this->twig->render('@BackOfficeDefaultTwig/configuration/background-jobs/index.html.twig', $this->screen->view()));
     }
 
     #[Route('/{id}/retry', name: '.retry', methods: ['POST'])]
@@ -96,13 +77,13 @@ final class BackgroundJobsController
             return $denied;
         }
 
-        if (!$this->hasValidToken($request)) {
+        if (!$this->formToken->isValid($request)) {
             return $this->backToTheList();
         }
 
         try {
             if (!$this->monitor->retry($id)) {
-                $this->flash($request, 'warning', $this->translator->trans('This failed job no longer exists.'));
+                $this->flash->add($request, 'warning', $this->translator->trans('This failed job no longer exists.'));
 
                 return $this->backToTheList();
             }
@@ -110,13 +91,13 @@ final class BackgroundJobsController
             // The reason may quote a query, a host or the content of the job: the screen
             // says to read the log, and the log names the exception, not its text.
             $this->logger->error(\sprintf('The failed background job %s failed again when replayed: %s', $id, JobFailureMessage::forLog($exception)));
-            $this->flash($request, 'danger', $this->translator->trans('The job failed again. The details are in the server log.'));
+            $this->flash->add($request, 'danger', $this->translator->trans('The job failed again. The details are in the server log.'));
 
             return $this->backToTheList();
         }
 
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Failed background job %s replayed', $id));
-        $this->flash($request, 'success', $this->monitor->hasQueue()
+        $this->flash->add($request, 'success', $this->monitor->hasQueue()
             ? $this->translator->trans('The job is back in the queue.')
             : $this->translator->trans('The job ran again.'));
 
@@ -130,44 +111,22 @@ final class BackgroundJobsController
             return $denied;
         }
 
-        if (!$this->hasValidToken($request)) {
+        if (!$this->formToken->isValid($request)) {
             return $this->backToTheList();
         }
 
         if ($this->monitor->remove($id)) {
             $this->adminLogger->log(self::RESOURCE, AccessManager::DELETE, \sprintf('Failed background job %s deleted', $id));
-            $this->flash($request, 'success', $this->translator->trans('The failed job is deleted.'));
+            $this->flash->add($request, 'success', $this->translator->trans('The failed job is deleted.'));
         } else {
-            $this->flash($request, 'warning', $this->translator->trans('This failed job no longer exists.'));
+            $this->flash->add($request, 'warning', $this->translator->trans('This failed job no longer exists.'));
         }
 
         return $this->backToTheList();
     }
 
-    private function hasValidToken(Request $request): bool
-    {
-        try {
-            $this->tokens->checkToken((string) $request->request->get('_token'));
-
-            return true;
-        } catch (TokenAuthenticationException) {
-            $this->flash($request, 'danger', $this->translator->trans('The form has expired, please try again.'));
-
-            return false;
-        }
-    }
-
     private function backToTheList(): RedirectResponse
     {
         return new RedirectResponse($this->urls->generate('admin.configuration.background-jobs'));
-    }
-
-    private function flash(Request $request, string $type, string $message): void
-    {
-        $session = $request->getSession();
-
-        if ($session instanceof FlashBagAwareSessionInterface) {
-            $session->getFlashBag()->add($type, $message);
-        }
     }
 }

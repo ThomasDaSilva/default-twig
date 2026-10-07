@@ -87,7 +87,7 @@
                                         {% if can_retry and job.replayable %}
                                             <form method="post" action="{{ path('admin.configuration.background-jobs.retry', { id: job.id }) }}" class="d-inline">
                                                 <input type="hidden" name="_token" value="{{ token }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-primary" data-testid="background-jobs-retry-{{ job.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-primary" data-testid="background-jobs-retry-{{ job.id }}" aria-label="{{ 'Replay'|trans }} {{ job.description }}">
                                                     <i class="bi bi-arrow-repeat" aria-hidden="true"></i> {{ 'Replay'|trans }}
                                                 </button>
                                             </form>
@@ -95,7 +95,7 @@
                                         {% if can_delete %}
                                             <form method="post" action="{{ path('admin.configuration.background-jobs.delete', { id: job.id }) }}" class="d-inline">
                                                 <input type="hidden" name="_token" value="{{ token }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="background-jobs-delete-{{ job.id }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="background-jobs-delete-{{ job.id }}" aria-label="{{ 'Delete'|trans }} {{ job.description }}">
                                                     <i class="bi bi-trash" aria-hidden="true"></i> {{ 'Delete'|trans }}
                                                 </button>
                                             </form>
@@ -164,9 +164,7 @@
                                     <td class="text-end">{{ export_job.processedRows }}</td>
                                     <td class="text-nowrap">{{ export_job.createdAt ? export_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
-                                        {% if is_super_admin or export_job.adminId == current_admin_id %}
-                                            <a href="{{ path('export.job', { jobId: export_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-export-details-{{ export_job.id }}">{{ 'Details'|trans }}</a>
-                                        {% endif %}
+                                        <a href="{{ path('export.job', { jobId: export_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-export-details-{{ export_job.id }}" aria-label="{{ 'Details'|trans }} {{ export_job.export ? export_job.export.title : '' }}">{{ 'Details'|trans }}</a>
                                     </td>
                                 </tr>
                             {% endfor %}
@@ -204,9 +202,7 @@
                                     <td class="text-end">{{ import_job.importedRows }}</td>
                                     <td class="text-nowrap">{{ import_job.createdAt ? import_job.createdAt|date('Y-m-d H:i') : '-' }}</td>
                                     <td class="text-end">
-                                        {% if is_super_admin or import_job.adminId == current_admin_id %}
-                                            <a href="{{ path('import.job', { jobId: import_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-import-details-{{ import_job.id }}">{{ 'Details'|trans }}</a>
-                                        {% endif %}
+                                        <a href="{{ path('import.job', { jobId: import_job.id }) }}" class="btn btn-sm btn-outline-secondary" data-testid="background-jobs-import-details-{{ import_job.id }}" aria-label="{{ 'Details'|trans }} {{ import_job.fileName }}">{{ 'Details'|trans }}</a>
                                     </td>
                                 </tr>
                             {% endfor %}

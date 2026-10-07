@@ -87,6 +87,15 @@ readonly class AdminAccessChecker
      * refusing the whole request: no redirect, no 403, no audit entry - the admin did not
      * try to do anything they are not allowed to.
      */
+    /**
+     * Whether the administrator holds the access, for a screen that adapts to it: no
+     * audit entry, nobody tried to do anything.
+     */
+    public function can(string $resource, string $access): bool
+    {
+        return $this->securityContext->isGranted([self::ADMIN_ROLE], [$resource], [], [$access]);
+    }
+
     public function canView(string $resource): bool
     {
         return $this->securityContext->isGranted([self::ADMIN_ROLE], [$resource], [], [AccessManager::VIEW]);

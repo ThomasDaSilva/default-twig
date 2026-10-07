@@ -87,6 +87,8 @@ final readonly class ImportController
             'allowed_extensions' => implode(', ', $this->importHandler->getAcceptedExtensions()),
             'allowed_mime_types' => implode(', ', $this->importHandler->getAcceptedMimeTypes()),
             'has_template' => $this->importTemplateBuilder->columnsFor($import) !== [],
+            // Running an import needs the right to change the imports.
+            'can_import' => $this->access->can(AdminResources::IMPORT, AccessManager::UPDATE),
         ]));
     }
 

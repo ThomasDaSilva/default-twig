@@ -116,19 +116,37 @@ final readonly class DataTransferRepository
     }
 
     /**
+     * The last jobs of every administrator, or of one only.
+     *
      * @return list<ExportJob>
      */
-    public function findRecentExportJobs(int $limit): array
+    public function findRecentExportJobs(int $limit, ?int $authorId = null, bool $everyAuthor = false): array
     {
-        return self::listOf(ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find());
+        $query = ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit);
+
+        if (!$everyAuthor) {
+            // A job whose author is gone, or an administrator not signed in, sees none.
+            $query->filterByAdminId($authorId ?? 0);
+        }
+
+        return self::listOf($query->find());
     }
 
     /**
+     * The last jobs of every administrator, or of one only.
+     *
      * @return list<ImportJob>
      */
-    public function findRecentImportJobs(int $limit): array
+    public function findRecentImportJobs(int $limit, ?int $authorId = null, bool $everyAuthor = false): array
     {
-        return self::listOf(ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit)->find());
+        $query = ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit);
+
+        if (!$everyAuthor) {
+            // A job whose author is gone, or an administrator not signed in, sees none.
+            $query->filterByAdminId($authorId ?? 0);
+        }
+
+        return self::listOf($query->find());
     }
 
     /**

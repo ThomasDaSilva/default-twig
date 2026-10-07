@@ -36,9 +36,15 @@ final readonly class ExportJobFile
     /**
      * False once the cache has dropped the file, or when the export never wrote one.
      */
+    /**
+     * False once the cache has dropped the file, when the export never wrote one, or
+     * when its format went with its module since.
+     */
     public function isAvailable(ExportJob $job): bool
     {
-        return JobStatus::DONE === $job->getJobStatus() && is_file((string) $job->getFilePath());
+        return JobStatus::DONE === $job->getJobStatus()
+            && is_file((string) $job->getFilePath())
+            && (null !== $job->getArchiver() || $this->serializerManager->has($job->getSerializer()));
     }
 
     public function response(ExportJob $job): BinaryFileResponse
@@ -48,9 +54,23 @@ final readonly class ExportJobFile
             ? ($this->archiverManager->get($archiverId)?->getMimeType() ?? 'application/octet-stream')
             : $this->serializerManager->get($job->getSerializer())->getMimeType();
 
-        return new BinaryFileResponse((string) $job->getFilePath(), Response::HTTP_OK, [
+        // The file holds customer and order data: never kept by a cache on the way.
+        $response = new BinaryFileResponse((string) $job->getFilePath(), Response::HTTP_OK, [
             'Content-Type' => $contentType,
-            'Content-Disposition' => \sprintf('%s; filename="%s"', ResponseHeaderBag::DISPOSITION_ATTACHMENT, (string) $job->getFileName()),
+            'Cache-Control' => 'no-store, private',
         ], false);
+        $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, (string) $job->getFileName(), self::asciiName((string) $job->getFileName()));
+
+        return $response;
+    }
+
+    /**
+     * The name a browser without UTF-8 support falls back to.
+     */
+    private static function asciiName(string $name): string
+    {
+        $ascii = preg_replace('/[^\x20-\x7E]|["\\\\\/%]/', '_', $name) ?? '';
+
+        return '' === $ascii ? 'export' : $ascii;
     }
 }
