@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Admin;
 use BackOfficeDefaultTwigBundle\DTO\DataTransfer\ExportLaunchInput;
 use BackOfficeDefaultTwigBundle\DTO\DataTransfer\ImportLaunchInput;
 use BackOfficeDefaultTwigBundle\DTO\DataTransfer\LaunchRefusal;
+use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -25,7 +26,6 @@ use Thelia\Core\Serializer\SerializerManager;
 use Thelia\Domain\DataTransfer\Exception\UploadRefusedException;
 use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Model\Lang;
-use Thelia\Model\LangQuery;
 
 /**
  * Reads the form that launches an export or an import, and says why it cannot when it
@@ -38,6 +38,7 @@ final readonly class DataTransferLaunchInputReader
         private ArchiverManager $archiverManager,
         private ImportHandler $importHandler,
         private TranslatorInterface $translator,
+        private DataTransferRepository $repository,
     ) {
     }
 
@@ -105,7 +106,7 @@ final readonly class DataTransferLaunchInputReader
 
     private function language(Request $request): Lang|LaunchRefusal
     {
-        return LangQuery::create()->findPk((int) $request->request->get('language', 0))
+        return $this->repository->findLanguage((int) $request->request->get('language', 0))
             ?? new LaunchRefusal($this->translator->trans('Invalid language selected.'));
     }
 }

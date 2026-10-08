@@ -14,9 +14,9 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
+use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Serializer\SerializerManager;
-use Thelia\Model\LangQuery;
 
 /**
  * The choices an export or an import form offers.
@@ -26,6 +26,7 @@ final readonly class DataTransferFormOptions
     public function __construct(
         private SerializerManager $serializerManager,
         private ArchiverManager $archiverManager,
+        private DataTransferRepository $repository,
     ) {
     }
 
@@ -55,7 +56,7 @@ final readonly class DataTransferFormOptions
     public function languages(): array
     {
         $options = [];
-        foreach (LangQuery::create()->orderByPosition()->find() as $language) {
+        foreach ($this->repository->languages() as $language) {
             $options[] = ['id' => (int) $language->getId(), 'title' => (string) $language->getTitle(), 'is_default' => (bool) $language->getByDefault()];
         }
 

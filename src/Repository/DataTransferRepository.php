@@ -23,6 +23,7 @@ use Thelia\Model\ImportCategoryQuery;
 use Thelia\Model\ImportJob;
 use Thelia\Model\ImportJobQuery;
 use Thelia\Model\ImportQuery;
+use Thelia\Model\Lang;
 use Thelia\Model\LangQuery;
 
 /**
@@ -122,7 +123,16 @@ final readonly class DataTransferRepository
      */
     public function findRecentExportJobs(int $limit, ?int $authorId = null, bool $everyAuthor = false): array
     {
-        $query = ExportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit);
+        $locale = $this->defaultLocale();
+        // The export and its title come with each job: one query for the list.
+        $query = ExportJobQuery::create()
+            ->joinWithExport()
+            ->useExportQuery()
+                ->joinWithI18n($locale)
+            ->endUse()
+            ->orderByCreatedAt('desc')
+            ->orderById('desc')
+            ->limit($limit);
 
         if (!$everyAuthor) {
             // A job whose author is gone, or an administrator not signed in, sees none.
@@ -130,7 +140,6 @@ final readonly class DataTransferRepository
         }
 
         $jobs = self::listOf($query->find());
-        $locale = $this->defaultLocale();
 
         foreach ($jobs as $job) {
             $job->getExport()->setLocale($locale);
@@ -146,7 +155,16 @@ final readonly class DataTransferRepository
      */
     public function findRecentImportJobs(int $limit, ?int $authorId = null, bool $everyAuthor = false): array
     {
-        $query = ImportJobQuery::create()->orderByCreatedAt('desc')->orderById('desc')->limit($limit);
+        $locale = $this->defaultLocale();
+        // The import and its title come with each job: one query for the list.
+        $query = ImportJobQuery::create()
+            ->joinWithImport()
+            ->useImportQuery()
+                ->joinWithI18n($locale)
+            ->endUse()
+            ->orderByCreatedAt('desc')
+            ->orderById('desc')
+            ->limit($limit);
 
         if (!$everyAuthor) {
             // A job whose author is gone, or an administrator not signed in, sees none.
@@ -154,7 +172,6 @@ final readonly class DataTransferRepository
         }
 
         $jobs = self::listOf($query->find());
-        $locale = $this->defaultLocale();
 
         foreach ($jobs as $job) {
             $job->getImport()->setLocale($locale);
@@ -166,6 +183,21 @@ final readonly class DataTransferRepository
     /**
      * The locale the screens show the exports and imports in.
      */
+    /**
+     * The languages a launch form offers, in their order.
+     *
+     * @return list<Lang>
+     */
+    public function languages(): array
+    {
+        return self::listOf(LangQuery::create()->orderByPosition()->find());
+    }
+
+    public function findLanguage(int $id): ?Lang
+    {
+        return LangQuery::create()->findPk($id);
+    }
+
     public function defaultLocale(): string
     {
         return (string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US');
