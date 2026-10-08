@@ -1642,7 +1642,7 @@ return [
     'Background jobs' => 'Tareas en segundo plano',
     'Queue' => 'Cola',
     'Configured' => 'Configurada',
-    'Jobs wait for a worker (messenger:consume async).' => 'Las tareas esperan a un worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Las tareas esperan a un worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN está vacío: cada tarea se ejecuta al momento, en la página que la solicita.',
     'Waiting' => 'En espera',
     'Failed' => 'Fallidas',

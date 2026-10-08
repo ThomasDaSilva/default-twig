@@ -1548,7 +1548,7 @@ return [
     'Background jobs' => 'Фоновые задачи',
     'Queue' => 'Очередь',
     'Configured' => 'Настроена',
-    'Jobs wait for a worker (messenger:consume async).' => 'Задачи ждут обработчика (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Задачи ждут обработчика (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN пуст: каждая задача выполняется сразу, на странице, которая её запрашивает.',
     'Waiting' => 'В ожидании',
     'Failed' => 'С ошибкой',

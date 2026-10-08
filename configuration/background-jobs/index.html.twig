@@ -28,7 +28,7 @@
                         <h2 class="h6 text-muted">{{ 'Queue'|trans }}</h2>
                         {% if has_queue %}
                             <p class="h4 mb-1"><span class="badge text-bg-success">{{ 'Configured'|trans }}</span></p>
-                            <p class="small text-muted mb-0">{{ 'Jobs wait for a worker (messenger:consume async).'|trans }}</p>
+                            <p class="small text-muted mb-0">{{ 'Jobs wait for a worker (messenger:consume async async_heavy).'|trans }}</p>
                         {% else %}
                             <p class="h4 mb-1"><span class="badge text-bg-secondary">{{ 'None'|trans }}</span></p>
                             <p class="small text-muted mb-0">{{ 'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.'|trans }}</p>

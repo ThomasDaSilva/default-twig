@@ -375,7 +375,7 @@ return [
     'Queue' => 'Queue',
     'Configured' => 'Configured',
     'None' => 'None',
-    'Jobs wait for a worker (messenger:consume async).' => 'Jobs wait for a worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Jobs wait for a worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.',
     'Waiting' => 'Waiting',
     'Failed' => 'Failed',

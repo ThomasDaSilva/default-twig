@@ -2389,7 +2389,7 @@ return [
     'Background jobs' => 'Tâches en arrière-plan',
     'Queue' => 'File d\'attente',
     'Configured' => 'Configurée',
-    'Jobs wait for a worker (messenger:consume async).' => 'Les tâches attendent un worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Les tâches attendent un worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN est vide : chaque tâche s\'exécute immédiatement, dans la page qui la demande.',
     'Waiting' => 'En attente',
     'Failed' => 'En échec',

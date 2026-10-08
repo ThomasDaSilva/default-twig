@@ -1547,7 +1547,7 @@ return [
     'Background jobs' => 'Achtergrondtaken',
     'Queue' => 'Wachtrij',
     'Configured' => 'Ingesteld',
-    'Jobs wait for a worker (messenger:consume async).' => 'De taken wachten op een worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'De taken wachten op een worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN is leeg: elke taak draait meteen, in de pagina die erom vraagt.',
     'Waiting' => 'Wachtend',
     'Failed' => 'Mislukt',
