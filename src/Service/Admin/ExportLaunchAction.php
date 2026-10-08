@@ -23,6 +23,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\DataTransfer\Job\ExportJobLauncher;
 use Thelia\Domain\DataTransfer\Job\JobStatus;
 use Thelia\Messenger\JobFailureMessage;
+use Thelia\Model\ExportJob;
 use Thelia\Model\Export;
 
 /**
@@ -76,10 +77,20 @@ final readonly class ExportLaunchAction
         // Without a queue the export ran in this request: the file is served at once,
         // as before. With one, the page tells how far the worker got.
         return match ($job->getJobStatus()) {
-            JobStatus::DONE => $this->exportJobFile->response($job),
+            JobStatus::DONE => $this->exportJobFile->isAvailable($job) ? $this->exportJobFile->response($job) : $this->fileGone($request, $job),
             JobStatus::FAILED => $this->failed($request, (string) $job->getError(), $backToTheForm),
             default => new RedirectResponse($this->urls->generate('export.job', ['jobId' => $job->getId()])),
         };
+    }
+
+    /**
+     * A listener of the export moved its file out of the export folder: nothing is served.
+     */
+    private function fileGone(Request $request, ExportJob $job): RedirectResponse
+    {
+        $this->flash->add($request, 'error', $this->translator->trans('The file of this export is no longer available. Run the export again.'));
+
+        return new RedirectResponse($this->urls->generate('export.job', ['jobId' => $job->getId()]));
     }
 
     private function failed(Request $request, string $error, RedirectResponse $backToTheForm): RedirectResponse

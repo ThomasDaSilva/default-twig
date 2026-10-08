@@ -20,6 +20,7 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Serializer\SerializerManager;
 use Thelia\Domain\DataTransfer\Job\JobStatus;
+use Thelia\Domain\DataTransfer\Service\ExportCachePurger;
 use Thelia\Model\ExportJob;
 
 /**
@@ -40,27 +41,15 @@ final readonly class ExportJobFile
     public function isAvailable(ExportJob $job): bool
     {
         return JobStatus::DONE === $job->getJobStatus()
-            && self::isAnExportFile((string) $job->getFilePath())
+            && null !== self::exportFile((string) $job->getFilePath())
             && (null !== $job->getArchiver() || $this->serializerManager->has($job->getSerializer()));
     }
 
-    /**
-     * The path comes from the row: only a file the exports write, in the export folder
-     * of the cache, is ever served, as only a file of the import storage is ever read.
-     */
-    public static function isAnExportFile(string $path): bool
-    {
-        $directory = realpath(THELIA_CACHE_DIR.'export');
-        $file = realpath($path);
-
-        return false !== $directory && false !== $file && is_file($file) && str_starts_with($file, $directory.\DIRECTORY_SEPARATOR);
-    }
 
     public function response(ExportJob $job): BinaryFileResponse
     {
-        if (!self::isAnExportFile((string) $job->getFilePath())) {
-            throw new \RuntimeException(\sprintf('Export job %d names a file outside the export folder.', (int) $job->getId()));
-        }
+        $file = self::exportFile((string) $job->getFilePath())
+            ?? throw new \RuntimeException(\sprintf('Export job %d names a file outside the export folder.', (int) $job->getId()));
 
         $archiverId = $job->getArchiver();
         $contentType = null !== $archiverId
@@ -68,13 +57,30 @@ final readonly class ExportJobFile
             : $this->serializerManager->get($job->getSerializer())->getMimeType();
 
         // The file holds customer and order data: never kept by a cache on the way.
-        $response = new BinaryFileResponse((string) $job->getFilePath(), Response::HTTP_OK, [
+        $response = new BinaryFileResponse($file, Response::HTTP_OK, [
             'Content-Type' => $contentType,
             'Cache-Control' => 'no-store, private',
         ], false);
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, (string) $job->getFileName(), self::asciiName((string) $job->getFileName()));
 
         return $response;
+    }
+
+    /**
+     * The path comes from the row: only a file the exports write, in the export folder
+     * of the cache, is ever served, as only a file of the import storage is ever read.
+     * The path checked is the one served, so a link swapped in between serves nothing.
+     */
+    private static function exportFile(string $path): ?string
+    {
+        $directory = realpath(ExportCachePurger::directory());
+        $file = realpath($path);
+
+        if (false === $directory || false === $file || !is_file($file) || !str_starts_with($file, $directory.\DIRECTORY_SEPARATOR)) {
+            return null;
+        }
+
+        return $file;
     }
 
     /**
