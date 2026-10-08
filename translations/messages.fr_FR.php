@@ -1542,6 +1542,7 @@ return [
     'Please select a condition' => 'Choisissez une condition',
     'Please select a coupon type' => 'Merci d\'entrer le type de code',
     'Please select a file to import.' => 'Veuillez sélectionner un fichier à importer.',
+    'The file is larger than the server accepts: post_max_size is %size%.' => 'Le fichier dépasse ce que le serveur accepte : post_max_size vaut %size%.',
     'Please select items to translate' => 'Veuillez sélectionner un élément',
     'Please select the B.O. template to translate' => 'Sélectionnez le template back-office à traduire',
     'Please select the E-mail template to translate' => 'Sélectionnez le template de mail à traduire',

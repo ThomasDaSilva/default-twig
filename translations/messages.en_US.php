@@ -350,6 +350,7 @@ return [
     'System' => 'System',
     'The customer' => 'The customer',
     'The form has expired, please try again.' => 'The form has expired, please try again.',
+    'The file is larger than the server accepts: post_max_size is %size%.' => 'The file is larger than the server accepts: post_max_size is %size%.',
     'The note has been added.' => 'The note has been added.',
     'The note has been updated.' => 'The note has been updated.',
     'This note does not exist on this order.' => 'This note does not exist on this order.',

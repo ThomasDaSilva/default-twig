@@ -1026,6 +1026,7 @@ return [
     'Please select a condition' => 'Selecteer een voorwaarde',
     'Please select a coupon type' => 'Selecteer een coupontype',
     'Please select a file to import.' => 'Selecteer een bestand om te importeren.',
+    'The file is larger than the server accepts: post_max_size is %size%.' => 'Het bestand is groter dan de server accepteert: post_max_size is %size%.',
     'Please select items to translate' => 'Selecteer items om te vertalen',
     'Please select the B.O. template to translate' => 'Selecteer het backoffice-sjabloon om te vertalen',
     'Please select the E-mail template to translate' => 'Selecteer het e-mailsjabloon om te vertalen',
