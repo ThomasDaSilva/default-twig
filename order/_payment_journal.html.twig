@@ -5,7 +5,8 @@
     Expects:
       - payment_journal:          list of { id, type, type_label, state, state_label, state_badge,
                                             amount, psp_reference, actor, error_code, error_message, created_at }
-      - payment_totals:           { has_authorization, authorized, captured, voided, refunded, remaining }
+      - payment_totals:           { has_authorization, authorized, captured, pending_capture, voided, refunded, remaining, capturable }
+      - payment_hold_notice:      whether the authorization still holds an amount on an order not paid
       - payment_supports_capture: whether the payment module separates the authorization from the capture
       - payment_can_capture:      whether this administrator may capture now (right held, something left)
       - currency:                 { symbol }
@@ -16,6 +17,10 @@
         <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-authorized">{{ payment_totals.authorized|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
         <dt class="col-7">{{ 'Captured'|trans }}</dt>
         <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-captured">{{ payment_totals.captured|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+        {% if payment_totals.pending_capture > 0 %}
+            <dt class="col-7">{{ 'Awaiting the provider'|trans }}</dt>
+            <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-pending">{{ payment_totals.pending_capture|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+        {% endif %}
         {% if payment_totals.refunded > 0 %}
             <dt class="col-7">{{ 'Refunded'|trans }}</dt>
             <dd class="col-5 text-end mb-0" dir="ltr">{{ payment_totals.refunded|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
@@ -23,6 +28,11 @@
         <dt class="col-7 fw-semibold">{{ 'Remaining to capture'|trans }}</dt>
         <dd class="col-5 text-end mb-0 fw-semibold" dir="ltr" data-testid="order-payment-remaining">{{ payment_totals.remaining|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
     </dl>
+    {% if payment_hold_notice %}
+        <p class="small text-warning-emphasis mb-2" data-testid="order-payment-hold-notice">
+            <i class="bi bi-exclamation-triangle me-1" aria-hidden="true"></i>{{ 'The payment is authorized, not taken: marking the order paid by hand takes nothing from the buyer. Capture it to take the money.'|trans }}
+        </p>
+    {% endif %}
     {% if payment_can_capture %}
         <button type="button" class="btn btn-sm btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#order-payment-capture-modal" data-testid="order-payment-capture-btn">
             <i class="bi bi-cash-coin me-1" aria-hidden="true"></i>{{ 'Capture payment'|trans }}

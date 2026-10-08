@@ -553,6 +553,7 @@
                             {% include '@BackOfficeDefaultTwig/order/_payment_journal.html.twig' with {
                                 payment_journal: payment_journal,
                                 payment_totals: payment_totals,
+                                payment_hold_notice: payment_hold_notice,
                                 payment_supports_capture: payment_supports_capture,
                                 payment_can_capture: payment_can_capture,
                                 currency: currency,
@@ -613,7 +614,7 @@
     {% if payment_can_capture %}
         {% include '@BackOfficeDefaultTwig/order/_payment_capture_modal.html.twig' with {
             order: order,
-            remaining: payment_totals.remaining,
+            remaining: payment_totals.capturable,
             currency: currency,
             token: token,
         } only %}
