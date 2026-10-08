@@ -2435,4 +2435,5 @@ return [
     'Back to the import' => 'Retour à l\'import',
     'Recent imports' => 'Imports récents',
     'No import yet.' => 'Aucun import pour l\'instant.',
+    'Delete this failed job? It can no longer be replayed.' => 'Supprimer ce travail en échec ? Il ne pourra plus être rejoué.',
 ];

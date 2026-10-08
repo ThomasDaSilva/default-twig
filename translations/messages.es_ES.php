@@ -1692,4 +1692,5 @@ return [
     'Back to the import' => 'Volver a la importación',
     'Recent imports' => 'Importaciones recientes',
     'No import yet.' => 'Todavía no hay importaciones.',
+    'Delete this failed job? It can no longer be replayed.' => '¿Eliminar este trabajo fallido? Ya no se podrá volver a ejecutar.',
 ];

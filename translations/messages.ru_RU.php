@@ -1599,4 +1599,5 @@ return [
     'Back to the import' => 'Вернуться к импорту',
     'Recent imports' => 'Последние импорты',
     'No import yet.' => 'Импортов пока нет.',
+    'Delete this failed job? It can no longer be replayed.' => 'Удалить это неудавшееся задание? Его больше нельзя будет запустить повторно.',
 ];

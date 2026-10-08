@@ -428,4 +428,5 @@ return [
     'No import yet.' => 'No import yet.',
     'File' => 'File',
     'Import' => 'Import',
+    'Delete this failed job? It can no longer be replayed.' => 'Delete this failed job? It can no longer be replayed.',
 ];
