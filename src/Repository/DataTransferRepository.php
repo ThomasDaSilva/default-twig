@@ -181,9 +181,6 @@ final readonly class DataTransferRepository
     }
 
     /**
-     * The locale the screens show the exports and imports in.
-     */
-    /**
      * The languages a launch form offers, in their order.
      *
      * @return list<Lang>
@@ -198,6 +195,9 @@ final readonly class DataTransferRepository
         return LangQuery::create()->findPk($id);
     }
 
+    /**
+     * The locale the screens show the exports and imports in.
+     */
     public function defaultLocale(): string
     {
         return (string) (LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US');
