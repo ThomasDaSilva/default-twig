@@ -15,7 +15,6 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
 use BackOfficeDefaultTwigBundle\DTO\DataTransfer\ExportLaunchInput;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -45,7 +44,7 @@ final readonly class ExportLaunchAction
     ) {
     }
 
-    public function launch(Export $export, Request $request): Response|BinaryFileResponse
+    public function launch(Export $export, Request $request): Response
     {
         $backToTheForm = new RedirectResponse($this->urls->generate('export.view', ['id' => $export->getId()]));
 

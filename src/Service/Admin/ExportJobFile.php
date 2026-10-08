@@ -40,12 +40,28 @@ final readonly class ExportJobFile
     public function isAvailable(ExportJob $job): bool
     {
         return JobStatus::DONE === $job->getJobStatus()
-            && is_file((string) $job->getFilePath())
+            && self::isAnExportFile((string) $job->getFilePath())
             && (null !== $job->getArchiver() || $this->serializerManager->has($job->getSerializer()));
+    }
+
+    /**
+     * The path comes from the row: only a file the exports write, in the export folder
+     * of the cache, is ever served, as only a file of the import storage is ever read.
+     */
+    public static function isAnExportFile(string $path): bool
+    {
+        $directory = realpath(THELIA_CACHE_DIR.'export');
+        $file = realpath($path);
+
+        return false !== $directory && false !== $file && is_file($file) && str_starts_with($file, $directory.\DIRECTORY_SEPARATOR);
     }
 
     public function response(ExportJob $job): BinaryFileResponse
     {
+        if (!self::isAnExportFile((string) $job->getFilePath())) {
+            throw new \RuntimeException(\sprintf('Export job %d names a file outside the export folder.', (int) $job->getId()));
+        }
+
         $archiverId = $job->getArchiver();
         $contentType = null !== $archiverId
             ? ($this->archiverManager->get($archiverId)?->getMimeType() ?? 'application/octet-stream')

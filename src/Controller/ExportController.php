@@ -18,7 +18,6 @@ use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferFormOptions;
 use BackOfficeDefaultTwigBundle\Service\Admin\ExportLaunchAction;
-use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -75,7 +74,7 @@ final readonly class ExportController
     }
 
     #[Route('/admin/export/{id}', name: 'export.process', methods: ['POST'], requirements: ['id' => '\d+'])]
-    public function launch(int $id, Request $request): Response|BinaryFileResponse
+    public function launch(int $id, Request $request): Response
     {
         if ($denied = $this->access->check(AdminResources::EXPORT, [], AccessManager::VIEW)) {
             return $denied;
