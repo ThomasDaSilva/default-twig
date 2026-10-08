@@ -95,7 +95,9 @@
                                         {% if can_delete %}
                                             <form method="post" action="{{ path('admin.configuration.background-jobs.delete', { id: job.id }) }}" class="d-inline">
                                                 <input type="hidden" name="_token" value="{{ assignToken() }}">
-                                                <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="background-jobs-delete-{{ job.id }}" aria-label="{{ 'Delete'|trans }} {{ job.description }}">
+                                                <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="background-jobs-delete-{{ job.id }}" aria-label="{{ 'Delete'|trans }} {{ job.description }}"
+                                                        data-controller="confirm-modal" data-action="click->confirm-modal#confirm"
+                                                        data-confirm-modal-message-value="{{ 'Delete this failed job? It can no longer be replayed.'|trans }}">
                                                     <i class="bi bi-trash" aria-hidden="true"></i> {{ 'Delete'|trans }}
                                                 </button>
                                             </form>

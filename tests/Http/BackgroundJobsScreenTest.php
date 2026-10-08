@@ -324,6 +324,39 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
     }
 
     /**
+     * The path of the file comes from the row: a row naming a file outside the export
+     * folder offers nothing to download, and serves nothing.
+     */
+    public function testAnExportRowNamingAFileOutsideTheExportFolderServesNothing(): void
+    {
+        $job = $this->doneExportJob(null);
+        $outside = sys_get_temp_dir().'/outside-the-exports-'.uniqid('', true).'.csv';
+        file_put_contents($outside, "ref\nORD-SECRET\n");
+        $this->files[] = $outside;
+        $job->setFilePath($outside)->save();
+        $this->loginAs($this->factory->admin());
+
+        $this->assertPageRenders('/admin/export/job/'.$job->getId());
+        self::assertStringNotContainsString('data-testid="export-job-download"', $this->html());
+
+        $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
+        self::assertStringNotContainsString('ORD-SECRET', (string) $this->client->getInternalResponse()->getContent());
+    }
+
+    /**
+     * Deleting a failed job cannot be undone: the button asks first.
+     */
+    public function testDeletingAFailedJobAsksFirst(): void
+    {
+        $id = $this->setAsideAMail('SMTP down');
+        $this->loginAs($this->factory->admin());
+
+        $this->assertPageRenders(self::URL);
+
+        self::assertMatchesRegularExpression('/data-testid="background-jobs-delete-'.preg_quote($id, '/').'"[^>]*data-controller="confirm-modal"/', $this->html());
+    }
+
+    /**
      * The refused rows of an import quote its file: the same rule as an export.
      */
     public function testAnImportIsForItsAuthorAndTheSuperAdministratorsOnly(): void

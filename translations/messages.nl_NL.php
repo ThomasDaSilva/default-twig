@@ -1598,4 +1598,5 @@ return [
     'Back to the import' => 'Terug naar de import',
     'Recent imports' => 'Recente imports',
     'No import yet.' => 'Nog geen import.',
+    'Delete this failed job? It can no longer be replayed.' => 'Deze mislukte taak verwijderen? Hij kan daarna niet meer opnieuw worden uitgevoerd.',
 ];

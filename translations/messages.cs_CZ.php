@@ -1598,4 +1598,5 @@ return [
     'Back to the import' => 'Zpět na import',
     'Recent imports' => 'Nedávné importy',
     'No import yet.' => 'Zatím žádný import.',
+    'Delete this failed job? It can no longer be replayed.' => 'Smazat tuto neúspěšnou úlohu? Už ji nebude možné spustit znovu.',
 ];
