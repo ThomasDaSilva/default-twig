@@ -1,0 +1,40 @@
+{#
+    The dialog that takes all or part of what the authorization still holds.
+
+    Expects:
+      - order:          the Order model
+      - remaining:      what the authorization still holds, prefilled and the ceiling of the input
+      - currency:       { symbol }
+      - token:          CSRF token
+#}
+<div class="modal fade" id="order-payment-capture-modal" tabindex="-1" aria-labelledby="order-payment-capture-modal-label" aria-hidden="true" data-testid="order-payment-capture-modal">
+    <div class="modal-dialog">
+        <form method="post" action="{{ path('admin.order.update.paymentCapture', { order_id: order.id }) }}" data-testid="order-payment-capture-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="order-payment-capture-modal-label">{{ 'Capture payment'|trans }}</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'Close'|trans }}"></button>
+                </div>
+                <div class="modal-body">
+                    <p>{{ 'The payment provider will take this amount from what it holds for order %ref.'|trans({'%ref': order.ref}) }}</p>
+                    <label for="order-payment-capture-amount" class="form-label">{{ 'Amount to capture'|trans }}</label>
+                    <div class="input-group">
+                        <input type="number" id="order-payment-capture-amount" name="amount" class="form-control"
+                               step="0.01" min="0.01" max="{{ remaining|number_format(2, '.', '') }}"
+                               value="{{ remaining|number_format(2, '.', '') }}" required
+                               data-testid="order-payment-capture-amount">
+                        <span class="input-group-text">{{ currency.symbol }}</span>
+                    </div>
+                    <div class="form-text">{{ 'A smaller amount leaves the rest to capture later. The shop refuses more than the authorization holds.'|trans }}</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Close'|trans }}</button>
+                    <button type="submit" class="btn btn-primary" data-testid="order-payment-capture-submit">
+                        <i class="bi bi-cash-coin" aria-hidden="true"></i> {{ 'Capture now'|trans }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

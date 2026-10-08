@@ -549,6 +549,15 @@
                         {% if payment.invoice_date %}
                             <p class="mb-1 text-muted">{{ 'Invoice date'|trans }}: {{ payment.invoice_date|date('d/m/Y') }}</p>
                         {% endif %}
+                        {% if payment_journal_enabled %}
+                            {% include '@BackOfficeDefaultTwig/order/_payment_journal.html.twig' with {
+                                payment_journal: payment_journal,
+                                payment_totals: payment_totals,
+                                payment_supports_capture: payment_supports_capture,
+                                payment_can_capture: payment_can_capture,
+                                currency: currency,
+                            } only %}
+                        {% endif %}
                         {{ safe_hook('order-edit.payment-module-bottom', { order_id: order.id, module_id: payment.module_id }) }}
                     </div>
                 </div>
@@ -597,6 +606,15 @@
             order: order,
             returnable_lines: returnable_lines,
             return_reasons: return_reasons,
+            token: token,
+        } only %}
+    {% endif %}
+
+    {% if payment_can_capture %}
+        {% include '@BackOfficeDefaultTwig/order/_payment_capture_modal.html.twig' with {
+            order: order,
+            remaining: payment_totals.remaining,
+            currency: currency,
             token: token,
         } only %}
     {% endif %}
