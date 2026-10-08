@@ -1,0 +1,72 @@
+{#
+    The payment journal of the order: what the authorization holds and what was taken,
+    then every money movement, newest first.
+
+    Expects:
+      - payment_journal:          list of { id, type, type_label, state, state_label, state_badge,
+                                            amount, psp_reference, actor, error_code, error_message, created_at }
+      - payment_totals:           { has_authorization, authorized, captured, voided, refunded, remaining }
+      - payment_supports_capture: whether the payment module separates the authorization from the capture
+      - payment_can_capture:      whether this administrator may capture now (right held, something left)
+      - currency:                 { symbol }
+#}
+{% if payment_totals.has_authorization or payment_supports_capture %}
+    <dl class="row mb-2 small" data-testid="order-payment-totals">
+        <dt class="col-7">{{ 'Authorized'|trans }}</dt>
+        <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-authorized">{{ payment_totals.authorized|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+        <dt class="col-7">{{ 'Captured'|trans }}</dt>
+        <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-captured">{{ payment_totals.captured|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+        {% if payment_totals.refunded > 0 %}
+            <dt class="col-7">{{ 'Refunded'|trans }}</dt>
+            <dd class="col-5 text-end mb-0" dir="ltr">{{ payment_totals.refunded|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+        {% endif %}
+        <dt class="col-7 fw-semibold">{{ 'Remaining to capture'|trans }}</dt>
+        <dd class="col-5 text-end mb-0 fw-semibold" dir="ltr" data-testid="order-payment-remaining">{{ payment_totals.remaining|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+    </dl>
+    {% if payment_can_capture %}
+        <button type="button" class="btn btn-sm btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#order-payment-capture-modal" data-testid="order-payment-capture-btn">
+            <i class="bi bi-cash-coin me-1" aria-hidden="true"></i>{{ 'Capture payment'|trans }}
+        </button>
+    {% endif %}
+{% endif %}
+
+<h3 class="h6 mt-2 mb-2">{{ 'Payment journal'|trans }}</h3>
+{% if payment_journal is empty %}
+    <p class="mb-1 text-muted" data-testid="order-payment-journal-empty">{{ 'No payment movement recorded for this order'|trans }}</p>
+{% else %}
+    <div class="table-responsive">
+        <table class="table table-sm mb-1 align-middle" data-testid="order-payment-journal">
+            <thead>
+                <tr>
+                    <th scope="col">{{ 'Date'|trans }}</th>
+                    <th scope="col">{{ 'Movement'|trans }}</th>
+                    <th scope="col" class="text-end">{{ 'Amount'|trans }}</th>
+                    <th scope="col">{{ 'Outcome'|trans }}</th>
+                    <th scope="col">{{ 'Reference'|trans }}</th>
+                    <th scope="col">{{ 'Author'|trans }}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in payment_journal %}
+                    <tr data-testid="order-payment-line" data-payment-type="{{ line.type }}" data-payment-state="{{ line.state }}">
+                        <td class="text-nowrap">{{ line.created_at ? line.created_at|date('d/m/Y H:i') : '-' }}</td>
+                        <td>{{ line.type_label }}</td>
+                        <td class="text-end text-nowrap" dir="ltr">{{ line.amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</td>
+                        <td>
+                            <span class="badge {{ line.state_badge }}">{{ line.state_label }}</span>
+                            {% if line.error_code or line.error_message %}
+                                {# The provider's words, escaped: they come from a third party. #}
+                                <div class="text-danger small" data-testid="order-payment-line-error">
+                                    {% if line.error_code %}<code>{{ line.error_code }}</code>{% endif %}
+                                    {{ line.error_message }}
+                                </div>
+                            {% endif %}
+                        </td>
+                        <td>{% if line.psp_reference %}<code>{{ line.psp_reference }}</code>{% else %}-{% endif %}</td>
+                        <td>{{ line.actor }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endif %}
