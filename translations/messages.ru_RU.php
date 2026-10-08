@@ -1600,4 +1600,7 @@ return [
     'Recent imports' => 'Последние импорты',
     'No import yet.' => 'Импортов пока нет.',
     'Delete this failed job? It can no longer be replayed.' => 'Удалить это неудавшееся задание? Его больше нельзя будет запустить повторно.',
+    'This export cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Этот экспорт нельзя выполнить: модуль, который его предоставлял, удалён. Запустите «import-export:clean», чтобы удалить оставшиеся экспорты и импорты.',
+    'This import cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Этот импорт нельзя выполнить: модуль, который его предоставлял, удалён. Запустите «import-export:clean», чтобы удалить оставшиеся экспорты и импорты.',
+    'Download a CSV template' => 'Скачать шаблон CSV',
 ];

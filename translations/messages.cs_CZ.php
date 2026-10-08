@@ -1599,4 +1599,7 @@ return [
     'Recent imports' => 'Nedávné importy',
     'No import yet.' => 'Zatím žádný import.',
     'Delete this failed job? It can no longer be replayed.' => 'Smazat tuto neúspěšnou úlohu? Už ji nebude možné spustit znovu.',
+    'This export cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Tento export nelze spustit: modul, který jej poskytoval, byl odstraněn. Spusťte „import-export:clean“ a smažte zbylé exporty a importy.',
+    'This import cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Tento import nelze spustit: modul, který jej poskytoval, byl odstraněn. Spusťte „import-export:clean“ a smažte zbylé exporty a importy.',
+    'Download a CSV template' => 'Stáhnout šablonu CSV',
 ];

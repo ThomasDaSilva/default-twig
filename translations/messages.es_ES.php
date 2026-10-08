@@ -1693,4 +1693,7 @@ return [
     'Recent imports' => 'Importaciones recientes',
     'No import yet.' => 'Todavía no hay importaciones.',
     'Delete this failed job? It can no longer be replayed.' => '¿Eliminar este trabajo fallido? Ya no se podrá volver a ejecutar.',
+    'This export cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Esta exportación no se puede ejecutar: el módulo que la proporcionaba se ha eliminado. Ejecute «import-export:clean» para borrar las exportaciones e importaciones que quedan.',
+    'This import cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Esta importación no se puede ejecutar: el módulo que la proporcionaba se ha eliminado. Ejecute «import-export:clean» para borrar las exportaciones e importaciones que quedan.',
+    'Download a CSV template' => 'Descargar una plantilla CSV',
 ];

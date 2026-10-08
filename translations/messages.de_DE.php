@@ -1600,4 +1600,7 @@ return [
     'Recent imports' => 'Letzte Importe',
     'No import yet.' => 'Noch kein Import.',
     'Delete this failed job? It can no longer be replayed.' => 'Diesen fehlgeschlagenen Auftrag löschen? Er kann danach nicht mehr erneut ausgeführt werden.',
+    'This export cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Dieser Export kann nicht ausgeführt werden: Das Modul, das ihn bereitgestellt hat, wurde entfernt. Führen Sie „import-export:clean“ aus, um die zurückgebliebenen Exporte und Importe zu löschen.',
+    'This import cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Dieser Import kann nicht ausgeführt werden: Das Modul, das ihn bereitgestellt hat, wurde entfernt. Führen Sie „import-export:clean“ aus, um die zurückgebliebenen Exporte und Importe zu löschen.',
+    'Download a CSV template' => 'CSV-Vorlage herunterladen',
 ];
