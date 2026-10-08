@@ -1642,7 +1642,7 @@ return [
     'Background jobs' => 'Attività in background',
     'Queue' => 'Coda',
     'Configured' => 'Configurata',
-    'Jobs wait for a worker (messenger:consume async).' => 'Le attività attendono un worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Le attività attendono un worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN è vuoto: ogni attività viene eseguita subito, nella pagina che la richiede.',
     'Waiting' => 'In attesa',
     'Failed' => 'Non riuscite',

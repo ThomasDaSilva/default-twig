@@ -1547,7 +1547,7 @@ return [
     'Background jobs' => 'Úlohy na pozadí',
     'Queue' => 'Fronta',
     'Configured' => 'Nastavena',
-    'Jobs wait for a worker (messenger:consume async).' => 'Úlohy čekají na worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Úlohy čekají na worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN je prázdný: každá úloha se spustí hned, na stránce, která ji vyžádá.',
     'Waiting' => 'Čekající',
     'Failed' => 'Neúspěšné',

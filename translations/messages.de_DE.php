@@ -1548,7 +1548,7 @@ return [
     'Background jobs' => 'Hintergrundaufgaben',
     'Queue' => 'Warteschlange',
     'Configured' => 'Eingerichtet',
-    'Jobs wait for a worker (messenger:consume async).' => 'Die Aufgaben warten auf einen Worker (messenger:consume async).',
+    'Jobs wait for a worker (messenger:consume async async_heavy).' => 'Die Aufgaben warten auf einen Worker (messenger:consume async async_heavy).',
     'MESSENGER_TRANSPORT_DSN is empty: every job runs at once, in the page that asks for it.' => 'MESSENGER_TRANSPORT_DSN ist leer: Jede Aufgabe läuft sofort, in der Seite, die sie anfordert.',
     'Waiting' => 'Wartend',
     'Failed' => 'Fehlgeschlagen',
