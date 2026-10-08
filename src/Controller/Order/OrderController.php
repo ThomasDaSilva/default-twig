@@ -27,6 +27,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderHistoryContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
+use BackOfficeDefaultTwigBundle\Service\Order\OrderPaymentContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderRoundingRule;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderSaleUnits;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderShipmentContextBuilder;
@@ -45,6 +46,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Event\Order\OrderAddressEvent;
 use Thelia\Core\Event\Order\OrderEvent;
+use Thelia\Core\Event\Order\OrderPaymentCaptureEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
@@ -96,6 +98,7 @@ final class OrderController
         private readonly OrderShipmentContextBuilder $shipmentContextBuilder,
         private readonly OrderSaleUnits $orderSaleUnits,
         private readonly OrderAccess $orderAccess,
+        private readonly OrderPaymentContextBuilder $paymentContextBuilder,
     ) {
     }
 
@@ -150,6 +153,7 @@ final class OrderController
             $this->returnContextBuilder->build($order, $locale),
             $this->historyContextBuilder->build($order, $historyPage, $locale),
             $this->shipmentContextBuilder->build($order, $locale),
+            $this->paymentContextBuilder->build($order, $locale),
             [
                 'order' => $order,
                 'sale_unit_title' => $this->orderSaleUnits->titleOf($order, $locale),
@@ -367,6 +371,69 @@ final class OrderController
             actionLabel: 'Order delivery ref updated',
             successRoute: self::DETAIL_ROUTE,
             successParameters: ['order_id' => $order_id],
+        );
+    }
+
+    /**
+     * Takes all or part of what the payment authorization of the order still holds.
+     *
+     * The capture answers to its own right, not to the order one; the amount is read
+     * as the merchant typed it (a comma is a decimal separator too) and checked here
+     * for its shape only — whether the authorization holds it is the core's call,
+     * made before anything leaves the shop.
+     */
+    #[Route('/admin/order/update/{order_id}/payment-capture', name: 'admin.order.update.paymentCapture', methods: ['POST'], requirements: ['order_id' => '\d+'])]
+    public function capturePayment(int $order_id, Request $request): Response
+    {
+        if ($denied = $this->access->check(AdminResources::ORDER_PAYMENT_CAPTURE, [], AccessManager::CREATE)) {
+            return $denied;
+        }
+
+        $order = OrderQuery::create()->findPk($order_id);
+        if ($order === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        }
+
+        $rawAmount = trim((string) $request->request->get('amount', ''));
+        $amount = null;
+
+        if ($rawAmount !== '') {
+            $typedAmount = str_replace([' ', ','], ['', '.'], $rawAmount);
+
+            if (!is_numeric($typedAmount) || (float) $typedAmount <= 0) {
+                $this->flash('error', $this->translator->trans('The amount to capture must be a positive number.'));
+
+                return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+            }
+
+            $amount = (float) $typedAmount;
+        }
+
+        $event = new OrderPaymentCaptureEvent($order, $amount);
+
+        return $this->action->tokenAction(
+            resource: AdminResources::ORDER_PAYMENT_CAPTURE,
+            access: AccessManager::CREATE,
+            request: $request,
+            event: $event,
+            eventName: TheliaEvents::ORDER_PAYMENT_CAPTURE,
+            actionLabel: 'Order payment captured',
+            successRoute: self::DETAIL_ROUTE,
+            successParameters: ['order_id' => $order_id],
+            describeForLog: static function (OrderPaymentCaptureEvent $event) use ($order): array {
+                $transaction = $event->getTransaction();
+
+                return [
+                    \sprintf(
+                        'Payment capture of %s asked on order %s: transaction #%d is %s',
+                        (string) $transaction->getAmount(),
+                        (string) $order->getRef(),
+                        (int) $transaction->getId(),
+                        (string) $transaction->getState(),
+                    ),
+                    (int) $order->getId(),
+                ];
+            },
         );
     }
 
