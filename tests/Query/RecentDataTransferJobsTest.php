@@ -41,7 +41,6 @@ final class RecentDataTransferJobsTest extends IntegrationTestCase
         }
 
         $repository = $this->getService(DataTransferRepository::class);
-        $repository->defaultLocale();
         $titles = [];
 
         $queries = QueryCounter::count(static function () use ($repository, &$titles): void {
@@ -56,6 +55,6 @@ final class RecentDataTransferJobsTest extends IntegrationTestCase
 
         self::assertGreaterThanOrEqual(20, \count($titles));
         self::assertNotContains('', array_map('strval', $titles));
-        self::assertLessThanOrEqual(4, $queries, 'The default language, then one query per list.');
+        self::assertLessThanOrEqual(4, $queries, 'For each list, its default language, then the list with its titles.');
     }
 }
