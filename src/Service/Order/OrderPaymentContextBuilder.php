@@ -19,6 +19,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
+use Thelia\Domain\Payment\Service\CurrencyMinorUnit;
 use Thelia\Domain\Payment\Service\PaymentAmount;
 use Thelia\Domain\Payment\Service\PaymentCaptureService;
 use Thelia\Domain\Payment\Service\PaymentTransactionTotalsReader;
@@ -56,6 +57,7 @@ final readonly class OrderPaymentContextBuilder
                 'payment_journal_enabled' => false,
                 'payment_journal' => [],
                 'payment_totals' => null,
+                'payment_hold_notice' => false,
                 'payment_supports_capture' => false,
                 'payment_can_capture' => false,
             ];
@@ -74,6 +76,8 @@ final readonly class OrderPaymentContextBuilder
             [AccessManager::CREATE],
         );
 
+        $currencyCode = $order->getCurrency()->getCode();
+
         return [
             'payment_journal_enabled' => true,
             'payment_journal' => $this->presenter->presentAll($this->transactions->findJournalOfOrder($orderId), $locale),
@@ -81,12 +85,19 @@ final readonly class OrderPaymentContextBuilder
                 'has_authorization' => $totals->hasAuthorization(),
                 'authorized' => PaymentAmount::toFloat($totals->authorized),
                 'captured' => PaymentAmount::toFloat($totals->captured),
+                'pending_capture' => PaymentAmount::toFloat($totals->pendingCapture),
                 'voided' => PaymentAmount::toFloat($totals->voided),
                 'refunded' => PaymentAmount::toFloat($totals->refunded),
                 'remaining' => PaymentAmount::toFloat($totals->remainingToCapture),
+                // Rounded down to the smallest coin: what the dialog offers never goes past
+                // what the authorization holds, which the core would refuse.
+                'capturable' => PaymentAmount::toFloat(CurrencyMinorUnit::floor($totals->remainingToCapture, $currencyCode)),
             ],
+            // Marking such an order paid by hand takes nothing from the buyer: the money
+            // is taken by a capture, at the provider.
+            'payment_hold_notice' => $totals->hasSomethingLeftToCapture() && !$order->isPaid(false),
             'payment_supports_capture' => $supportsCapture,
-            'payment_can_capture' => $supportsCapture && $mayCapture && $totals->hasSomethingLeftToCapture(),
+            'payment_can_capture' => $supportsCapture && $mayCapture && PaymentAmount::isPositive(CurrencyMinorUnit::floor($totals->remainingToCapture, $currencyCode)),
         ];
     }
 }
