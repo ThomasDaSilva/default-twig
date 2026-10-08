@@ -25,6 +25,8 @@ use Symfony\Component\Messenger\Stamp\SentToFailureTransportStamp;
 use Symfony\Component\Messenger\Transport\TransportInterface;
 use Symfony\Component\Mime\Email;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Core\Event\ExportEvent;
+use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\DataTransfer\Job\RunExportJob;
@@ -341,6 +343,43 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
 
         $this->client->request('GET', '/admin/export/job/'.$job->getId().'/download');
         self::assertStringNotContainsString('ORD-SECRET', (string) $this->client->getInternalResponse()->getContent());
+    }
+
+    /**
+     * Without a queue the export is served at once: a listener that moved its file out
+     * of the export folder gets the administrator a message, not a server error.
+     */
+    public function testAnExportRunAtOnceWhoseFileLeftTheExportFolderSaysSo(): void
+    {
+        $this->factory->order();
+        $export = ExportQuery::create()->findOneByRef('thelia.export.orders');
+        self::assertNotNull($export);
+        $outside = sys_get_temp_dir().'/moved-export-'.uniqid('', true).'.csv';
+        file_put_contents($outside, "ref\nORD-SECRET\n");
+        $this->files[] = $outside;
+        $movesTheFile = static function (ExportEvent $event) use ($outside): void {
+            $event->setFilePath($outside);
+        };
+        $dispatcher = $this->getService(EventDispatcherInterface::class);
+        $dispatcher->addListener(TheliaEvents::EXPORT_SUCCESS, $movesTheFile);
+        $this->loginAs($this->factory->admin());
+
+        try {
+            $this->client->request('POST', '/admin/export/'.$export->getId(), [
+                '_token' => $this->token(),
+                'language' => (string) LangQuery::create()->findOneByByDefault(1)?->getId(),
+                'serializer' => 'thelia.csv',
+            ]);
+        } finally {
+            $dispatcher->removeListener(TheliaEvents::EXPORT_SUCCESS, $movesTheFile);
+        }
+
+        $response = $this->client->getResponse();
+        self::assertSame(302, $response->getStatusCode(), (string) $response->getContent());
+        self::assertStringNotContainsString('ORD-SECRET', (string) $response->getContent());
+        $job = ExportJobQuery::create()->filterByExportId($export->getId())->orderById('desc')->findOne();
+        self::assertNotNull($job);
+        self::assertStringEndsWith('/admin/export/job/'.$job->getId(), (string) $response->headers->get('Location'));
     }
 
     /**
