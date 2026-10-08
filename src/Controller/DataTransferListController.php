@@ -25,7 +25,6 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
 /**
@@ -39,7 +38,6 @@ final readonly class DataTransferListController
         private Environment $twig,
         private UrlGeneratorInterface $urls,
         private DataTransferRepository $repository,
-        private TokenProvider $tokens,
         private UpdatePositionEventFactory $positions,
     ) {
     }
@@ -54,7 +52,6 @@ final readonly class DataTransferListController
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/list.html.twig', [
             'categories' => $this->repository->findExportCatalogue($this->repository->defaultLocale()),
             'position_url' => $this->urls->generate('export.position'),
-            'position_token' => $this->tokens->assignToken(),
         ]));
     }
 
@@ -68,7 +65,6 @@ final readonly class DataTransferListController
         return new Response($this->twig->render('@BackOfficeDefaultTwig/import/list.html.twig', [
             'categories' => $this->repository->findImportCatalogue($this->repository->defaultLocale()),
             'position_url' => $this->urls->generate('import.position'),
-            'position_token' => $this->tokens->assignToken(),
         ]));
     }
 

@@ -19,7 +19,6 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Messenger\Monitoring\BackgroundJobsMonitor;
 use Thelia\Scheduler\RecurringTaskFailures;
-use Thelia\Tools\TokenProvider;
 
 /**
  * What Configuration > Background jobs shows, for the administrator looking at it.
@@ -34,7 +33,6 @@ final readonly class BackgroundJobsScreen
         private RecurringTaskFailures $recurringTaskFailures,
         private DataTransferJobAccess $jobAccess,
         private AdminAccessChecker $access,
-        private TokenProvider $tokens,
     ) {
     }
 
@@ -62,7 +60,6 @@ final readonly class BackgroundJobsScreen
             // The page of a job needs the right on the exports, or on the imports.
             'can_view_exports' => $this->access->canView(AdminResources::EXPORT),
             'can_view_imports' => $this->access->canView(AdminResources::IMPORT),
-            'token' => $this->tokens->assignToken(),
         ];
     }
 }

@@ -43,6 +43,7 @@ use Thelia\Scheduler\RecurringTaskFailures;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
+use Thelia\Tools\TokenProvider;
 
 /**
  * Configuration > Background jobs, and the export run as a job.
@@ -168,6 +169,26 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
 
         self::assertTrue($this->client->getResponse()->isRedirect(self::URL));
         self::assertSame(0, $this->monitor()->failedCount());
+    }
+
+    /**
+     * An administrator works in several tabs: opening the screen, or the lists of the
+     * exports and imports, in one of them leaves the forms of the others valid.
+     */
+    public function testOpeningAnotherPageKeepsTheFormsAlreadyOpenValid(): void
+    {
+        $id = $this->setAsideAMail('SMTP down');
+        $this->loginAs($this->factory->admin());
+        $token = $this->token();
+
+        foreach (['/admin/export', '/admin/import', self::URL] as $page) {
+            $this->aFreshProcess();
+            $this->client->request('GET', $page);
+        }
+
+        $this->client->request('POST', self::URL.'/'.$id.'/delete', ['_token' => $token]);
+
+        self::assertSame(0, $this->monitor()->failedCount(), 'The form opened first is refused as expired.');
     }
 
     public function testAGestureWithoutTheTokenIsRefused(): void
@@ -588,6 +609,15 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
         \assert($transport instanceof TransportInterface);
 
         return $transport;
+    }
+
+    /**
+     * Each page is a PHP process of its own, whose token provider is built while the
+     * kernel boots, before the request and its session: the test client keeps one.
+     */
+    private function aFreshProcess(): void
+    {
+        (new \ReflectionProperty(TokenProvider::class, 'token'))->setValue($this->getService(TokenProvider::class), null);
     }
 
     private function token(): string
