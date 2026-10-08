@@ -107,6 +107,14 @@ final readonly class ImportController
 
         $backToTheForm = new RedirectResponse($this->urls->generate('import.view', ['id' => $id]));
 
+        // Over post_max_size, PHP drops the whole body, the token with it: the file is
+        // too large, the form has not expired.
+        if (0 === $request->request->count() && 0 === $request->files->count() && (int) $request->server->get('CONTENT_LENGTH', 0) > 0) {
+            $this->flash->add($request, 'error', $this->translator->trans('The file is larger than the server accepts: post_max_size is %size%.', ['%size%' => (string) \ini_get('post_max_size')]));
+
+            return $backToTheForm;
+        }
+
         if (!$this->launchGuard->hasValidToken($request)) {
             return $backToTheForm;
         }

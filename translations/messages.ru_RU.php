@@ -1026,6 +1026,7 @@ return [
     'Please select a condition' => 'Пожалуйста выберите условие',
     'Please select a coupon type' => 'Пожалуйста выберите тип купона',
     'Please select a file to import.' => 'Выберите файл для импорта.',
+    'The file is larger than the server accepts: post_max_size is %size%.' => 'Файл больше, чем принимает сервер: post_max_size равен %size%.',
     'Please select items to translate' => 'Выберите что перевести',
     'Please select the B.O. template to translate' => 'Выберите шаблон админки который перевести',
     'Please select the E-mail template to translate' => 'Выберите шаблон E-mail который перевести',

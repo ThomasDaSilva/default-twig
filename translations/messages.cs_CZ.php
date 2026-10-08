@@ -1026,6 +1026,7 @@ return [
     'Please select a condition' => 'Vyberte podmínku',
     'Please select a coupon type' => 'Vyberte typ kupónu',
     'Please select a file to import.' => 'Vyberte soubor k importu.',
+    'The file is larger than the server accepts: post_max_size is %size%.' => 'Soubor je větší, než server přijme: post_max_size je %size%.',
     'Please select items to translate' => 'Vyberte položky k překladu',
     'Please select the B.O. template to translate' => 'Vyberte šablonu administrace k překladu',
     'Please select the E-mail template to translate' => 'Vyberte e-mailovou šablonu k překladu',

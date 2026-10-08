@@ -195,6 +195,23 @@ final class DataTransferFormTest extends WebIntegrationTestCase
     }
 
     /**
+     * A file over post_max_size empties the whole request, its token with it: the
+     * administrator reads that the file is too large, not that the form expired.
+     */
+    public function testAnUploadOverThePostLimitSaysTheFileIsTooLarge(): void
+    {
+        $import = $this->stockImport();
+        $this->loginAs($this->factory->admin());
+
+        $this->client->request('POST', '/admin/import/'.$import->getId(), [], [], ['CONTENT_LENGTH' => '20000000']);
+        $this->client->followRedirect();
+
+        $page = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString('post_max_size', $page);
+        self::assertStringNotContainsString('The form has expired', $page);
+    }
+
+    /**
      * The order of the exports is changed from their list, with its token.
      */
     public function testAnExportIsMovedInItsList(): void
