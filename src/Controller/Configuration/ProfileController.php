@@ -114,7 +114,7 @@ final class ProfileController
             actionLabel: 'Profile creation',
             successRoute: self::LIST_ROUTE,
             renderError: fn (): Response => $this->renderListWithError(),
-            describeForLog: fn (ProfileEvent $event): array => $this->describeProfile($event, 'created'),
+            describeForLog: fn (ProfileEvent $event): array => $this->describeProfile($event, 'created', $this->translator->trans('No profile was created.')),
         );
     }
 
@@ -150,7 +150,7 @@ final class ProfileController
             renderError: fn (): Response => new RedirectResponse(
                 $this->urls->generate('admin.configuration.profiles.update', ['profile_id' => $profileId]),
             ),
-            describeForLog: fn (ProfileEvent $event): array => $this->describeProfile($event, 'modified'),
+            describeForLog: fn (ProfileEvent $event): array => $this->describeProfile($event, 'modified', $this->translator->trans('No profile was modified.')),
         );
     }
 
@@ -232,13 +232,10 @@ final class ProfileController
     /**
      * @return array{0: string, 1: int|null}
      */
-    private function describeProfile(ProfileEvent $event, string $action): array
+    private function describeProfile(ProfileEvent $event, string $action, string $noneWasThere): array
     {
         if (!$event->hasProfile()) {
-            // A key per action: one built from the action would never be found in a catalogue.
-            throw new \LogicException('created' === $action
-                ? $this->translator->trans('No profile was created.')
-                : $this->translator->trans('No profile was modified.'));
+            throw new \LogicException($noneWasThere);
         }
 
         $profile = $event->getProfile();
