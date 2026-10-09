@@ -557,6 +557,7 @@
                                 payment_supports_capture: payment_supports_capture,
                                 payment_can_capture: payment_can_capture,
                                 payment_can_settle: payment_can_settle,
+                                payment_decimals: payment_decimals,
                                 order_id: order.id,
                                 token: token,
                                 currency: currency,
@@ -619,6 +620,8 @@
             order: order,
             remaining: payment_totals.capturable,
             currency: currency,
+            decimals: payment_decimals,
+            step: payment_step,
             token: token,
         } only %}
     {% endif %}

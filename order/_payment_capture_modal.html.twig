@@ -5,6 +5,8 @@
       - order:          the Order model
       - remaining:      what can be captured, rounded down to the smallest coin: prefilled and the ceiling of the input
       - currency:       { symbol }
+      - decimals:       the decimals of the order currency
+      - step:           its smallest coin, as the step of the input
       - token:          CSRF token
 #}
 <div class="modal fade" id="order-payment-capture-modal" tabindex="-1" aria-labelledby="order-payment-capture-modal-label" aria-hidden="true" data-testid="order-payment-capture-modal">
@@ -21,8 +23,8 @@
                     <label for="order-payment-capture-amount" class="form-label">{{ 'Amount to capture'|trans }}</label>
                     <div class="input-group">
                         <input type="number" id="order-payment-capture-amount" name="amount" class="form-control"
-                               step="0.01" min="0.01" max="{{ remaining|number_format(2, '.', '') }}"
-                               value="{{ remaining|number_format(2, '.', '') }}" required
+                               step="{{ step }}" min="{{ step }}" max="{{ remaining|number_format(decimals, '.', '') }}"
+                               value="{{ remaining|number_format(decimals, '.', '') }}" required
                                data-testid="order-payment-capture-amount">
                         <span class="input-group-text">{{ currency.symbol }}</span>
                     </div>
