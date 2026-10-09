@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Form\File\DocumentMetadataType;
 use BackOfficeDefaultTwigBundle\Form\File\ImageMetadataType;
 use BackOfficeDefaultTwigBundle\Form\File\VideoType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\File\ProductVideoPresenter;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
 use Psr\Log\LoggerInterface;
@@ -357,7 +358,7 @@ final class FileController
                 $this->fileProcessor->validateUpload($replacement, $kind);
                 $this->fileProcessor->sanitizeUpload($replacement);
             } catch (\Throwable $exception) {
-                $form->get('file')->addError(new FormError($exception->getMessage()));
+                $form->get('file')->addError(new FormError(AdminFailureMessage::of($exception, $this->translator)));
             }
         }
 
@@ -616,7 +617,7 @@ final class FileController
             // No constraint argument: the shop upload policy for this object type applies.
             $this->fileProcessor->processFile($this->events, $uploadedFile, $parentId, $parentType, $kind);
         } catch (\Throwable $exception) {
-            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['error' => AdminFailureMessage::of($exception, $this->translator)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return new JsonResponse(['status' => 'ok']);
@@ -634,7 +635,7 @@ final class FileController
         try {
             $this->fileDeleter->deleteFile($this->events, $fileId, $parentType, $kind, $eventName);
         } catch (\Throwable $exception) {
-            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['error' => AdminFailureMessage::of($exception, $this->translator)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return new JsonResponse(['status' => 'ok']);
@@ -652,7 +653,7 @@ final class FileController
         try {
             $this->fileVisibility->toggleFileVisibility($this->events, $fileId, $parentType, $kind, $eventName);
         } catch (\Throwable $exception) {
-            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['error' => AdminFailureMessage::of($exception, $this->translator)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return new JsonResponse(['status' => 'ok']);
@@ -676,7 +677,7 @@ final class FileController
         try {
             $this->filePosition->updateFilePosition($this->events, $parentType, $fileId, $kind, $eventName, $position);
         } catch (\Throwable $exception) {
-            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['error' => AdminFailureMessage::of($exception, $this->translator)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return new JsonResponse(['status' => 'ok']);
@@ -703,7 +704,7 @@ final class FileController
             $model->setTitle($title);
             $model->save();
         } catch (\Throwable $exception) {
-            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['error' => AdminFailureMessage::of($exception, $this->translator)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         return new RedirectResponse($request->headers->get('referer') ?? $this->urls->generate('admin.home'));

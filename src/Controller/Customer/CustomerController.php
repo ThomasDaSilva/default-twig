@@ -20,6 +20,7 @@ use BackOfficeDefaultTwigBundle\Repository\CountryRepository;
 use BackOfficeDefaultTwigBundle\Repository\CustomerRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
@@ -331,7 +332,7 @@ final class CustomerController
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans('Customer update'),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 $form,
                 $exception,
             );

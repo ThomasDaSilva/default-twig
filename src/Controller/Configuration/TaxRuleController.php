@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Tax\TaxType;
 use BackOfficeDefaultTwigBundle\Form\TaxRule\TaxRuleType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
@@ -221,7 +222,7 @@ final class TaxRuleController
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans('Tax rule update'),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 $form,
                 $exception,
             );
@@ -240,7 +241,7 @@ final class TaxRuleController
         try {
             $this->tokens->checkToken((string) $request->request->get('_token'));
         } catch (TokenAuthenticationException $exception) {
-            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 403);
+            return new JsonResponse(['success' => false, 'message' => AdminFailureMessage::of($exception, $this->translator)], 403);
         }
 
         $taxRuleId = (int) $request->request->get('id', 0);
@@ -272,7 +273,7 @@ final class TaxRuleController
                 'data' => $this->buildSpecification($taxRuleId),
             ]);
         } catch (\Throwable $exception) {
-            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], 400);
+            return new JsonResponse(['success' => false, 'message' => AdminFailureMessage::of($exception, $this->translator)], 400);
         }
     }
 

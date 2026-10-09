@@ -1703,4 +1703,5 @@ return [
     'Ascending' => 'Ascendente',
     'Descending' => 'Descendente',
     'View details for %identifier%' => 'Ver los detalles de %identifier%',
+    'The action failed because of a server error. The details are in the server log.' => 'La acción ha fallado por un error del servidor. Los detalles están en el registro del servidor.',
 ];

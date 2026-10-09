@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Order\OrderStatusType;
 use BackOfficeDefaultTwigBundle\Repository\OrderStatusActionRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
@@ -195,7 +196,7 @@ final class OrderStatusController
             $trigger = OrderStatusActionTrigger::from((string) $request->request->get('trigger', OrderStatusActionTrigger::ENTER->value));
             $action = $this->actionWriter->create($order_status_id, $trigger, $fromStatusId > 0 ? $fromStatusId : null, $type, $payload);
         } catch (InvalidOrderStatusActionPayloadException|\InvalidArgumentException|\ValueError $exception) {
-            $this->flash('danger', $exception->getMessage());
+            $this->flash('danger', AdminFailureMessage::of($exception, $this->translator));
 
             return $redirect;
         }

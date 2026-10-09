@@ -1609,4 +1609,5 @@ return [
     'Ascending' => 'Vzestupně',
     'Descending' => 'Sestupně',
     'View details for %identifier%' => 'Zobrazit podrobnosti %identifier%',
+    'The action failed because of a server error. The details are in the server log.' => 'Akce selhala kvůli chybě serveru. Podrobnosti jsou v protokolu serveru.',
 ];

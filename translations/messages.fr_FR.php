@@ -2453,4 +2453,5 @@ return [
     'No profile was modified.' => 'Aucun profil n\'a été modifié.',
     'No administrator was created.' => 'Aucun administrateur n\'a été créé.',
     'No administrator was modified.' => 'Aucun administrateur n\'a été modifié.',
+    'The action failed because of a server error. The details are in the server log.' => 'L\'action a échoué à cause d\'une erreur du serveur. Le détail est dans le journal du serveur.',
 ];

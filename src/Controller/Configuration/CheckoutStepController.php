@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Configuration\CheckoutDisplayModeType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
@@ -177,7 +178,7 @@ final class CheckoutStepController
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans('Checkout layout update'),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 $form,
                 $exception,
             );

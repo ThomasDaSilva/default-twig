@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Coupon\CouponConditionsRenderer;
 use BackOfficeDefaultTwigBundle\Service\Coupon\CouponEditContextBuilder;
@@ -427,7 +428,7 @@ final class CouponController
         try {
             $effects = $couponTypeManager->getEffects($data);
         } catch (\Throwable $exception) {
-            return $this->renderWithError($request, $coupon, $exception->getMessage());
+            return $this->renderWithError($request, $coupon, AdminFailureMessage::of($exception, $this->translator));
         }
 
         $event = new CouponCreateOrUpdateEvent(
@@ -459,7 +460,7 @@ final class CouponController
         try {
             $this->events->dispatch($event, $eventName);
         } catch (\Throwable $exception) {
-            return $this->renderWithError($request, $coupon, $exception->getMessage());
+            return $this->renderWithError($request, $coupon, AdminFailureMessage::of($exception, $this->translator));
         }
 
         $savedCoupon = $event->getCouponModel();

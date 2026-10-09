@@ -97,7 +97,7 @@ readonly class AdminFormAction
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans($actionLabel),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 $form,
                 $exception,
             );
@@ -147,7 +147,7 @@ readonly class AdminFormAction
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans($actionLabel),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 null,
                 $exception,
             );

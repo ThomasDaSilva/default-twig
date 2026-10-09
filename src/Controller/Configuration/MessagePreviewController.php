@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -96,7 +97,7 @@ final class MessagePreviewController
 
             return new Response($this->translator->trans('The message has been successfully sent to %recipient.', ['%recipient' => $recipient]));
         } catch (\Throwable $exception) {
-            return new Response($this->translator->trans('Something goes wrong, the message was not sent to recipient. Error is : %err', ['%err' => $exception->getMessage()]));
+            return new Response($this->translator->trans('Something goes wrong, the message was not sent to recipient. Error is : %err', ['%err' => AdminFailureMessage::of($exception, $this->translator)]));
         }
     }
 
@@ -138,7 +139,7 @@ final class MessagePreviewController
             $message->setLocale($locale);
             $content = $asHtml ? $message->getHtmlMessageBody($parser) : $message->getTextMessageBody($parser);
         } catch (\Throwable $exception) {
-            return new Response($this->translator->trans("You probably didn't inject the missing variable to preview the message. Error is : %err", ['%err' => $exception->getMessage()]));
+            return new Response($this->translator->trans("You probably didn't inject the missing variable to preview the message. Error is : %err", ['%err' => AdminFailureMessage::of($exception, $this->translator)]));
         } finally {
             if ($session instanceof TheliaSession && $previousAdminLang instanceof Lang) {
                 $session->setAdminLang($previousAdminLang);
