@@ -37,7 +37,7 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Mailer\Exception\EmailNotSentException;
+use Thelia\Mailer\Exception\StoreEmailMissingException;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Mailer\TransportCredentials;
 use Thelia\Messenger\JobFailureMessage;
@@ -121,23 +121,24 @@ final class MailingSystemController
             return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.')], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
-        $recipient = (string) $request->request->get('email', '');
+        $recipient = trim((string) $request->request->get('email', ''));
+        if ('' === $recipient) {
+            return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Recipient email is required.')], Response::HTTP_BAD_REQUEST);
+        }
+
         $subject = $this->translator->trans('Email test from : %store%', ['%store%' => (string) ConfigQuery::read('store_name', 'Thelia')]);
 
         // Handed to the mail server now, even when the shop delivers its mails through a
-        // queue: the point of a test is the server's answer.
+        // queue: the point of a test is the server's answer. The name of the shop is text,
+        // not HTML, in the body.
         try {
-            $this->mailer->sendTestMail($recipient, $subject, '<p>'.$subject.'</p>');
+            $this->mailer->sendTestMail($recipient, $subject, '<p>'.htmlspecialchars($subject, \ENT_QUOTES | \ENT_SUBSTITUTE).'</p>');
 
             return new JsonResponse([
                 'success' => true,
                 'message' => $this->translator->trans('Your configuration seems to be ok. Checked out your mailbox : %email%', ['%email%' => $recipient]),
             ]);
-        } catch (EmailNotSentException $notSent) {
-            if (!$notSent->isStoreEmailMissing()) {
-                return $this->failed($notSent);
-            }
-
+        } catch (StoreEmailMissingException) {
             return new JsonResponse([
                 'success' => false,
                 'message' => $this->translator->trans('You have to configure your store email first !'),

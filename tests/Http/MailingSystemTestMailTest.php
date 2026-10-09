@@ -77,6 +77,24 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
     }
 
     /**
+     * A test mail goes to the address typed: none typed, nothing is sent, not even to
+     * the shop.
+     */
+    public function testATestMailWithoutARecipientGoesNowhere(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+
+        $this->client->request('POST', self::URL, ['email' => ' ', '_token' => $this->token()]);
+
+        self::assertSame(400, $this->client->getResponse()->getStatusCode());
+        $answer = json_decode((string) $this->client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertFalse($answer['success']);
+        self::assertStringContainsString('required', $answer['message']);
+    }
+
+    /**
      * A test mail goes to the address it is given: never on a link followed, never on
      * the word of a page of another site.
      */

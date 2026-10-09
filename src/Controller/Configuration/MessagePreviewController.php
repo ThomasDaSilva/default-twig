@@ -28,9 +28,8 @@ use Thelia\Core\HttpFoundation\Session\Session as TheliaSession;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Core\Template\Parser\ParserResolver;
 use Thelia\Core\Template\TemplateHelperInterface;
-use Thelia\Mailer\Exception\EmailNotSentException;
+use Thelia\Mailer\Exception\StoreEmailMissingException;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\Lang;
@@ -60,7 +59,6 @@ final class MessagePreviewController
     public function __construct(
         private readonly AdminAccessChecker $access,
         private readonly TranslatorInterface $translator,
-        private readonly ParserResolver $parserResolver,
         private readonly TemplateHelperInterface $templateHelper,
         private readonly MailerFactory $mailer,
         private readonly TokenProvider $tokens,
@@ -120,12 +118,8 @@ final class MessagePreviewController
             $this->mailer->sendTestMessage($message->getName(), $recipient, $parameters, $this->resolveLocale($request));
 
             return $this->plain($this->translator->trans('The message has been successfully sent to %recipient.', ['%recipient' => $recipient]));
-        } catch (EmailNotSentException $notSent) {
-            if ($notSent->isStoreEmailMissing()) {
-                return $this->plain($this->translator->trans('You have to configure your store email first !'), Response::HTTP_UNPROCESSABLE_ENTITY);
-            }
-
-            return $this->notSent($notSent);
+        } catch (StoreEmailMissingException) {
+            return $this->plain($this->translator->trans('You have to configure your store email first !'), Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Throwable $exception) {
             return $this->notSent($exception);
         }
@@ -143,7 +137,7 @@ final class MessagePreviewController
      */
     private function plain(string $text, int $status = Response::HTTP_OK): Response
     {
-        return new Response($text, $status, ['Content-Type' => 'text/plain; charset=UTF-8']);
+        return new Response($text, $status, ['Content-Type' => 'text/plain; charset=UTF-8', 'X-Content-Type-Options' => 'nosniff']);
     }
 
     private function renderPreview(Request $request, int $messageId, bool $asHtml): Response
@@ -174,13 +168,8 @@ final class MessagePreviewController
         }
 
         try {
-            // The parser MailerFactory would send the message with: the one that claims the
-            // template file of the message, the default parser for a body stored in the
-            // database, which no file lets a parser claim.
-            $templateFileName = (string) ($message->getHtmlTemplateFileName() ?: $message->getTextTemplateFileName());
-            $parser = '' === $templateFileName
-                ? $this->parserResolver->getDefaultParser()
-                : $this->parserResolver->getParser($mailTemplate->getAbsolutePath(), pathinfo($templateFileName, \PATHINFO_FILENAME));
+            // The parser MailerFactory would send the message with.
+            $parser = $this->mailer->parserFor($message);
             $parser->setTemplateDefinition($mailTemplate, true);
 
             foreach ($request->query->all() as $key => $value) {
@@ -204,6 +193,7 @@ final class MessagePreviewController
         return new Response($content, Response::HTTP_OK, [
             'Content-Type' => 'text/html; charset=UTF-8',
             'Content-Security-Policy' => self::PREVIEW_POLICY,
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
