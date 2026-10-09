@@ -9,6 +9,9 @@
       - payment_hold_notice:      whether the authorization still holds an amount on an order not paid
       - payment_supports_capture: whether the payment module separates the authorization from the capture
       - payment_can_capture:      whether this administrator may capture now (right held, something left)
+      - payment_can_settle:       whether this administrator may record by hand the outcome of a pending line
+      - order_id:                 the order the journal belongs to
+      - token:                    CSRF token
       - currency:                 { symbol }
 #}
 {% if payment_totals.has_authorization or payment_supports_capture %}
@@ -71,6 +74,19 @@
                         {% if line.error_code %}<code>{{ line.error_code }}</code>{% endif %}
                         {{ line.error_message }}
                     </div>
+                {% endif %}
+                {% if payment_can_settle and line.state == 'pending' %}
+                    {# The provider never confirmed: the merchant reads the outcome in the
+                       provider's back office and records it here. #}
+                    <form method="post" action="{{ path('admin.order.update.paymentSettle', { order_id: order_id, transaction_id: line.id }) }}" class="mt-2" data-testid="order-payment-settle-form">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <label for="order-payment-settle-reference-{{ line.id }}" class="form-label mb-1">{{ 'Outcome read at the provider'|trans }}</label>
+                        <input type="text" id="order-payment-settle-reference-{{ line.id }}" name="psp_reference" maxlength="100" class="form-control form-control-sm mb-1" placeholder="{{ 'Provider reference (optional)'|trans }}">
+                        <div class="d-flex flex-wrap gap-1">
+                            <button type="submit" name="outcome" value="succeeded" class="btn btn-sm btn-outline-success" data-testid="order-payment-settle-succeeded">{{ 'Succeeded'|trans }}</button>
+                            <button type="submit" name="outcome" value="failed" class="btn btn-sm btn-outline-danger" data-testid="order-payment-settle-failed">{{ 'Failed'|trans }}</button>
+                        </div>
+                    </form>
                 {% endif %}
             </li>
         {% endfor %}

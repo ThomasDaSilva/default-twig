@@ -44,9 +44,11 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Event\Order\OrderAddressEvent;
 use Thelia\Core\Event\Order\OrderEvent;
 use Thelia\Core\Event\Order\OrderPaymentCaptureEvent;
+use Thelia\Core\Event\Order\OrderPaymentSettlementEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
+use Thelia\Domain\Payment\Enum\PaymentTransactionState;
 use Thelia\Domain\Payment\Exception\PaymentException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
@@ -55,6 +57,7 @@ use Thelia\Model\CountryQuery;
 use Thelia\Model\CustomerTitleQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderAddressQuery;
+use Thelia\Model\OrderPaymentTransactionQuery;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductQuery;
@@ -426,6 +429,53 @@ final class OrderController
                     (int) $order->getId(),
                 ];
             },
+        );
+    }
+
+    /**
+     * Records by hand the outcome of a pending line of the payment journal the provider
+     * never confirmed, as the merchant reads it in the provider's back office. Under the
+     * capture right: a line settled as succeeded can pay the order.
+     */
+    #[Route('/admin/order/update/{order_id}/payment-transaction/{transaction_id}/settle', name: 'admin.order.update.paymentSettle', methods: ['POST'], requirements: ['order_id' => '\d+', 'transaction_id' => '\d+'])]
+    public function settlePaymentTransaction(int $order_id, int $transaction_id, Request $request): Response
+    {
+        if ($denied = $this->access->check(AdminResources::ORDER_PAYMENT_CAPTURE, [], AccessManager::CREATE)) {
+            return $denied;
+        }
+
+        $detail = new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+        $transaction = OrderPaymentTransactionQuery::create()->filterByOrderId($order_id)->filterById($transaction_id)->findOne();
+        $state = PaymentTransactionState::tryFrom((string) $request->request->get('outcome', ''));
+
+        if ($transaction === null || !$state?->isSettled()) {
+            $this->flash('error', $this->translator->trans('Choose whether the provider took the movement or not.'));
+
+            return $detail;
+        }
+
+        $reference = trim((string) $request->request->get('psp_reference', ''));
+        $event = new OrderPaymentSettlementEvent($transaction, $state, $reference === '' ? null : $reference);
+
+        return $this->action->tokenAction(
+            resource: AdminResources::ORDER_PAYMENT_CAPTURE,
+            access: AccessManager::CREATE,
+            request: $request,
+            event: $event,
+            eventName: TheliaEvents::ORDER_PAYMENT_TRANSACTION_SETTLE,
+            actionLabel: 'Payment movement recorded by hand',
+            successRoute: self::DETAIL_ROUTE,
+            successParameters: ['order_id' => $order_id],
+            trustedFailures: [PaymentException::class, TokenAuthenticationException::class],
+            describeForLog: static fn (OrderPaymentSettlementEvent $event): array => [
+                \sprintf(
+                    'Payment transaction #%d of order #%d recorded by hand as %s',
+                    (int) $event->getTransaction()->getId(),
+                    $order_id,
+                    $event->getState()->value,
+                ),
+                $order_id,
+            ],
         );
     }
 

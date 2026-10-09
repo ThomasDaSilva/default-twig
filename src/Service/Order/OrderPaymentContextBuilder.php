@@ -60,6 +60,7 @@ final readonly class OrderPaymentContextBuilder
                 'payment_hold_notice' => false,
                 'payment_supports_capture' => false,
                 'payment_can_capture' => false,
+                'payment_can_settle' => false,
             ];
         }
 
@@ -98,6 +99,9 @@ final readonly class OrderPaymentContextBuilder
             'payment_hold_notice' => $totals->hasSomethingLeftToCapture() && !$order->isPaid(false),
             'payment_supports_capture' => $supportsCapture,
             'payment_can_capture' => $supportsCapture && $mayCapture && PaymentAmount::isPositive(CurrencyMinorUnit::floor($totals->remainingToCapture, $currencyCode)),
+            // Recording by hand the outcome of a line the provider never confirmed is a
+            // decision on the money too: the same right.
+            'payment_can_settle' => $mayCapture,
         ];
     }
 }
