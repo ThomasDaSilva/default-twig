@@ -523,7 +523,7 @@ final class OrderController
         if ($rawAmount !== '') {
             $typedAmount = str_replace([' ', ','], ['', '.'], $rawAmount);
 
-            if (!is_numeric($typedAmount) || (float) $typedAmount <= 0) {
+            if (preg_match('/^\d+(\.\d+)?$/', $typedAmount) !== 1 || (float) $typedAmount <= 0) {
                 $this->flash('danger', $this->translator->trans('The amount to refund must be a positive number.'));
 
                 return $detail;
@@ -556,11 +556,12 @@ final class OrderController
             trustedFailures: [PaymentException::class, TokenAuthenticationException::class],
             describeForLog: static fn (OrderPaymentRefundEvent $event): array => [
                 \sprintf(
-                    'Payment refund of %s asked on order %s (%s%s): transaction #%d is %s',
+                    'Payment refund of %s asked on order %s (%s%s%s): transaction #%d is %s',
                     (string) $event->getTransaction()->getAmount(),
                     (string) $order->getRef(),
                     $event->getReason()->value,
                     $event->isOffline() ? ', recorded outside the provider' : '',
+                    $event->getComment() !== null ? ', "'.$event->getComment().'"' : '',
                     (int) $event->getTransaction()->getId(),
                     (string) $event->getTransaction()->getState(),
                 ),
