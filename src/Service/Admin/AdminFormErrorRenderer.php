@@ -22,8 +22,9 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Messenger\JobFailureMessage;
 
 /**
- * Push a form validation error to the user through the session flash bag and attach a
- * matching FormError to the form so the Twig form theme highlights the offending fields.
+ * Tells the administrator an action failed or was refused: a flash in the session, a
+ * FormError on the form so the Twig form theme highlights the offending fields, and a
+ * line in the log.
  */
 readonly class AdminFormErrorRenderer
 {
@@ -44,8 +45,9 @@ readonly class AdminFormErrorRenderer
     }
 
     /**
-     * Tells the administrator a refusal written for them, and logs it: the exception, if
-     * any, by its class, code and place, never by a text that may quote a customer.
+     * Tells the administrator a refusal written for them, and logs it: an exception as an
+     * error, by its class, code and place, never by a text that may quote a customer; a
+     * refusal without one as a warning, since nothing broke.
      */
     public function refuse(
         string $actionLabel,
@@ -53,7 +55,11 @@ readonly class AdminFormErrorRenderer
         ?FormInterface $form = null,
         ?\Throwable $exception = null,
     ): void {
-        $this->logger->error(\sprintf('Error during %s: %s', $actionLabel, null === $exception ? $refusal : JobFailureMessage::forLog($exception)));
+        if (null === $exception) {
+            $this->logger->warning(\sprintf('%s refused: %s', $actionLabel, $refusal));
+        } else {
+            $this->logger->error(\sprintf('Error during %s: %s', $actionLabel, JobFailureMessage::forLog($exception)));
+        }
 
         $session = $this->requestStack->getMainRequest()?->getSession();
         if ($session instanceof Session) {
