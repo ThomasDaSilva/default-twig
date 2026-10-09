@@ -540,7 +540,7 @@
                         <p class="mb-1"><strong>{{ payment.module_title|default('-') }}</strong></p>
                         {% if payment.transaction_ref %}
                             <p class="mb-1 text-muted">{{ 'Transaction reference'|trans }}: <code>{{ payment.transaction_ref }}</code></p>
-                        {% else %}
+                        {% elseif not payment_journal_enabled or payment_journal is empty %}
                             <p class="mb-1 text-muted">{{ 'No transaction for this order'|trans }}</p>
                         {% endif %}
                         {% if payment.invoice_ref %}

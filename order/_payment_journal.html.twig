@@ -44,39 +44,31 @@
 {% if payment_journal is empty %}
     <p class="mb-1 text-muted" data-testid="order-payment-journal-empty">{{ 'No payment movement recorded for this order'|trans }}</p>
 {% else %}
-    <div class="table-responsive">
-        <table class="table table-sm mb-1 align-middle" data-testid="order-payment-journal">
-            <thead>
-                <tr>
-                    <th scope="col">{{ 'Date'|trans }}</th>
-                    <th scope="col">{{ 'Movement'|trans }}</th>
-                    <th scope="col" class="text-end">{{ 'Amount'|trans }}</th>
-                    <th scope="col">{{ 'Outcome'|trans }}</th>
-                    <th scope="col">{{ 'Reference'|trans }}</th>
-                    <th scope="col">{{ 'Author'|trans }}</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for line in payment_journal %}
-                    <tr data-testid="order-payment-line" data-payment-type="{{ line.type }}" data-payment-state="{{ line.state }}">
-                        <td class="text-nowrap">{{ line.created_at ? line.created_at|date('d/m/Y H:i') : '-' }}</td>
-                        <td>{{ line.type_label }}</td>
-                        <td class="text-end text-nowrap" dir="ltr">{{ line.amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</td>
-                        <td>
-                            <span class="badge {{ line.state_badge }}">{{ line.state_label }}</span>
-                            {% if line.error_code or line.error_message %}
-                                {# The provider's words, escaped: they come from a third party. #}
-                                <div class="text-danger small" data-testid="order-payment-line-error">
-                                    {% if line.error_code %}<code>{{ line.error_code }}</code>{% endif %}
-                                    {{ line.error_message }}
-                                </div>
-                            {% endif %}
-                        </td>
-                        <td>{% if line.psp_reference %}<code>{{ line.psp_reference }}</code>{% else %}-{% endif %}</td>
-                        <td>{{ line.actor }}</td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+    {# A list rather than a table: the card sits in the narrow column of the sheet, and six
+       columns there only fit by scrolling sideways. Each movement reads on its own lines. #}
+    <ul class="list-unstyled mb-1 small" data-testid="order-payment-journal">
+        {% for line in payment_journal %}
+            <li class="border-top py-2" data-testid="order-payment-line" data-payment-type="{{ line.type }}" data-payment-state="{{ line.state }}">
+                <div class="d-flex flex-wrap justify-content-between align-items-center gap-1">
+                    <span>
+                        <strong>{{ line.type_label }}</strong>
+                        <span class="badge {{ line.state_badge }} ms-1">{{ line.state_label }}</span>
+                    </span>
+                    <span class="text-nowrap fw-semibold" dir="ltr">{{ line.amount|number_format(2, '.', ' ') }} {{ currency.symbol }}</span>
+                </div>
+                <div class="text-muted text-break">
+                    {{ line.created_at ? line.created_at|date('d/m/Y H:i') : '-' }}
+                    · {{ line.actor }}
+                    {% if line.psp_reference %}· <code>{{ line.psp_reference }}</code>{% endif %}
+                </div>
+                {% if line.error_code or line.error_message %}
+                    {# The provider's words, escaped: they come from a third party. #}
+                    <div class="text-danger text-break" data-testid="order-payment-line-error">
+                        {% if line.error_code %}<code>{{ line.error_code }}</code>{% endif %}
+                        {{ line.error_message }}
+                    </div>
+                {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
 {% endif %}
