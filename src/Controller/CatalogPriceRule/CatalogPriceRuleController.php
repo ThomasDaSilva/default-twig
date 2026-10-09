@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Form\CatalogPriceRule\CatalogPriceRuleCreateType
 use BackOfficeDefaultTwigBundle\Form\CatalogPriceRule\CatalogPriceRuleType;
 use BackOfficeDefaultTwigBundle\Repository\SaleRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\CatalogPriceRule\CatalogPriceRuleEditContextBuilder;
@@ -192,7 +193,7 @@ final class CatalogPriceRuleController
             $preview = $this->preview->preview($definition, $currency, editedRuleId: $rule_id);
         } catch (\Throwable $exception) {
             return new Response($this->twig->render(self::PREVIEW_TEMPLATE, [
-                'error' => $exception->getMessage(),
+                'error' => AdminFailureMessage::of($exception, $this->translator),
                 'preview' => null,
                 'currency' => $currency,
             ]), Response::HTTP_BAD_REQUEST);

@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Module;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
 use BackOfficeDefaultTwigBundle\Service\Module\ModuleDocumentationReader;
@@ -168,7 +169,7 @@ final class ModuleController
 
             $this->events->dispatch($event, TheliaEvents::MODULE_UPDATE);
         } catch (\Throwable $exception) {
-            $this->flashError($request, $exception->getMessage());
+            $this->flashError($request, AdminFailureMessage::of($exception, $this->translator));
 
             return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['module_id' => $moduleId]));
         }
@@ -295,7 +296,7 @@ final class ModuleController
                 $this->translator->trans('Module %code installed successfully.', ['%code' => $validator->getModuleDefinition()->getCode()]),
             );
         } catch (\Throwable $exception) {
-            $this->flash($request, 'danger', $this->translator->trans('Module installation failed: %message', ['%message' => $exception->getMessage()]));
+            $this->flash($request, 'danger', $this->translator->trans('Module installation failed: %message', ['%message' => AdminFailureMessage::of($exception, $this->translator)]));
         }
 
         return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));

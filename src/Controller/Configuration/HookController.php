@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Configuration\HookType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
@@ -326,7 +327,7 @@ final class HookController
             // A missing or unconfigured template parser is a recoverable configuration
             // issue, not a server failure: surface it as 422 so a crawler or the UI can
             // tell it apart from a genuine 500.
-            return new JsonResponse(['success' => false, 'message' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['success' => false, 'message' => AdminFailureMessage::of($exception, $this->translator)], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 

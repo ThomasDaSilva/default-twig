@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Configuration\TagType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
@@ -305,7 +306,7 @@ final class TagController
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans('Tag merge'),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 null,
                 $exception,
             );
@@ -332,7 +333,7 @@ final class TagController
         } catch (\Throwable $exception) {
             $this->errorRenderer->setup(
                 $this->translator->trans('Tag deletion'),
-                $exception->getMessage(),
+                AdminFailureMessage::of($exception, $this->translator),
                 null,
                 $exception,
             );
@@ -388,7 +389,7 @@ final class TagController
     private function refusalMessage(\Throwable $exception, bool $suggestMerge = false): string
     {
         if (!$exception instanceof TagLabelAlreadyUsedException) {
-            return $exception->getMessage();
+            return AdminFailureMessage::of($exception, $this->translator);
         }
 
         // Two sentences rather than one: when the collision is on the very same

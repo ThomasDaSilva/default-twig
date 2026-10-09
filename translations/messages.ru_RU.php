@@ -1610,4 +1610,5 @@ return [
     'Ascending' => 'По возрастанию',
     'Descending' => 'По убыванию',
     'View details for %identifier%' => 'Подробнее о %identifier%',
+    'The action failed because of a server error. The details are in the server log.' => 'Действие не выполнено из-за ошибки сервера. Подробности в журнале сервера.',
 ];

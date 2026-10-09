@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Module;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Module\ModuleHookListPresenter;
 use Psr\Log\LoggerInterface;
@@ -333,7 +334,7 @@ final class ModuleHookController
             'danger',
             $this->translator->trans('%action failed: %error', [
                 '%action' => $this->translator->trans($actionLabel),
-                '%error' => $exception->getMessage(),
+                '%error' => AdminFailureMessage::of($exception, $this->translator),
             ]),
         );
     }

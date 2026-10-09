@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -99,7 +100,7 @@ final class AdvancedConfigurationController
 
             $this->flash($request, 'success', 'Images and documents cache cleared.');
         } catch (\Throwable $exception) {
-            $this->flash($request, 'danger', $exception->getMessage());
+            $this->flash($request, 'danger', AdminFailureMessage::of($exception, $this->translator));
         }
 
         return new RedirectResponse($this->urls->generate(self::REDIRECT_ROUTE));
@@ -116,7 +117,7 @@ final class AdvancedConfigurationController
             $this->events->dispatch(new CacheEvent($dir), TheliaEvents::CACHE_CLEAR);
             $this->flash($request, 'success', $successMessage);
         } catch (\Throwable $exception) {
-            $this->flash($request, 'danger', $exception->getMessage());
+            $this->flash($request, 'danger', AdminFailureMessage::of($exception, $this->translator));
         }
 
         return new RedirectResponse($this->urls->generate(self::REDIRECT_ROUTE));

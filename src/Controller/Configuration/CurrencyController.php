@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Currency\CurrencyType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
@@ -233,7 +234,7 @@ final class CurrencyController
         } catch (\Throwable $exception) {
             $this->flashBag($request)?->add(
                 'danger',
-                $this->translator->trans('Currency rates update failed: %error', ['%error' => $exception->getMessage()]),
+                $this->translator->trans('Currency rates update failed: %error', ['%error' => AdminFailureMessage::of($exception, $this->translator)]),
             );
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));

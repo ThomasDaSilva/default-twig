@@ -219,6 +219,37 @@ final class AdminWriteRequestTest extends WebIntegrationTestCase
         self::assertSame([$eventName], $this->dispatched, 'The action runs when the token is in the body.');
     }
 
+    /**
+     * A database error quotes the values of the rows it failed on: the administrator is
+     * told the action failed, the log keeps the detail.
+     */
+    public function testADatabaseErrorIsNeverShownToTheAdministrator(): void
+    {
+        $this->failWith(TheliaEvents::CURRENCY_UPDATE_RATES, new \PDOException("SQLSTATE[23000]: Duplicate entry 'buyer@example.com' for key 'email'"));
+
+        $this->client->request('POST', '/admin/configuration/currencies/update-rates', ['_token' => $this->token()]);
+        $this->client->followRedirects();
+        $html = (string) $this->client->request('GET', '/admin/configuration/currencies')->html();
+
+        self::assertStringNotContainsString('buyer@example.com', $html);
+        self::assertStringNotContainsString('SQLSTATE', $html);
+    }
+
+    /**
+     * What an action of the shop says of its refusal is meant for the administrator: it
+     * is still shown as it is.
+     */
+    public function testWhatTheShopSaysOfARefusalIsShown(): void
+    {
+        $this->failWith(TheliaEvents::CURRENCY_UPDATE_RATES, new \RuntimeException('The rates cannot be updated now.'));
+
+        $this->client->request('POST', '/admin/configuration/currencies/update-rates', ['_token' => $this->token()]);
+        $this->client->followRedirects();
+        $html = (string) $this->client->request('GET', '/admin/configuration/currencies')->html();
+
+        self::assertStringContainsString('The rates cannot be updated now.', $html);
+    }
+
     public function testTheDomainPerLanguageSettingOnlyChangesThroughATokenizedPost(): void
     {
         ConfigQuery::write('one_domain_foreach_lang', '1');
@@ -296,6 +327,16 @@ final class AdminWriteRequestTest extends WebIntegrationTestCase
         $listener = function (Event $event) use ($eventName): void {
             $this->dispatched[] = $eventName;
             $event->stopPropagation();
+        };
+
+        $this->dispatcher()->addListener($eventName, $listener, 4096);
+        $this->spies[] = [$eventName, $listener];
+    }
+
+    private function failWith(string $eventName, \Throwable $failure): void
+    {
+        $listener = static function () use ($failure): void {
+            throw $failure;
         };
 
         $this->dispatcher()->addListener($eventName, $listener, 4096);
