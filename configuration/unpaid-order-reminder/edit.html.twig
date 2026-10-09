@@ -1,0 +1,103 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{#
+    The reminder schedule of unpaid orders.
+
+    Expects:
+      - steps:            list of { delay, action }, padded with empty rows
+      - messages:         list of { code, title }, the mail messages a step can send
+      - payment_modules:  codes of the payment modules
+      - excluded_modules: codes of the excluded ones
+      - error:            why the schedule sent was refused, or null
+      - token:            CSRF token
+#}
+
+{% block title %}{{ 'Unpaid order reminders'|trans }}{% endblock %}
+{% block body_testid %}configuration-unpaid-order-reminder{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.index') }}">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Unpaid order reminders'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="unpaid-order-reminder-page">
+        <h1 class="h3 mb-3">{{ 'Unpaid order reminders'|trans }}</h1>
+
+        <p class="text-muted">
+            {{ 'An order still waiting for its payment goes through these steps, counted in hours from its creation: each one sends a mail with a link back to the payment, and the last one may cancel the order, which gives the stock back. An order is only sent the step it is in: the earlier ones are never sent late. Leave every row empty to remind no one.'|trans }}
+        </p>
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert" data-testid="reminder-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ path('admin.unpaid-order-reminder.save') }}" data-testid="reminder-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Steps'|trans }}</div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 12rem">{{ 'After (hours)'|trans }}</th>
+                                    <th scope="col">{{ 'Action'|trans }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for step in steps %}
+                                    <tr>
+                                        <td>
+                                            <input type="number" min="1" step="1" class="form-control" name="steps[{{ loop.index0 }}][delay]" value="{{ step.delay }}"
+                                                   aria-label="{{ 'After (hours)'|trans }}" data-testid="reminder-step-delay-{{ loop.index0 }}">
+                                        </td>
+                                        <td>
+                                            <select class="form-select" name="steps[{{ loop.index0 }}][action]" aria-label="{{ 'Action'|trans }}" data-testid="reminder-step-action-{{ loop.index0 }}">
+                                                <option value=""{% if step.action == '' %} selected{% endif %}></option>
+                                                {% for message in messages %}
+                                                    <option value="{{ message.code }}"{% if step.action == message.code %} selected{% endif %}>{{ 'Send: %title%'|trans({'%title%': message.title}) }}</option>
+                                                {% endfor %}
+                                                <option value="cancel"{% if step.action == 'cancel' %} selected{% endif %}>{{ 'Cancel the order'|trans }}</option>
+                                            </select>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Payment modules left alone'|trans }}</div>
+                <div class="card-body">
+                    <p class="text-muted small">{{ 'Orders paid with these modules are neither reminded nor cancelled: a bank transfer or a cheque is legitimately paid days later.'|trans }}</p>
+                    {% for code in payment_modules %}
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="excluded_modules[]" value="{{ code }}" id="reminder-excluded-{{ code }}"
+                                   {% if code in excluded_modules %}checked{% endif %} data-testid="reminder-excluded-module">
+                            <label class="form-check-label" for="reminder-excluded-{{ code }}">{{ code }}</label>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="alert alert-info small">
+                {{ 'The schedule is applied by a task the host runs regularly, every fifteen minutes or every hour:'|trans }}
+                <code>php bin/console order:remind-unpaid</code>.
+                {{ 'Add --dry-run to see what it would do.'|trans }}
+            </div>
+
+            <button type="submit" class="btn btn-primary" data-testid="reminder-save">
+                <i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save'|trans }}
+            </button>
+        </form>
+    </div>
+{% endblock %}
