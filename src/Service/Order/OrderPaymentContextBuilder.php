@@ -16,12 +16,16 @@ namespace BackOfficeDefaultTwigBundle\Service\Order;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderPaymentTransactionRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\Payment\Service\CurrencyMinorUnit;
 use Thelia\Domain\Payment\Service\PaymentAmount;
+use Thelia\Domain\Payment\Enum\RefundReason;
 use Thelia\Domain\Payment\Service\PaymentCaptureService;
+use Thelia\Domain\Payment\Service\PaymentRefundService;
 use Thelia\Domain\Payment\Service\PaymentTransactionTotalsReader;
 use Thelia\Model\Order;
 
@@ -42,6 +46,9 @@ final readonly class OrderPaymentContextBuilder
         private OrderPaymentLinePresenter $presenter,
         private PaymentTransactionTotalsReader $totalsReader,
         private PaymentCaptureService $captureService,
+        private PaymentRefundService $refundService,
+        #[Autowire(service: 'translator')]
+        private TranslatorInterface $translator,
         private AdminAccessChecker $access,
         private SecurityContext $securityContext,
     ) {
@@ -62,6 +69,9 @@ final readonly class OrderPaymentContextBuilder
                 'payment_can_capture' => false,
                 'payment_captures_once' => false,
                 'payment_can_settle' => false,
+                'payment_can_refund' => false,
+                'payment_refund_mode' => 'offline',
+                'payment_refund_reasons' => [],
                 'payment_decimals' => 2,
                 'payment_step' => '0.01',
             ];
@@ -80,9 +90,19 @@ final readonly class OrderPaymentContextBuilder
             [AccessManager::CREATE],
         );
 
+        $mayRefund = $this->securityContext->isGranted(
+            [self::ADMIN_ROLE],
+            [AdminResources::ORDER_PAYMENT_REFUND],
+            [],
+            [AccessManager::CREATE],
+        );
+
         $currencyCode = $order->getCurrency()->getCode();
         // What is left as the module takes it: nothing more once a single capture was asked.
         $leftToCapture = $this->captureService->leftToCapture($order);
+        // What the dialog offers to give back: collected and not refunded yet, rounded down to
+        // the smallest coin.
+        $refundable = CurrencyMinorUnit::floor($totals->refundable(), $currencyCode);
         // Amounts read and typed in the smallest coin of the order currency: none for the
         // yen, three for the Kuwaiti dinar.
         $decimals = CurrencyMinorUnit::decimalsOf($currencyCode);
@@ -101,6 +121,7 @@ final readonly class OrderPaymentContextBuilder
                 // Rounded down to the smallest coin: what the dialog offers never goes past
                 // what the authorization holds, which the core would refuse.
                 'capturable' => PaymentAmount::toFloat(CurrencyMinorUnit::floor($leftToCapture, $currencyCode)),
+                'refundable' => PaymentAmount::toFloat($refundable),
             ],
             // Marking such an order paid by hand takes nothing from the buyer: the money
             // is taken by a capture, at the provider.
@@ -114,6 +135,14 @@ final readonly class OrderPaymentContextBuilder
             'payment_can_settle' => $mayCapture,
             'payment_decimals' => $decimals,
             'payment_step' => $decimals === 0 ? '1' : '0.'.str_repeat('0', $decimals - 1).'1',
+            // Giving money back is a right of its own; the module decides whether it goes
+            // through the provider or is recorded as made outside it.
+            'payment_can_refund' => $mayRefund && PaymentAmount::isPositive($refundable),
+            'payment_refund_mode' => $this->refundService->supportsRefund($order) ? 'online' : 'offline',
+            'payment_refund_reasons' => array_map(
+                fn (RefundReason $reason): array => ['value' => $reason->value, 'label' => $this->translator->trans($reason->label(), [], null, $locale)],
+                RefundReason::cases(),
+            ),
         ];
     }
 }
