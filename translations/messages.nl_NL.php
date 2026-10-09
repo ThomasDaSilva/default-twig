@@ -1612,4 +1612,5 @@ return [
     'The action failed because of a server error. The details are in the server log.' => 'De actie is mislukt door een serverfout. De details staan in het serverlogboek.',
     'The dates of the export are not valid.' => 'De datums van de export zijn ongeldig.',
     'This trigger is unknown.' => 'Deze trigger is onbekend.',
+    'Too many test mails in a short time: wait a few minutes before the next one.' => 'Te veel testmails in korte tijd: wacht een paar minuten voor de volgende.',
 ];

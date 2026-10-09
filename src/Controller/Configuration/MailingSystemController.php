@@ -17,7 +17,9 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Configuration\MailingSystemType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
+use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -26,17 +28,20 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mime\Exception\RfcComplianceException;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Event\MailingSystem\MailingSystemEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Mailer\TransportCredentials;
 use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\ConfigQuery;
+use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
 #[Route('/admin/configuration/mailingSystem', name: 'admin.mailingSystem.')]
@@ -55,6 +60,10 @@ final class MailingSystemController
         private readonly MailerFactory $mailer,
         private readonly TranslatorInterface $translator,
         private readonly LoggerInterface $logger,
+        private readonly TokenProvider $tokens,
+        private readonly DataTransferJobAccess $admins,
+        #[Autowire(service: 'limiter.admin_test_mail')]
+        private readonly RateLimiterFactoryInterface $testMailLimiter,
     ) {
     }
 
@@ -92,11 +101,23 @@ final class MailingSystemController
         );
     }
 
-    #[Route('/test', name: 'test', methods: ['GET'])]
+    #[Route('/test', name: 'test', methods: ['POST'])]
     public function test(Request $request): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
             return $denied;
+        }
+
+        // It writes to whatever address is typed: never on the word of a page of another
+        // site, and ten in ten minutes at most.
+        try {
+            $this->tokens->checkToken((string) $request->request->get('_token', ''));
+        } catch (TokenAuthenticationException) {
+            return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Invalid security token, please try again.')], Response::HTTP_FORBIDDEN);
+        }
+
+        if (!$this->testMailLimiter->create((string) $this->admins->currentAdminId())->consume()->isAccepted()) {
+            return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.')], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
         $contactEmail = (string) ConfigQuery::read('store_email', '');
@@ -109,7 +130,7 @@ final class MailingSystemController
             ]);
         }
 
-        $recipient = (string) $request->query->get('email', $contactEmail);
+        $recipient = (string) $request->request->get('email', $contactEmail);
         $subject = $this->translator->trans('Email test from : %store%', ['%store%' => $storeName]);
         $html = '<p>'.$subject.'</p>';
 

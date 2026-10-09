@@ -36,25 +36,25 @@ final class BackOfficeTranslationTest extends TestCase
 
     /** The texts each catalogue lacks, as measured when it was last changed. */
     private const KNOWN_GAPS = [
-        'ar_SA' => 811,
+        'ar_SA' => 812,
         'cs_CZ' => 692,
         'de_DE' => 692,
-        'el_GR' => 811,
+        'el_GR' => 812,
         'es_ES' => 621,
-        'fa_IR' => 811,
-        'he_IL' => 811,
-        'hu_HU' => 811,
-        'id_ID' => 811,
+        'fa_IR' => 812,
+        'he_IL' => 812,
+        'hu_HU' => 812,
+        'id_ID' => 812,
         'it_IT' => 621,
         'nl_NL' => 692,
-        'pl_PL' => 811,
-        'pt_BR' => 811,
-        'pt_PT' => 811,
+        'pl_PL' => 812,
+        'pt_BR' => 812,
+        'pt_PT' => 812,
         'ru_RU' => 692,
-        'sk_SK' => 811,
-        'tr_TR' => 811,
-        'uk_UA' => 811,
-        'zh_CN' => 811,
+        'sk_SK' => 812,
+        'tr_TR' => 812,
+        'uk_UA' => 812,
+        'zh_CN' => 812,
     ];
 
     #[DataProvider('catalogues')]

@@ -65,11 +65,48 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
         $this->client->request('GET', '/admin/configuration/mailingSystem');
         $this->givenAStoreEmail();
 
-        $this->client->request('GET', self::URL, ['email' => 'admin@@example']);
+        $this->client->request('POST', self::URL, ['email' => 'admin@@example', '_token' => $this->token()]);
 
         $answer = json_decode((string) $this->client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         self::assertFalse($answer['success']);
         self::assertStringContainsString('admin@@example', $answer['message']);
+    }
+
+    /**
+     * A test mail goes to the address it is given: never on a link followed, never on
+     * the word of a page of another site.
+     */
+    public function testATestMailIsNeverSentByALinkNorWithoutTheToken(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+
+        $this->client->request('GET', self::URL, ['email' => 'someone@example.com']);
+        self::assertSame(405, $this->client->getResponse()->getStatusCode());
+
+        $this->client->request('POST', self::URL, ['email' => 'someone@example.com']);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
+    /**
+     * A test mail writes to whatever address is typed: an administrator sends ten in ten
+     * minutes, not one more.
+     */
+    public function testAnAdministratorSendsTenTestMailsInTenMinutesNotOneMore(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+        $token = $this->token();
+
+        for ($sent = 0; $sent < 10; ++$sent) {
+            $this->client->request('POST', self::URL, ['email' => 'someone@example.com', '_token' => $token]);
+            self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        }
+
+        $this->client->request('POST', self::URL, ['email' => 'someone@example.com', '_token' => $token]);
+        self::assertSame(429, $this->client->getResponse()->getStatusCode());
     }
 
     /**

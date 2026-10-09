@@ -1706,4 +1706,5 @@ return [
     'The action failed because of a server error. The details are in the server log.' => 'L\'azione non è riuscita a causa di un errore del server. I dettagli sono nel registro del server.',
     'The dates of the export are not valid.' => 'Le date dell\'esportazione non sono valide.',
     'This trigger is unknown.' => 'Questo attivatore è sconosciuto.',
+    'Too many test mails in a short time: wait a few minutes before the next one.' => 'Troppe email di prova in poco tempo: attendi qualche minuto prima della prossima.',
 ];
