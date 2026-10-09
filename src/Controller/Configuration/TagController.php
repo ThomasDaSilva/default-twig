@@ -304,11 +304,10 @@ final class TagController
                 (int) $surviving->getId(),
             );
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Tag merge'),
-                AdminFailureMessage::of($exception, $this->translator),
-                null,
                 $exception,
+                null,
             );
         }
 
@@ -331,11 +330,10 @@ final class TagController
                 (string) $request->request->get('_token', ''),
             );
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Tag deletion'),
-                AdminFailureMessage::of($exception, $this->translator),
-                null,
                 $exception,
+                null,
             );
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));

@@ -16,7 +16,6 @@ namespace BackOfficeDefaultTwigBundle\Controller\Customer;
 
 use BackOfficeDefaultTwigBundle\Form\Customer\AddressType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
-use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
@@ -128,11 +127,10 @@ final class AddressController
                 );
             }
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Address creation'),
-                AdminFailureMessage::of($exception, $this->translator),
-                $form,
                 $exception,
+                $form,
             );
         }
 
@@ -168,11 +166,10 @@ final class AddressController
                 );
             }
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Address update'),
-                AdminFailureMessage::of($exception, $this->translator),
-                $form,
                 $exception,
+                $form,
             );
         }
 

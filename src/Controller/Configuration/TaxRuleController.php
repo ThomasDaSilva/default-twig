@@ -220,11 +220,10 @@ final class TaxRuleController
                 'tax_rule_id' => $taxRule?->getId() ?? $taxRuleId,
             ]));
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Tax rule update'),
-                AdminFailureMessage::of($exception, $this->translator),
-                $form,
                 $exception,
+                $form,
             );
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));

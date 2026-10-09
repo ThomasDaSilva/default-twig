@@ -16,7 +16,6 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Configuration\ConfigStoreType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
-use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
@@ -114,11 +113,10 @@ final class ConfigStoreController
                     : 'admin.configuration.index',
             ));
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Store configuration failed.'),
-                AdminFailureMessage::of($exception, $this->translator),
-                $form,
                 $exception,
+                $form,
             );
 
             return new Response(
