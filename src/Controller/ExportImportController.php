@@ -34,6 +34,7 @@ use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Serializer\SerializerManager;
+use Thelia\Domain\DataTransfer\Export\ReportingExportInterface;
 use Thelia\Domain\DataTransfer\ExportHandler;
 use Thelia\Domain\DataTransfer\ImportHandler;
 use Thelia\Form\Exception\FormValidationException;
@@ -270,6 +271,17 @@ final class ExportImportController
                     $fileExt,
                 ),
             ];
+
+            // The report is shown on the next page: the download leaves the screen as it is.
+            if ($exportEvent->getExport() instanceof ReportingExportInterface) {
+                foreach ($exportEvent->getExport()->report()->lines() as $line) {
+                    $this->addFlash('info', $line);
+                }
+
+                foreach ($exportEvent->getExport()->report()->warnings() as $warning) {
+                    $this->addFlash('warning', $warning);
+                }
+            }
 
             return new BinaryFileResponse($exportEvent->getFilePath(), Response::HTTP_OK, $header, false);
         } catch (\Throwable $exception) {
