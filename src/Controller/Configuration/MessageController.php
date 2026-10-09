@@ -141,6 +141,8 @@ final class MessageController
             'preview_html_url' => $this->urls->generate('admin.email.preview_html', ['messageId' => $message_id, 'edit_language_id' => $editLang->getId()]),
             'preview_text_url' => $this->urls->generate('admin.email.preview_text', ['messageId' => $message_id, 'edit_language_id' => $editLang->getId()]),
             'send_test_url' => $this->urls->generate('admin.email.test_send', ['messageId' => $message_id, 'edit_language_id' => $editLang->getId()]),
+            // A test writes to the address typed: offered to who may change the messages.
+            'can_send_test' => $this->access->can(self::RESOURCE, AccessManager::UPDATE),
             'store_email' => (string) ConfigQuery::read('store_email', ''),
         ]));
     }

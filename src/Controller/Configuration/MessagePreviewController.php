@@ -16,8 +16,12 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
+use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\HttpFoundation\Session\Session as TheliaSession;
@@ -26,8 +30,9 @@ use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Template\Parser\ParserResolver;
 use Thelia\Core\Template\TemplateHelperInterface;
+use Thelia\Mailer\Exception\EmailNotSentException;
 use Thelia\Mailer\MailerFactory;
-use Thelia\Model\ConfigQuery;
+use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\Lang;
 use Thelia\Model\LangQuery;
 use Thelia\Model\MessageQuery;
@@ -51,6 +56,10 @@ final class MessagePreviewController
         private readonly TemplateHelperInterface $templateHelper,
         private readonly MailerFactory $mailer,
         private readonly TokenProvider $tokens,
+        private readonly DataTransferJobAccess $admins,
+        private readonly LoggerInterface $logger,
+        #[Autowire(service: 'limiter.admin_test_mail')]
+        private readonly RateLimiterFactoryInterface $testMailLimiter,
     ) {
     }
 
@@ -72,11 +81,12 @@ final class MessagePreviewController
     #[Route(path: '/admin/message/send/{messageId}', name: 'admin.email.test_send', methods: ['POST'], requirements: ['messageId' => '\d+'])]
     public function sendSample(Request $request, int $messageId): Response
     {
-        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
+        // It writes to whatever address is typed: the right to change the messages, never
+        // on the word of a page of another site, and ten in ten minutes at most.
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
             return $denied;
         }
 
-        // It writes to whoever is named: never on the word of a page of another site.
         try {
             $this->tokens->checkToken((string) $request->request->get('_token', ''));
         } catch (TokenAuthenticationException) {
@@ -93,22 +103,23 @@ final class MessagePreviewController
             return new Response($this->translator->trans('Recipient email is required.'), Response::HTTP_BAD_REQUEST);
         }
 
+        if (!$this->testMailLimiter->create((string) $this->admins->currentAdminId())->consume()->isAccepted()) {
+            return new Response($this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.'), Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        // What the form sends besides the variables of the message.
         $parameters = $request->request->all();
-        unset($parameters['recipient_email']);
+        unset($parameters['recipient_email'], $parameters['_token'], $parameters['edit_language_id']);
 
         try {
-            // Built and handed to the mail server now, queue or not: the point of a test is
-            // the server's answer, which the administrator reads either way.
-            $this->mailer->sendNow($this->mailer->createEmailMessage(
-                $message->getName(),
-                [(string) ConfigQuery::read('store_email', '') => (string) ConfigQuery::read('store_name', 'Thelia')],
-                [$recipient => $recipient],
-                $parameters,
-                $this->resolveLocale($request),
-            ));
+            $this->mailer->sendTestMessage($message->getName(), $recipient, $parameters, $this->resolveLocale($request));
 
             return new Response($this->translator->trans('The message has been successfully sent to %recipient.', ['%recipient' => $recipient]));
+        } catch (EmailNotSentException) {
+            return new Response($this->translator->trans('You have to configure your store email first !'));
         } catch (\Throwable $exception) {
+            $this->logger->error(\sprintf('A test message could not be sent: %s', JobFailureMessage::forLog($exception)));
+
             return new Response($this->translator->trans('Something goes wrong, the message was not sent to recipient. Error is : %err', ['%err' => AdminFailureMessage::of($exception, $this->translator)]));
         }
     }

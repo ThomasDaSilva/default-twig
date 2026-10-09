@@ -120,12 +120,14 @@
                             <button type="button" class="btn btn-outline-primary" data-action="bo-message-preview#previewText" data-testid="message-preview-text">
                                 <i class="bi bi-file-text"></i> {{ 'Preview text'|trans }}
                             </button>
-                            <div class="ms-auto d-flex gap-2 align-items-center">
-                                <input type="email" class="form-control form-control-sm" placeholder="{{ 'Recipient email'|trans }}" value="{{ store_email }}" data-bo-message-preview-target="recipient" required>
-                                <button type="button" class="btn btn-success btn-sm" data-action="bo-message-preview#sendSample" data-testid="message-send-test">
-                                    <i class="bi bi-envelope-arrow-up"></i> {{ 'Send'|trans }}
-                                </button>
-                            </div>
+                            {% if can_send_test %}
+                                <div class="ms-auto d-flex gap-2 align-items-center">
+                                    <input type="email" class="form-control form-control-sm" placeholder="{{ 'Recipient email'|trans }}" value="{{ store_email }}" data-bo-message-preview-target="recipient" required>
+                                    <button type="button" class="btn btn-success btn-sm" data-action="bo-message-preview#sendSample" data-testid="message-send-test">
+                                        <i class="bi bi-envelope-arrow-up"></i> {{ 'Send'|trans }}
+                                    </button>
+                                </div>
+                            {% endif %}
                         </div>
                         <div class="mb-3 small text-muted" data-bo-message-preview-target="result"></div>
 

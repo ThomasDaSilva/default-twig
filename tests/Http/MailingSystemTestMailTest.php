@@ -17,6 +17,8 @@ namespace BackOfficeDefaultTwigBundle\Tests\Http;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Model\Admin;
 use Thelia\Model\Config;
+use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\MessageQuery;
 use Thelia\Test\FixtureFactory;
@@ -129,6 +131,57 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
     }
 
     /**
+     * A test message goes to the address typed: an administrator who may only read the
+     * messages sends none.
+     */
+    public function testAnAdministratorWhoMayOnlyReadTheMessagesSendsNoTestMessage(): void
+    {
+        $this->loginAs($this->factory->restrictedAdmin([AdminResources::MESSAGE => [AccessManager::VIEW]]));
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+        $message = MessageQuery::create()->findOne();
+        self::assertNotNull($message);
+
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'someone@example.com', '_token' => $this->token()]);
+
+        self::assertStringNotContainsString('successfully sent', (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
+     * The button to send a test is offered only to who may use it.
+     */
+    public function testAnAdministratorWhoMayOnlyReadTheMessagesIsOfferedNoTestToSend(): void
+    {
+        $this->loginAs($this->factory->restrictedAdmin([AdminResources::MESSAGE => [AccessManager::VIEW]]));
+        $message = MessageQuery::create()->findOne();
+        self::assertNotNull($message);
+
+        $html = (string) $this->client->request('GET', '/admin/configuration/messages/update/'.$message->getId())->html();
+
+        self::assertStringContainsString('message-preview-html', $html);
+        self::assertStringNotContainsString('message-send-test', $html);
+    }
+
+    /**
+     * A shop without an address to send from is told so.
+     */
+    public function testATestMessageOfAShopWithoutAnAddressSaysSo(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $config = ConfigQuery::create()->findOneByName('store_email') ?? (new Config())->setName('store_email');
+        $config->setValue('')->save($this->getPropelConnection());
+        ConfigQuery::resetCache();
+        $message = MessageQuery::create()->findOne();
+        self::assertNotNull($message);
+
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'someone@example.com', '_token' => $this->token()]);
+
+        self::assertStringNotContainsString('RFC', (string) $this->client->getResponse()->getContent());
+        self::assertStringContainsString('store email', (string) $this->client->getResponse()->getContent());
+    }
+
+    /**
      * Sending a test message writes to whoever is named: a page of another site never
      * makes the shop send one through the session of an administrator.
      */
@@ -148,7 +201,8 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
 
     private function token(): string
     {
-        $html = (string) $this->client->request('GET', '/admin/configuration/mailingSystem')->html();
+        // The home page, which every administrator may open, renders the token of the session.
+        $html = (string) $this->client->request('GET', '/admin')->html();
         self::assertSame(1, preg_match('/<meta name="bo-token" content="([^"]+)"/', $html, $matches));
 
         return $matches[1];
