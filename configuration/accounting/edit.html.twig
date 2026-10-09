@@ -1,0 +1,104 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{#
+    The chart of accounts of the sales journal.
+
+    Expects:
+      - values:  { journal_code, journal_label, customer_account, shipping_account }
+      - rates:   list of { rate, product, tax }, padded with empty rows
+      - missing: what the accounting exports still need, translated
+      - error:   why the chart sent was refused, or null
+      - token:   CSRF token
+#}
+
+{% block title %}{{ 'Accounting'|trans }}{% endblock %}
+{% block body_testid %}configuration-accounting{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.index') }}">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Accounting'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="accounting-page">
+        <h1 class="h3 mb-3">{{ 'Chart of accounts'|trans }}</h1>
+
+        <p class="text-muted">
+            {{ 'The sales journal and the tax summary, in the Orders exports, book the invoices of a period on these accounts: the customer debited of each invoice, the products and the shipping credited excluding tax, the tax collected credited by rate. They refuse to run until the chart is complete.'|trans }}
+        </p>
+
+        {% if missing is not empty %}
+            <div class="alert alert-warning" data-testid="accounting-missing">
+                {{ 'Still to set: %missing%.'|trans({'%missing%': missing|join(', ')}) }}
+            </div>
+        {% endif %}
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert" data-testid="accounting-error">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ path('admin.accounting.save') }}" data-testid="accounting-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Journal and accounts'|trans }}</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="accounting-journal-code" class="form-label">{{ 'Journal code'|trans }}</label>
+                            <input type="text" class="form-control" id="accounting-journal-code" name="journal_code" value="{{ values.journal_code }}" placeholder="VE" maxlength="20">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="accounting-journal-label" class="form-label">{{ 'Journal label'|trans }}</label>
+                            <input type="text" class="form-control" id="accounting-journal-label" name="journal_label" value="{{ values.journal_label }}" placeholder="Ventes" maxlength="100">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="accounting-customer-account" class="form-label">{{ 'Customer account'|trans }}</label>
+                            <input type="text" class="form-control" id="accounting-customer-account" name="customer_account" value="{{ values.customer_account }}" placeholder="411000" maxlength="20">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="accounting-shipping-account" class="form-label">{{ 'Shipping account'|trans }}</label>
+                            <input type="text" class="form-control" id="accounting-shipping-account" name="shipping_account" value="{{ values.shipping_account }}" placeholder="708500" maxlength="20">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Tax rates'|trans }}</div>
+                <div class="card-body">
+                    <p class="text-muted small">{{ 'One row per tax rate your invoices carry: the account of the sales at that rate, and the account of the tax collected, which a rate of 0 does not need.'|trans }}</p>
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col" style="width: 10rem">{{ 'Rate (%)'|trans }}</th>
+                                    <th scope="col">{{ 'Sales account'|trans }}</th>
+                                    <th scope="col">{{ 'Tax collected account'|trans }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rate in rates %}
+                                    <tr>
+                                        <td><input type="text" inputmode="decimal" class="form-control" name="rates[{{ loop.index0 }}][rate]" value="{{ rate.rate }}" aria-label="{{ 'Rate (%)'|trans }}" data-testid="accounting-rate-{{ loop.index0 }}"></td>
+                                        <td><input type="text" class="form-control" name="rates[{{ loop.index0 }}][product]" value="{{ rate.product }}" aria-label="{{ 'Sales account'|trans }}" maxlength="20"></td>
+                                        <td><input type="text" class="form-control" name="rates[{{ loop.index0 }}][tax]" value="{{ rate.tax }}" aria-label="{{ 'Tax collected account'|trans }}" maxlength="20"></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary" data-testid="accounting-save">
+                <i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save'|trans }}
+            </button>
+        </form>
+    </div>
+{% endblock %}
