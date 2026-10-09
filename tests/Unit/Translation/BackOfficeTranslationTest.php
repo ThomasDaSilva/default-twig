@@ -28,10 +28,10 @@ final class BackOfficeTranslationTest extends TestCase
 {
     /** The files of the background jobs, exports and imports screens, under the theme. */
     private const JOB_SCREENS = [
-        '#^(export|import|configuration/background-jobs)/[^/]+\\.html\\.twig$#',
+        '#^(export|import|configuration/background-jobs)/.+\\.html\\.twig$#',
         '#^fragments/_job_status\\.html\\.twig$#',
-        '#^src/Controller/([^/]*(Export|Import)[^/]*|DataTransfer[^/]*|Configuration/BackgroundJobs[^/]*)\\.php$#',
-        '#^src/Service/Admin/([^/]*(Export|Import)[^/]*|DataTransfer[^/]*|BackgroundJobs[^/]*)\\.php$#',
+        '#^src/(Controller|Service/Admin)/(.+/)?[^/]*(Export|Import|DataTransfer|BackgroundJobs)[^/]*\\.php$#',
+        '#^src/(Controller|Service/Admin)/(.+/)?(DataTransfer|BackgroundJobs)/.+\\.php$#',
     ];
 
     /** The texts each catalogue lacks, as measured when it was last changed. */
@@ -140,23 +140,21 @@ final class BackOfficeTranslationTest extends TestCase
     {
         $root = self::root();
         $texts = [];
-        $templates = (new Finder())->files()->in($root)->exclude(['vendor', 'node_modules', 'tests', 'var', 'public', 'translations'])->name('*.html.twig');
+        $templates = self::files($only)->name('*.html.twig');
 
-        foreach (self::kept($templates, $only) as $template) {
+        foreach ($templates as $template) {
             // '…'|trans and "…"|trans, with or without arguments.
             preg_match_all('/(\'|")((?:(?!\1)[^\\\\]|\\\\.)+)\1\s*\|\s*trans\b/', $template->getContents(), $matches);
             array_push($texts, ...array_map('stripslashes', $matches[2]));
+
+            // The badge translates a label it picks from a map.
+            if ('fragments/_job_status.html.twig' === $template->getRelativePathname()) {
+                array_push($texts, ...self::badgeLabels($template->getContents()));
+            }
         }
 
-        // The badge translates a label it picks from a map.
-        if (1 !== preg_match('/set labels = \{([^}]*)\}/', (string) file_get_contents($root.'/fragments/_job_status.html.twig'), $labels)) {
-            throw new \LogicException('The labels of the job status badge were not found.');
-        }
-
-        preg_match_all("/:\\s*'([^']+)'/", $labels[1], $matches);
-        array_push($texts, ...$matches[1]);
-
-        foreach (self::kept((new Finder())->files()->in($root.'/src')->name('*.php'), $only) as $class) {
+        // The patterns of a Finder add up: the classes are those of src/ unless given.
+        foreach (self::files($only ?? ['#^src/#'])->name('*.php') as $class) {
             // A literal text only: one built by concatenation is never in a catalogue.
             preg_match_all('/->trans\(\s*(\'|")((?:(?!\1)[^\\\\]|\\\\.)+)\1\s*[,)]/', $class->getContents(), $matches);
             array_push($texts, ...array_map('stripslashes', $matches[2]));
@@ -169,24 +167,33 @@ final class BackOfficeTranslationTest extends TestCase
     }
 
     /**
-     * @param iterable<\SplFileInfo> $files
-     * @param list<string>|null      $only  patterns of the paths to keep, under the theme
+     * The files of the theme the reading covers, matched on their path under the theme.
      *
-     * @return list<\SplFileInfo>
+     * @param list<string>|null $only patterns of the paths to keep; all by default
      */
-    private static function kept(iterable $files, ?array $only): array
+    private static function files(?array $only): Finder
     {
-        $kept = [];
+        $files = (new Finder())->files()->in(self::root())->exclude(['vendor', 'node_modules', 'tests', 'var', 'public', 'translations']);
 
-        foreach ($files as $file) {
-            $path = substr($file->getPathname(), \strlen(self::root()) + 1);
-
-            if (null === $only || [] !== array_filter($only, static fn (string $pattern): bool => 1 === preg_match($pattern, $path))) {
-                $kept[] = $file;
-            }
+        foreach ($only ?? [] as $pattern) {
+            $files->path($pattern);
         }
 
-        return $kept;
+        return $files;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function badgeLabels(string $template): array
+    {
+        if (1 !== preg_match('/set labels = \{([^}]*)\}/', $template, $labels)) {
+            throw new \LogicException('The labels of the job status badge were not found.');
+        }
+
+        preg_match_all("/:\\s*'([^']+)'/", $labels[1], $matches);
+
+        return $matches[1];
     }
 
     /**
