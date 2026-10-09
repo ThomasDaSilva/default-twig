@@ -33,11 +33,15 @@ readonly class AdminFormErrorRenderer
     ) {
     }
 
+    /**
+     * @param list<class-string<\Throwable>> $trustedFailures when given, the only failures whose message is shown; any other is reported as an internal error
+     */
     public function setup(
         string $actionLabel,
         string $errorMessage,
         ?FormInterface $form = null,
         ?\Throwable $exception = null,
+        array $trustedFailures = [],
     ): void {
         $this->logger->error(
             $this->translator->trans(
@@ -53,7 +57,7 @@ readonly class AdminFormErrorRenderer
         // The administrator reads what a rule refused, worded by the rule; the inside of
         // a database driver, an HTTP client or PHP itself — a table name, a query, a URL
         // with its key, a file path — only goes to the log written above.
-        $shownMessage = $this->isTechnical($exception)
+        $shownMessage = $this->isTechnical($exception) || !$this->isTrusted($exception, $trustedFailures)
             ? $this->translator->trans('The action failed on an internal error. The details are in the log.')
             : $errorMessage;
 
@@ -67,6 +71,27 @@ readonly class AdminFormErrorRenderer
         }
 
         $form->addError(new \Symfony\Component\Form\FormError($shownMessage));
+    }
+
+    /**
+     * An action whose failures may come from code the shop does not word — a module, a
+     * provider — names the failures that are its own rules: only those are shown.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures
+     */
+    private function isTrusted(?\Throwable $exception, array $trustedFailures): bool
+    {
+        if ($exception === null || $trustedFailures === []) {
+            return true;
+        }
+
+        foreach ($trustedFailures as $trustedFailure) {
+            if ($exception instanceof $trustedFailure) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
