@@ -23,8 +23,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\DataTransfer\Job\ExportJobLauncher;
 use Thelia\Domain\DataTransfer\Job\JobStatus;
 use Thelia\Messenger\JobFailureMessage;
-use Thelia\Model\ExportJob;
 use Thelia\Model\Export;
+use Thelia\Model\ExportJob;
 
 /**
  * Launches an export posted from its form, once the administrator is allowed to: reads
