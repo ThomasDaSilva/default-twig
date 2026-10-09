@@ -49,6 +49,7 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Domain\Payment\Enum\PaymentTransactionState;
+use Thelia\Domain\Payment\Exception\CancellationNeedsCaptureRightException;
 use Thelia\Domain\Payment\Exception\PaymentException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
@@ -204,6 +205,7 @@ final class OrderController
         $plan = $this->bulkStatusPlanner->plan($orderIds, $statusId);
         $updated = 0;
         $failed = [];
+        $holdingAnAuthorization = [];
 
         foreach ($this->orderRepository->findByIds($plan['allowed_ids']) as $order) {
             try {
@@ -211,7 +213,10 @@ final class OrderController
                 $event->setStatus($statusId);
                 $this->events->dispatch($event, TheliaEvents::ORDER_UPDATE_STATUS);
                 ++$updated;
-            } catch (\Throwable) {
+            } catch (CancellationNeedsCaptureRightException) {
+                $holdingAnAuthorization[] = (string) $order->getRef();
+            } catch (\Throwable $throwable) {
+                Tlog::getInstance()->error(\sprintf('Bulk status change of order %s failed: %s', (string) $order->getRef(), $throwable->getMessage()));
                 $failed[] = (string) $order->getRef();
             }
         }
@@ -232,6 +237,10 @@ final class OrderController
 
         if ($plan['missing_count'] > 0) {
             $this->flash('warning', $this->translator->trans('%count% order(s) no longer exist and were skipped.', ['%count%' => $plan['missing_count']]));
+        }
+
+        if ([] !== $holdingAnAuthorization) {
+            $this->flash('warning', $this->translator->trans('Not cancelled, their authorized payment would be released, which needs the right to capture payments: %refs%', ['%refs%' => implode(', ', $holdingAnAuthorization)]));
         }
 
         if ([] !== $failed) {

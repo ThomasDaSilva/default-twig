@@ -1543,6 +1543,7 @@ return [
     'Provider reference (optional)' => 'Référence du prestataire (facultative)',
     'Choose whether the provider took the movement or not.' => 'Indiquez si le prestataire a effectué le mouvement ou non.',
     'Payment movement recorded by hand' => 'Mouvement de paiement constaté à la main',
+    'Not cancelled, their authorized payment would be released, which needs the right to capture payments: %refs%' => 'Non annulées, leur paiement autorisé serait libéré, ce qui demande le droit de capturer les paiements : %refs%',
     'Released' => 'Libéré',
     'The action failed on an internal error. The details are in the log.' => 'L\'action a échoué sur une erreur interne. Le détail est dans le journal.',
     'The payment is authorized, not taken: marking the order paid by hand takes nothing from the buyer. Capture it to take the money.' => 'Le paiement est autorisé, pas encaissé : passer la commande en payée à la main ne prélève rien. Capturez-le pour encaisser.',
