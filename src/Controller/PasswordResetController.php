@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Form\Auth\CreatePasswordType;
 use BackOfficeDefaultTwigBundle\Form\Auth\LostPasswordType;
 use BackOfficeDefaultTwigBundle\Security\AuthThrottle;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -71,7 +72,7 @@ final class PasswordResetController
 
         if ($form->isSubmitted()) {
             if (!$this->throttle->consume(self::THROTTLE_LOST_PASSWORD)) {
-                $form->addError(new \Symfony\Component\Form\FormError(
+                $form->addError(new FormError(
                     $this->translator->trans('Too many attempts, please try again later.'),
                 ));
 
@@ -124,7 +125,7 @@ final class PasswordResetController
 
         if ($form->isSubmitted()) {
             if (!$this->throttle->consume(self::THROTTLE_CREATE_PASSWORD)) {
-                $form->addError(new \Symfony\Component\Form\FormError(
+                $form->addError(new FormError(
                     $this->translator->trans('Too many attempts, please try again later.'),
                 ));
 
@@ -165,7 +166,7 @@ final class PasswordResetController
 
         if ($admin === null) {
             AdminLog::append('admin', 'ADMIN_LOST_PASSWORD', 'Invalid username or email', $request);
-            $form->addError(new \Symfony\Component\Form\FormError(
+            $form->addError(new FormError(
                 $this->translator->trans('Invalid username or email.'),
             ));
 
@@ -173,7 +174,7 @@ final class PasswordResetController
         }
 
         if (((string) $admin->getEmail()) === '') {
-            $form->addError(new \Symfony\Component\Form\FormError(
+            $form->addError(new FormError(
                 $this->translator->trans('Sorry, no email defined for this administrator.'),
             ));
 
@@ -184,7 +185,7 @@ final class PasswordResetController
         // them. And the administrator named is mailed a few links an hour, from whoever
         // asks.
         if (!$this->lostPasswordLimiter->create((string) $admin->getId())->consume()->isAccepted()) {
-            $form->addError(new \Symfony\Component\Form\FormError(
+            $form->addError(new FormError(
                 $this->translator->trans('Too many attempts, please try again later.'),
             ));
 
@@ -203,7 +204,7 @@ final class PasswordResetController
         $admin = $token === '' ? null : AdminQuery::create()->findOneByPasswordRenewToken($token);
 
         if ($admin === null) {
-            $form->addError(new \Symfony\Component\Form\FormError(
+            $form->addError(new FormError(
                 $this->translator->trans('An invalid token was provided, your password cannot be changed.'),
             ));
 
