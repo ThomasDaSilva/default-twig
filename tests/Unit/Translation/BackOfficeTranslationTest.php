@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Tests\Unit\Translation;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Thelia\Domain\DataTransfer\Export\ExportPeriod;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Finder\Finder;
 
@@ -82,13 +83,14 @@ final class BackOfficeTranslationTest extends TestCase
     }
 
     /**
-     * The message a server error reads as, named by a constant the reading of the
-     * sources does not see.
+     * Texts named by a constant, which the reading of the sources does not see: the
+     * message a server error reads as, and the refusals of the core the back office
+     * translates where it shows them.
      */
     #[DataProvider('translatedCatalogues')]
-    public function testTheServerErrorIsTranslated(string $locale): void
+    public function testTheTextsNamedByConstantsAreTranslated(string $locale): void
     {
-        self::assertSame([], self::missingFrom($locale, [AdminFailureMessage::SERVER_ERROR]));
+        self::assertSame([], self::missingFrom($locale, [AdminFailureMessage::SERVER_ERROR, ExportPeriod::INVALID_DATES]));
     }
 
     /**
@@ -141,6 +143,7 @@ final class BackOfficeTranslationTest extends TestCase
         $root = self::root();
         $texts = [];
         $templates = self::files($only)->name('*.html.twig');
+        $badgeRead = false;
 
         foreach ($templates as $template) {
             // '…'|trans and "…"|trans, with or without arguments.
@@ -150,7 +153,12 @@ final class BackOfficeTranslationTest extends TestCase
             // The badge translates a label it picks from a map.
             if ('fragments/_job_status.html.twig' === $template->getRelativePathname()) {
                 array_push($texts, ...self::badgeLabels($template->getContents()));
+                $badgeRead = true;
             }
+        }
+
+        if (null === $only && !$badgeRead) {
+            throw new \LogicException('The job status badge was not read: its labels would go unchecked.');
         }
 
         // The patterns of a Finder add up: the classes are those of src/ unless given.
