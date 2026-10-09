@@ -117,13 +117,13 @@ final class MailingSystemController
             return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Invalid security token, please try again.')], Response::HTTP_FORBIDDEN);
         }
 
-        if (!$this->testMailLimiter->create((string) $this->administrator->id())->consume()->isAccepted()) {
-            return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.')], Response::HTTP_TOO_MANY_REQUESTS);
-        }
-
         $recipient = trim((string) $request->request->get('email', ''));
         if ('' === $recipient) {
             return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Recipient email is required.')], Response::HTTP_BAD_REQUEST);
+        }
+
+        if (!$this->testMailLimiter->create((string) $this->administrator->id())->consume()->isAccepted()) {
+            return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.')], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
         $subject = $this->translator->trans('Email test from : %store%', ['%store%' => (string) ConfigQuery::read('store_name', 'Thelia')]);
