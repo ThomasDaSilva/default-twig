@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
+use Thelia\Model\OrderStatusQuery;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Routing\RouterInterface;
@@ -248,6 +250,25 @@ final class AdminWriteRequestTest extends WebIntegrationTestCase
         $html = (string) $this->client->request('GET', '/admin/configuration/currencies')->html();
 
         self::assertStringContainsString('The rates cannot be updated now.', $html);
+    }
+
+    /**
+     * A trigger the form never offers is refused as such, not read as a server error.
+     */
+    public function testAnUnknownTriggerOfAnOrderStatusActionIsRefusedAsSuch(): void
+    {
+        $status = OrderStatusQuery::create()->findOne();
+        self::assertNotNull($status);
+
+        $this->client->request('POST', '/admin/configuration/order-status/actions/'.$status->getId().'/create', [
+            '_token' => $this->token(),
+            'trigger' => 'whenever',
+            'action_type' => 'notify_customer',
+        ]);
+        $html = (string) $this->client->request('GET', '/admin/configuration/order-status/update/'.$status->getId().'?tab=actions')->html();
+
+        self::assertStringContainsString('This trigger is unknown.', $html);
+        self::assertStringNotContainsString(AdminFailureMessage::SERVER_ERROR, $html);
     }
 
     public function testTheDomainPerLanguageSettingOnlyChangesThroughATokenizedPost(): void

@@ -1611,4 +1611,5 @@ return [
     'View details for %identifier%' => 'Zobrazit podrobnosti %identifier%',
     'The action failed because of a server error. The details are in the server log.' => 'Akce selhala kvůli chybě serveru. Podrobnosti jsou v protokolu serveru.',
     'The dates of the export are not valid.' => 'Data exportu nejsou platná.',
+    'This trigger is unknown.' => 'Tento spouštěč je neznámý.',
 ];

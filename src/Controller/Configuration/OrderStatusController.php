@@ -193,9 +193,11 @@ final class OrderStatusController
         $fromStatusId = (int) $request->request->get('from_status_id', 0);
 
         try {
-            $trigger = OrderStatusActionTrigger::from((string) $request->request->get('trigger', OrderStatusActionTrigger::ENTER->value));
+            // A trigger the form never offers is a refusal, not an error of PHP.
+            $trigger = OrderStatusActionTrigger::tryFrom((string) $request->request->get('trigger', OrderStatusActionTrigger::ENTER->value))
+                ?? throw new \InvalidArgumentException($this->translator->trans('This trigger is unknown.'));
             $action = $this->actionWriter->create($order_status_id, $trigger, $fromStatusId > 0 ? $fromStatusId : null, $type, $payload);
-        } catch (InvalidOrderStatusActionPayloadException|\InvalidArgumentException|\ValueError $exception) {
+        } catch (InvalidOrderStatusActionPayloadException|\InvalidArgumentException $exception) {
             $this->flash('danger', AdminFailureMessage::of($exception, $this->translator));
 
             return $redirect;
