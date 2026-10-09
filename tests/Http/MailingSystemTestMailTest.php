@@ -18,6 +18,7 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Model\Admin;
 use Thelia\Model\Config;
 use Thelia\Model\ConfigQuery;
+use Thelia\Model\MessageQuery;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
@@ -69,6 +70,25 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
         $answer = json_decode((string) $this->client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         self::assertFalse($answer['success']);
         self::assertStringContainsString('admin@@example', $answer['message']);
+    }
+
+    /**
+     * A message sent as a test answers what became of it: a mistyped recipient is
+     * never told the message was sent.
+     */
+    public function testATestMessageToAMistypedAddressIsNotSaidToBeSent(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+        $message = MessageQuery::create()->findOne();
+        self::assertNotNull($message);
+
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'admin@@example']);
+
+        $answer = (string) $this->client->getResponse()->getContent();
+        self::assertStringNotContainsString('successfully sent', $answer);
+        self::assertStringContainsString('admin@@example', $answer);
     }
 
     /**
