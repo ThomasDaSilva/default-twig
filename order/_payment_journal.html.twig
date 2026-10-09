@@ -21,6 +21,10 @@
             <dt class="col-7">{{ 'Awaiting the provider'|trans }}</dt>
             <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-pending">{{ payment_totals.pending_capture|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
         {% endif %}
+        {% if payment_totals.voided > 0 %}
+            <dt class="col-7">{{ 'Released'|trans }}</dt>
+            <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-voided">{{ payment_totals.voided|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
+        {% endif %}
         {% if payment_totals.refunded > 0 %}
             <dt class="col-7">{{ 'Refunded'|trans }}</dt>
             <dd class="col-5 text-end mb-0" dir="ltr">{{ payment_totals.refunded|number_format(2, '.', ' ') }} {{ currency.symbol }}</dd>
