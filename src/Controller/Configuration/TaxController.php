@@ -16,7 +16,6 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Tax\TaxType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
-use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormValidator;
@@ -114,11 +113,10 @@ final class TaxController
                 'tax_id' => $tax?->getId() ?? 0,
             ]));
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Tax creation'),
-                AdminFailureMessage::of($exception, $this->translator),
-                $form,
                 $exception,
+                $form,
             );
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
@@ -154,11 +152,10 @@ final class TaxController
                 'tax_id' => $tax?->getId() ?? $taxId,
             ]));
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->fail(
                 $this->translator->trans('Tax update'),
-                AdminFailureMessage::of($exception, $this->translator),
-                $form,
                 $exception,
+                $form,
             );
 
             $tax = TaxQuery::create()->findPk($taxId);

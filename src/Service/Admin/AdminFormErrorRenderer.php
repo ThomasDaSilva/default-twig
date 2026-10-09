@@ -33,6 +33,15 @@ readonly class AdminFormErrorRenderer
     ) {
     }
 
+    /**
+     * Tells the administrator the action failed, in the words AdminFailureMessage lets
+     * through, and logs it.
+     */
+    public function fail(string $actionLabel, \Throwable $exception, ?FormInterface $form = null): void
+    {
+        $this->setup($actionLabel, AdminFailureMessage::of($exception, $this->translator), $form, $exception);
+    }
+
     public function setup(
         string $actionLabel,
         string $errorMessage,
