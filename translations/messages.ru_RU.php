@@ -1613,4 +1613,5 @@ return [
     'The action failed because of a server error. The details are in the server log.' => 'Действие не выполнено из-за ошибки сервера. Подробности в журнале сервера.',
     'The dates of the export are not valid.' => 'Даты экспорта недействительны.',
     'This trigger is unknown.' => 'Этот триггер неизвестен.',
+    'Too many test mails in a short time: wait a few minutes before the next one.' => 'Слишком много тестовых писем за короткое время: подождите несколько минут перед следующим.',
 ];

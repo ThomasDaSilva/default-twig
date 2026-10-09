@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus';
+import { backOfficeToken } from '../lib/post-request.js';
 
 /**
  * Sends a test email through /admin/configuration/mailingSystem/test and displays
@@ -24,14 +25,18 @@ export default class extends Controller {
         if (this.hasButtonTarget) {
             this.buttonTarget.disabled = true;
         }
-        const url = new URL(this.urlValue, window.location.origin);
-        url.searchParams.set('email', email);
+        const body = new FormData();
+        body.append('_token', backOfficeToken());
+        body.append('email', email);
 
-        fetch(url.toString(), {
+        fetch(this.urlValue, {
+            method: 'POST',
             credentials: 'same-origin',
             headers: { Accept: 'application/json' },
+            body,
         })
-            .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`HTTP ${response.status}`))))
+            // A refusal (token, limit) answers in JSON too: its message is shown.
+            .then((response) => response.json().catch(() => Promise.reject(new Error(`HTTP ${response.status}`))))
             .then((data) => {
                 this.display(Boolean(data?.success), String(data?.message ?? ''));
             })
