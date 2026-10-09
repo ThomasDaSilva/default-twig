@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Unit\Translation;
 
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Finder\Finder;
@@ -78,6 +79,16 @@ final class BackOfficeTranslationTest extends TestCase
 
         self::assertNotEmpty($texts);
         self::assertSame([], self::missingFrom($locale, $texts), 'Missing from messages.'.$locale.'.php');
+    }
+
+    /**
+     * The message a server error reads as, named by a constant the reading of the
+     * sources does not see.
+     */
+    #[DataProvider('translatedCatalogues')]
+    public function testTheServerErrorIsTranslated(string $locale): void
+    {
+        self::assertSame([], self::missingFrom($locale, [AdminFailureMessage::SERVER_ERROR]));
     }
 
     /**

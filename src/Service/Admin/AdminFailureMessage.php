@@ -15,12 +15,15 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
 use Doctrine\DBAL\Exception as DbalException;
-use Propel\Runtime\Exception\PropelException;
+use Propel\Runtime\Exception\ExceptionInterface as PropelExceptionInterface;
+use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Thelia\Mailer\TransportCredentials;
 
 /**
  * What the administrator reads of a failure: what the shop says of a refusal, never the
- * words of the database or of PHP, which quote the rows and the values they failed on.
+ * words of the database, of the file system or of PHP, which quote the rows, values and
+ * paths of the server they failed on.
  * The log keeps the detail.
  */
 final class AdminFailureMessage
@@ -31,14 +34,17 @@ final class AdminFailureMessage
     {
         for ($cause = $exception; null !== $cause; $cause = $cause->getPrevious()) {
             if ($cause instanceof \PDOException
-                || $cause instanceof PropelException
+                || $cause instanceof PropelExceptionInterface
                 || $cause instanceof DbalException
+                || $cause instanceof IOExceptionInterface
+                || $cause instanceof \ErrorException
                 || $cause instanceof \Error
             ) {
                 return $translator->trans(self::SERVER_ERROR);
             }
         }
 
-        return $exception->getMessage();
+        // A refusal of a module may quote the address of a mail server it failed on.
+        return TransportCredentials::hide($exception->getMessage());
     }
 }
