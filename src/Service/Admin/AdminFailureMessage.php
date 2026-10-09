@@ -17,8 +17,10 @@ namespace BackOfficeDefaultTwigBundle\Service\Admin;
 use Doctrine\DBAL\Exception as DbalException;
 use Propel\Runtime\Exception\ExceptionInterface as PropelExceptionInterface;
 use Symfony\Component\Filesystem\Exception\IOExceptionInterface;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Mailer\TransportCredentials;
+use Twig\Error\LoaderError;
 
 /**
  * What the administrator reads of a failure: what the shop says of a refusal, never the
@@ -37,7 +39,11 @@ final class AdminFailureMessage
                 || $cause instanceof PropelExceptionInterface
                 || $cause instanceof DbalException
                 || $cause instanceof IOExceptionInterface
-                || $cause instanceof \ErrorException
+                || $cause instanceof FileException
+                || $cause instanceof LoaderError
+                // A warning or a notice PHP raised; the core raises refusals of its own
+                // as \ErrorException too, at the error severity, meant to be read.
+                || ($cause instanceof \ErrorException && \E_ERROR !== $cause->getSeverity())
                 || $cause instanceof \Error
             ) {
                 return $translator->trans(self::SERVER_ERROR);

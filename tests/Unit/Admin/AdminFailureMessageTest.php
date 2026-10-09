@@ -21,6 +21,9 @@ use Doctrine\DBAL\Exception\InvalidArgumentException as DbalInvalidArgumentExcep
 use Propel\Runtime\Exception\PropelException;
 use Propel\Runtime\Exception\RuntimeException as PropelRuntimeException;
 use Symfony\Component\Filesystem\Exception\IOException;
+use Symfony\Component\HttpFoundation\File\Exception\FileException;
+use Thelia\Core\File\Exception\FileNotFoundException;
+use Twig\Error\LoaderError;
 use Symfony\Component\Translation\IdentityTranslator;
 
 final class AdminFailureMessageTest extends TestCase
@@ -37,7 +40,9 @@ final class AdminFailureMessageTest extends TestCase
         yield 'a DBAL error' => [new DbalInvalidArgumentException("Duplicate entry 'buyer@example.com'")];
         yield 'any failure of Propel' => [new PropelRuntimeException('Unable to find the TableMap of customer in /var/www/html/var/propel/prod')];
         yield 'a file the server could not handle' => [new IOException('Failed to remove directory "/var/www/html/var/cache/prod/twig": rmdir(): Directory not empty')];
-        yield 'a warning of PHP turned into an exception' => [new \ErrorException('file_put_contents(/var/www/html/local/media/x.png): Failed to open stream')];
+        yield 'a warning of PHP turned into an exception' => [new \ErrorException('file_put_contents(/var/www/html/local/media/x.png): Failed to open stream', 0, \E_WARNING)];
+        yield 'a template Twig could not find' => [new LoaderError('Unable to find template "mail.html.twig" (looked into: /var/www/html/templates/email/default).')];
+        yield 'an upload that could not be moved' => [new FileException('Could not move the file "/tmp/phpA1b2" to "/var/www/html/local/media/x.png".')];
     }
 
     #[DataProvider('serverFailures')]
@@ -55,6 +60,18 @@ final class AdminFailureMessageTest extends TestCase
 
         self::assertStringNotContainsString('secret', $message);
         self::assertStringContainsString('mail.example.com', $message);
+    }
+
+    /**
+     * The core refuses with an \ErrorException of its own too (a module archive without
+     * its module.xml): raised by hand, at the error severity, its words are meant for
+     * the administrator.
+     */
+    public function testARefusalOfTheCoreRaisedAsAnErrorExceptionIsShown(): void
+    {
+        $message = AdminFailureMessage::of(new FileNotFoundException('Module Acme should have a module.xml in the Config directory.'), new IdentityTranslator());
+
+        self::assertSame('Module Acme should have a module.xml in the Config directory.', $message);
     }
 
     public function testWhatTheShopSaysOfARefusalIsShown(): void
