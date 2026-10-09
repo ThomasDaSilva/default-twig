@@ -86,12 +86,18 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
         $this->client->request('GET', '/admin/configuration/mailingSystem');
         $this->givenAStoreEmail();
 
-        $this->client->request('POST', self::URL, ['email' => ' ', '_token' => $this->token()]);
-
-        self::assertSame(400, $this->client->getResponse()->getStatusCode());
+        $token = $this->token();
+        for ($asked = 0; $asked < 10; ++$asked) {
+            $this->client->request('POST', self::URL, ['email' => ' ', '_token' => $token]);
+            self::assertSame(400, $this->client->getResponse()->getStatusCode());
+        }
         $answer = json_decode((string) $this->client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
         self::assertFalse($answer['success']);
         self::assertStringContainsString('required', $answer['message']);
+
+        // None of them counted: the administrator still has their ten test mails.
+        $this->client->request('POST', self::URL, ['email' => 'someone@example.com', '_token' => $token]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
     }
 
     /**
@@ -234,10 +240,12 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
         self::assertStringContainsString("default-src 'none'", $policy);
         self::assertStringNotContainsString('script-src', $policy);
         self::assertStringContainsString('sandbox', $policy);
+        self::assertSame('nosniff', $response->headers->get('X-Content-Type-Options'));
 
         $this->client->request('GET', '/admin/message/preview/text/'.$message->getId());
 
         self::assertStringStartsWith('text/plain', (string) $this->client->getResponse()->headers->get('Content-Type'));
+        self::assertSame('nosniff', $this->client->getResponse()->headers->get('X-Content-Type-Options'));
     }
 
     /**
