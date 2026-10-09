@@ -160,7 +160,7 @@ final class TagController
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->refuse(
                 $this->translator->trans('Tag creation failed.'),
                 $this->refusalMessage($exception),
                 $form,
@@ -224,7 +224,7 @@ final class TagController
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         } catch (\Throwable $exception) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->refuse(
                 $this->translator->trans('Tag update failed.'),
                 $this->refusalMessage($exception, suggestMerge: true),
                 $form,
@@ -307,7 +307,6 @@ final class TagController
             $this->errorRenderer->fail(
                 $this->translator->trans('Tag merge'),
                 $exception,
-                null,
             );
         }
 
@@ -333,7 +332,6 @@ final class TagController
             $this->errorRenderer->fail(
                 $this->translator->trans('Tag deletion'),
                 $exception,
-                null,
             );
 
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));

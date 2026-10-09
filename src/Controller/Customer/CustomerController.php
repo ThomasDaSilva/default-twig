@@ -319,7 +319,7 @@ final class CustomerController
 
             $tagFailure = $this->applySubmittedTags($savedCustomerId, $data);
             if ($tagFailure !== null) {
-                $this->errorRenderer->setup(
+                $this->errorRenderer->refuse(
                     $this->translator->trans('Customer update'),
                     $this->translator->trans('The customer was saved, but its tags could not be updated.'),
                     $form,

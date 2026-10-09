@@ -147,7 +147,6 @@ readonly class AdminFormAction
             $this->errorRenderer->fail(
                 $this->translator->trans($actionLabel),
                 $exception,
-                null,
             );
 
             return $renderError !== null

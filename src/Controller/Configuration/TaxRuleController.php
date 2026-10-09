@@ -361,7 +361,7 @@ final class TaxRuleController
         $strategy = PostageTaxStrategy::tryFrom((string) $request->request->get('postage-tax-strategy'));
 
         if (null === $strategy) {
-            $this->errorRenderer->setup(
+            $this->errorRenderer->refuse(
                 $this->translator->trans('Postage tax breakdown'),
                 $this->translator->trans('Unknown postage tax strategy.'),
             );
