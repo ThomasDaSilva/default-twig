@@ -402,7 +402,7 @@ final class OrderController
             $typedAmount = str_replace([' ', ','], ['', '.'], $rawAmount);
 
             if (!is_numeric($typedAmount) || (float) $typedAmount <= 0) {
-                $this->flash('error', $this->translator->trans('The amount to capture must be a positive number.'));
+                $this->flash('danger', $this->translator->trans('The amount to capture must be a positive number.'));
 
                 return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
             }
@@ -458,7 +458,7 @@ final class OrderController
         $state = PaymentTransactionState::tryFrom((string) $request->request->get('outcome', ''));
 
         if ($transaction === null || !$state?->isSettled()) {
-            $this->flash('error', $this->translator->trans('Choose whether the provider took the movement or not.'));
+            $this->flash('danger', $this->translator->trans('Choose whether the provider took the movement or not.'));
 
             return $detail;
         }
