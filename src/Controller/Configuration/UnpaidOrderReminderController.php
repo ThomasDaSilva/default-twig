@@ -115,6 +115,12 @@ final class UnpaidOrderReminderController
             return $this->render($steps, $excluded, $exception->getMessage());
         }
 
+        foreach ($schedule->steps() as $step) {
+            if (!$step->isCancellation() && null === MessageQuery::create()->findOneByName($step->messageCode)) {
+                return $this->render($steps, $excluded, $this->translator->trans('No mail message is named "%code%".', ['%code%' => (string) $step->messageCode]));
+            }
+        }
+
         $this->settings->save($schedule, $excluded);
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Unpaid order reminder schedule set to "%s"', $schedule->toSetting()));
         $session = $this->requestStack->getSession();

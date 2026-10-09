@@ -2398,4 +2398,5 @@ return [
     'The reminder schedule has been saved.' => 'Le calendrier de relance a été enregistré.',
     'Payment reminder sent (%hours% h step)' => 'Relance de paiement envoyée (étape %hours% h)',
     'Payment reminder of the %hours% h step could not be done' => 'La relance de paiement de l\'étape %hours% h n\'a pas pu être faite',
+    'No mail message is named "%code%".' => 'Aucun modèle d\'e-mail ne s\'appelle « %code% ».',
 ];
