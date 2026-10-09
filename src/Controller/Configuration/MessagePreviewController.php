@@ -87,13 +87,15 @@ final class MessagePreviewController
         unset($parameters['recipient_email']);
 
         try {
-            $this->mailer->sendEmailMessage(
+            // Built and handed to the mail server now, queue or not: the point of a test is
+            // the server's answer, which the administrator reads either way.
+            $this->mailer->sendNow($this->mailer->createEmailMessage(
                 $message->getName(),
                 [(string) ConfigQuery::read('store_email', '') => (string) ConfigQuery::read('store_name', 'Thelia')],
                 [$recipient => $recipient],
                 $parameters,
                 $this->resolveLocale($request),
-            );
+            ));
 
             return new Response($this->translator->trans('The message has been successfully sent to %recipient.', ['%recipient' => $recipient]));
         } catch (\Throwable $exception) {
