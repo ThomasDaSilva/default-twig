@@ -17,11 +17,13 @@ namespace BackOfficeDefaultTwigBundle\Controller;
 use BackOfficeDefaultTwigBundle\Form\Auth\CreatePasswordType;
 use BackOfficeDefaultTwigBundle\Form\Auth\LostPasswordType;
 use BackOfficeDefaultTwigBundle\Security\AuthThrottle;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
@@ -52,6 +54,8 @@ final class PasswordResetController
         private readonly TranslatorInterface $translator,
         private readonly FormFactoryInterface $forms,
         private readonly AuthThrottle $throttle,
+        #[Autowire(service: 'limiter.admin_lost_password')]
+        private readonly RateLimiterFactoryInterface $lostPasswordLimiter,
     ) {
     }
 
@@ -176,7 +180,17 @@ final class PasswordResetController
             return $this->renderLostPassword($form);
         }
 
-        $this->throttle->reset(self::THROTTLE_LOST_PASSWORD);
+        // The count of the caller stands: naming an administrator is not a proof of being
+        // them. And the administrator named is mailed a few links an hour, from whoever
+        // asks.
+        if (!$this->lostPasswordLimiter->create((string) $admin->getId())->consume()->isAccepted()) {
+            $form->addError(new \Symfony\Component\Form\FormError(
+                $this->translator->trans('Too many attempts, please try again later.'),
+            ));
+
+            return $this->renderLostPassword($form);
+        }
+
         $this->events->dispatch(new AdministratorEvent($admin), TheliaEvents::ADMINISTRATOR_CREATEPASSWORD);
 
         return new RedirectResponse($this->urls->generate('admin.password-create-success'));
