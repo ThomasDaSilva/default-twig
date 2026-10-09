@@ -271,6 +271,40 @@ final class AdminWriteRequestTest extends WebIntegrationTestCase
         self::assertStringNotContainsString(AdminFailureMessage::SERVER_ERROR, $html);
     }
 
+    /**
+     * A database error on an order address quotes what was typed: the log names it by
+     * its class and place, never by its text.
+     */
+    public function testAFailedAddressUpdateLogsNoneOfTheCustomersData(): void
+    {
+        $order = $this->factory->order();
+        $address = $order->getOrderAddressRelatedByInvoiceOrderAddressId();
+        self::assertNotNull($address);
+        $marker = uniqid('leaked-').'@example.com';
+        $this->failWith(TheliaEvents::ORDER_UPDATE_ADDRESS, new \PDOException(\sprintf("SQLSTATE[23000]: Duplicate entry '%s'", $marker)));
+        $log = THELIA_LOG_DIR.'log-thelia.txt';
+        clearstatcache();
+        $before = is_file($log) ? (int) filesize($log) : 0;
+
+        $this->client->request('POST', '/admin/order/update/'.$order->getId().'/address', [
+            '_token' => $this->token(),
+            'thelia_order_address' => [
+                'id' => (string) $address->getId(),
+                'firstname' => 'Ada',
+                'lastname' => 'Lovelace',
+                'address1' => '1 rue de la Paix',
+                'zipcode' => '75001',
+                'city' => 'Paris',
+                'country' => (string) $address->getCountryId(),
+            ],
+        ]);
+        clearstatcache();
+        $written = is_file($log) ? (string) file_get_contents($log, false, null, $before) : '';
+
+        self::assertStringContainsString('address update failed', $written);
+        self::assertStringNotContainsString($marker, $written);
+    }
+
     public function testTheDomainPerLanguageSettingOnlyChangesThroughATokenizedPost(): void
     {
         ConfigQuery::write('one_domain_foreach_lang', '1');

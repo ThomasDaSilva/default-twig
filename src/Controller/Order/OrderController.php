@@ -51,6 +51,7 @@ use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
 use Thelia\Log\Tlog;
+use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\CountryQuery;
 use Thelia\Model\Currency;
 use Thelia\Model\CustomerTitleQuery;
@@ -445,9 +446,9 @@ final class OrderController
 
             $this->events->dispatch($event, TheliaEvents::ORDER_UPDATE_ADDRESS);
         } catch (\Throwable $throwable) {
-            // The administrator is told the address was not saved; what went wrong
-            // goes to the log, where it does not leak internals to the browser.
-            Tlog::getInstance()->error(\sprintf('Order %d address update failed: %s', $order_id, $throwable->getMessage()));
+            // The administrator is told the address was not saved; what went wrong goes
+            // to the log, by its class and place: a database error quotes what was typed.
+            Tlog::getInstance()->error(\sprintf('Order %d address update failed: %s', $order_id, JobFailureMessage::forLog($throwable)));
 
             $this->flash('danger', $this->translator->trans('The address could not be saved. See the system log for the details.'));
         }
