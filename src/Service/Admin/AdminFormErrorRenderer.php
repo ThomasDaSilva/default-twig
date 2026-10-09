@@ -57,7 +57,12 @@ readonly class AdminFormErrorRenderer
         // The administrator reads what a rule refused, worded by the rule; the inside of
         // a database driver, an HTTP client or PHP itself — a table name, a query, a URL
         // with its key, a file path — only goes to the log written above.
-        $shownMessage = $this->isTechnical($exception) || !$this->isTrusted($exception, $trustedFailures)
+        // A screen that names its trusted failures shows exactly those, worded by their
+        // rule, whatever they wrap; the others keep the technical-failure filter.
+        $hidden = $trustedFailures === []
+            ? $this->isTechnical($exception)
+            : !$this->isTrusted($exception, $trustedFailures);
+        $shownMessage = $hidden
             ? $this->translator->trans('The action failed on an internal error. The details are in the log.')
             : $errorMessage;
 
