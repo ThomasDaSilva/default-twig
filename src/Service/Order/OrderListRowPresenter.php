@@ -24,6 +24,8 @@ use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
 use Thelia\Model\Module;
 use Thelia\Model\Order;
 use Thelia\Model\OrderStatusQuery;
+use Thelia\Domain\Order\Reminder\UnpaidOrderReminderSettings;
+use Thelia\Model\OrderStatus;
 
 /**
  * Maps an Order model to the DataTable row shape used by `order/list.html.twig`.
@@ -38,8 +40,11 @@ final readonly class OrderListRowPresenter
     private const DELIVERY_PDF_ROUTE = 'admin.order.pdf.delivery';
     private const CANCEL_FROM_LIST_ROUTE = 'admin.order.list.cancel';
     private const FALLBACK_STATUS_COLOR = '#6c757d';
-    private const URGENT_THRESHOLD_HOURS = 48;
-    private const URGENT_STATUS_CODE = 'not_paid';
+    /**
+     * When the shop sets no reminder schedule; otherwise its first step says when an
+     * unpaid order needs a follow-up.
+     */
+    private const DEFAULT_URGENT_THRESHOLD_HOURS = 48;
 
     public function __construct(
         private UrlGeneratorInterface $urls,
@@ -47,6 +52,7 @@ final readonly class OrderListRowPresenter
         private OrderRepository $orderRepository,
         private ModuleRepository $moduleRepository,
         private OrderStatusTransitionGuard $transitionGuard,
+        private UnpaidOrderReminderSettings $reminderSettings,
     ) {
     }
 
@@ -113,7 +119,7 @@ final readonly class OrderListRowPresenter
             $order->getModuleRelatedByDeliveryModuleId(...),
         ) ?? $order->getDeliveryModuleTitle();
 
-        $isUrgent = $this->isUrgent($order, $status?->getCode());
+        $isUrgent = $this->isUrgent($order, $status);
         $cancelStatus = OrderStatusQuery::getCancelledStatus();
         $cancelStatusId = $cancelStatus !== null ? (int) $cancelStatus->getId() : 0;
         $isCanceled = $cancelStatusId > 0 && (int) $order->getStatusId() === $cancelStatusId;
@@ -158,7 +164,7 @@ final readonly class OrderListRowPresenter
             return $link;
         }
 
-        $tooltip = $this->translator->trans('Unpaid for more than 48 hours - follow up needed');
+        $tooltip = $this->translator->trans('Unpaid for more than %hours% hours - follow up needed', ['%hours%' => $this->urgentThresholdHours()]);
 
         return \sprintf(
             '<span class="bo-order-urgent" data-bs-toggle="tooltip" data-bs-placement="right" title="%s"><i class="bi bi-exclamation-triangle-fill text-danger me-1" aria-hidden="true"></i>%s</span>',
@@ -328,9 +334,12 @@ final readonly class OrderListRowPresenter
         return $module?->getTitle();
     }
 
-    private function isUrgent(Order $order, ?string $statusCode): bool
+    /**
+     * A status declared equivalent to not paid is followed up like it.
+     */
+    private function isUrgent(Order $order, ?OrderStatus $status): bool
     {
-        if ($statusCode !== self::URGENT_STATUS_CODE) {
+        if (true !== $status?->isNotPaid(true)) {
             return false;
         }
         $createdAt = $order->getCreatedAt();
@@ -339,7 +348,7 @@ final readonly class OrderListRowPresenter
         }
         $hoursOld = (time() - $createdAt->getTimestamp()) / 3600;
 
-        return $hoursOld >= self::URGENT_THRESHOLD_HOURS;
+        return $hoursOld >= $this->urgentThresholdHours();
     }
 
     /**
@@ -390,5 +399,10 @@ final readonly class OrderListRowPresenter
         }
 
         return $actions;
+    }
+
+    private function urgentThresholdHours(): int
+    {
+        return $this->reminderSettings->schedule()->firstDelayInHours() ?? self::DEFAULT_URGENT_THRESHOLD_HOURS;
     }
 }

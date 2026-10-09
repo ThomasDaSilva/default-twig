@@ -30,6 +30,7 @@ use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\OrderReturn\Service\ReturnEligibilityChecker;
 use Thelia\Model\Order;
 use Thelia\Model\OrderQuery;
+use Thelia\Domain\Order\Reminder\UnpaidOrderReminderSettings;
 
 /**
  * Composes every dashboard widget (KPIs, chart series, breakdowns, alerts) for
@@ -42,7 +43,11 @@ use Thelia\Model\OrderQuery;
  */
 final readonly class DashboardStatsProvider
 {
-    private const UNPAID_FOLLOWUP_HOURS = 48;
+    /**
+     * When the shop sets no reminder schedule; otherwise its first step says when an
+     * unpaid order needs a follow-up.
+     */
+    private const DEFAULT_UNPAID_FOLLOWUP_HOURS = 48;
     /**
      * How long a return request may wait for an answer before the dashboard says
      * so. A merchant who leaves a customer without a word for two days has an
@@ -64,6 +69,7 @@ final readonly class DashboardStatsProvider
         private TranslatorInterface $translator,
         private SecurityContext $securityContext,
         private PeriodOptions $periodOptions,
+        private UnpaidOrderReminderSettings $reminderSettings,
     ) {
     }
 
@@ -184,10 +190,11 @@ final readonly class DashboardStatsProvider
             return $this->appendReturnAlert($alerts);
         }
 
-        $unpaid = $this->orders->countUnpaidOlderThan(self::UNPAID_FOLLOWUP_HOURS);
+        $unpaidFollowupHours = $this->reminderSettings->schedule()->firstDelayInHours() ?? self::DEFAULT_UNPAID_FOLLOWUP_HOURS;
+        $unpaid = $this->orders->countUnpaidOlderThan($unpaidFollowupHours);
         if ($unpaid > 0) {
             $alerts[] = [
-                'label' => $this->translator->trans('%count% unpaid orders over 48h', ['%count%' => $unpaid]),
+                'label' => $this->translator->trans('%count% unpaid orders over %hours%h', ['%count%' => $unpaid, '%hours%' => $unpaidFollowupHours]),
                 'count' => $unpaid,
                 'href' => $this->urls->generate('admin.order.list', ['status_ids' => $this->orders->unpaidStatusIds()]),
                 'icon' => 'bi-exclamation-triangle-fill',
