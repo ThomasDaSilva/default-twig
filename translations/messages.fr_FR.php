@@ -2395,7 +2395,7 @@ return [
     'Customer account' => 'Compte client',
     'Shipping account' => 'Compte de port',
     'Tax rates' => 'Taux de taxe',
-    'One row per tax rate your invoices carry: the account of the sales at that rate, and the account of the tax collected, which a rate of 0 does not need.' => 'Une ligne par taux de taxe de vos factures : le compte des ventes à ce taux, et le compte de la TVA collectée, inutile pour un taux de 0.',
+    'One row per tax rate your invoices carry: the account of the sales at that rate, and the account of the tax collected, which a rate of 0 does not need. A product taxed twice is filed under the sum of its rates.' => 'Une ligne par taux de taxe de vos factures : le compte des ventes à ce taux, et le compte de la TVA collectée, inutile pour un taux de 0. Un produit soumis à deux taxes est classé sous la somme de ses taux.',
     'Rate (%)' => 'Taux (%)',
     'Sales account' => 'Compte de ventes',
     'Tax collected account' => 'Compte de TVA collectée',
