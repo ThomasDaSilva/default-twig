@@ -558,6 +558,8 @@
                                 payment_can_capture: payment_can_capture,
                                 payment_can_settle: payment_can_settle,
                                 payment_decimals: payment_decimals,
+                                payment_can_refund: payment_can_refund,
+                                payment_refund_mode: payment_refund_mode,
                                 order_id: order.id,
                                 token: token,
                                 currency: currency,
@@ -611,6 +613,19 @@
             order: order,
             returnable_lines: returnable_lines,
             return_reasons: return_reasons,
+            token: token,
+        } only %}
+    {% endif %}
+
+    {% if payment_can_refund %}
+        {% include '@BackOfficeDefaultTwig/order/_payment_refund_modal.html.twig' with {
+            order: order,
+            totals: payment_totals,
+            reasons: payment_refund_reasons,
+            mode: payment_refund_mode,
+            currency: currency,
+            decimals: payment_decimals,
+            step: payment_step,
             token: token,
         } only %}
     {% endif %}

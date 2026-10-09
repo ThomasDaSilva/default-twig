@@ -45,6 +45,9 @@ use Thelia\Core\Event\Order\OrderAddressEvent;
 use Thelia\Core\Event\Order\OrderEvent;
 use Thelia\Core\Event\Order\OrderPaymentCaptureEvent;
 use Thelia\Core\Event\Order\OrderPaymentSettlementEvent;
+use Thelia\Domain\Payment\Service\PaymentRefundService;
+use Thelia\Domain\Payment\Enum\RefundReason;
+use Thelia\Core\Event\Order\OrderPaymentRefundEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
@@ -96,6 +99,7 @@ final class OrderController
         private readonly OrderStatusChangeContextBuilder $statusChangeContext,
         private readonly AdminLogger $adminLogger,
         private readonly RequestStack $requestStack,
+        private readonly PaymentRefundService $refundService,
         private readonly OrderHistoryContextBuilder $historyContextBuilder,
         private readonly OrderPaymentContextBuilder $paymentContextBuilder,
     ) {
@@ -482,6 +486,75 @@ final class OrderController
                     (int) $event->getTransaction()->getId(),
                     $order_id,
                     $event->getState()->value,
+                ),
+                $order_id,
+            ],
+        );
+    }
+
+    /**
+     * Gives back all or part of what the order's payment collected: through the payment module
+     * when it can, recorded as made outside the provider otherwise. Which of the two is decided
+     * here, from the module, never from the form. Under a right of its own.
+     */
+    #[Route('/admin/order/update/{order_id}/payment-refund', name: 'admin.order.update.paymentRefund', methods: ['POST'], requirements: ['order_id' => '\d+'])]
+    public function refundPayment(int $order_id, Request $request): Response
+    {
+        if ($denied = $this->access->check(AdminResources::ORDER_PAYMENT_REFUND, [], AccessManager::CREATE)) {
+            return $denied;
+        }
+
+        $order = OrderQuery::create()->findPk($order_id);
+        if ($order === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+        }
+
+        $detail = new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+        $reason = RefundReason::tryFrom((string) $request->request->get('reason', ''));
+        $rawAmount = trim((string) $request->request->get('amount', ''));
+        $amount = null;
+
+        if ($reason === null) {
+            $this->flash('danger', $this->translator->trans('Choose why the money is given back.'));
+
+            return $detail;
+        }
+
+        if ($rawAmount !== '') {
+            $typedAmount = str_replace([' ', ','], ['', '.'], $rawAmount);
+
+            if (!is_numeric($typedAmount) || (float) $typedAmount <= 0) {
+                $this->flash('danger', $this->translator->trans('The amount to refund must be a positive number.'));
+
+                return $detail;
+            }
+
+            $amount = (float) $typedAmount;
+        }
+
+        $comment = trim((string) $request->request->get('comment', ''));
+        $offline = !$this->refundService->supportsRefund($order);
+        $event = new OrderPaymentRefundEvent($order, $amount, $reason, $comment === '' ? null : $comment, $offline);
+
+        return $this->action->tokenAction(
+            resource: AdminResources::ORDER_PAYMENT_REFUND,
+            access: AccessManager::CREATE,
+            request: $request,
+            event: $event,
+            eventName: TheliaEvents::ORDER_PAYMENT_REFUND,
+            actionLabel: 'Order payment refunded',
+            successRoute: self::DETAIL_ROUTE,
+            successParameters: ['order_id' => $order_id],
+            trustedFailures: [PaymentException::class, TokenAuthenticationException::class],
+            describeForLog: static fn (OrderPaymentRefundEvent $event): array => [
+                \sprintf(
+                    'Payment refund of %s asked on order %s (%s%s): transaction #%d is %s',
+                    (string) $event->getTransaction()->getAmount(),
+                    (string) $order->getRef(),
+                    $event->getReason()->value,
+                    $event->isOffline() ? ', recorded outside the provider' : '',
+                    (int) $event->getTransaction()->getId(),
+                    (string) $event->getTransaction()->getState(),
                 ),
                 $order_id,
             ],

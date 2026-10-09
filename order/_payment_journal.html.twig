@@ -11,6 +11,8 @@
       - payment_can_capture:      whether this administrator may capture now (right held, something left)
       - payment_can_settle:       whether this administrator may record by hand the outcome of a pending line
       - payment_decimals:         the decimals of the order currency
+      - payment_can_refund:       whether this administrator may give money back now (right held, something collected left)
+      - payment_refund_mode:      online (through the payment module) or offline (recorded as made outside the provider)
       - order_id:                 the order the journal belongs to
       - token:                    CSRF token
       - currency:                 { symbol }
@@ -29,10 +31,6 @@
             <dt class="col-7">{{ 'Released'|trans }}</dt>
             <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-voided">{{ payment_totals.voided|number_format(payment_decimals, '.', ' ') }} {{ currency.symbol }}</dd>
         {% endif %}
-        {% if payment_totals.refunded > 0 %}
-            <dt class="col-7">{{ 'Refunded'|trans }}</dt>
-            <dd class="col-5 text-end mb-0" dir="ltr">{{ payment_totals.refunded|number_format(payment_decimals, '.', ' ') }} {{ currency.symbol }}</dd>
-        {% endif %}
         <dt class="col-7 fw-semibold">{{ 'Remaining to capture'|trans }}</dt>
         <dd class="col-5 text-end mb-0 fw-semibold" dir="ltr" data-testid="order-payment-remaining">{{ payment_totals.remaining|number_format(payment_decimals, '.', ' ') }} {{ currency.symbol }}</dd>
     </dl>
@@ -46,6 +44,20 @@
             <i class="bi bi-cash-coin me-1" aria-hidden="true"></i>{{ 'Capture payment'|trans }}
         </button>
     {% endif %}
+{% endif %}
+
+{% if payment_totals.captured > 0 %}
+    <dl class="row mb-2 small" data-testid="order-payment-refund-totals">
+        <dt class="col-7">{{ 'Refunded'|trans }}</dt>
+        <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-refunded">{{ payment_totals.refunded|number_format(payment_decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+        <dt class="col-7">{{ 'Left to refund'|trans }}</dt>
+        <dd class="col-5 text-end mb-0" dir="ltr" data-testid="order-payment-refundable">{{ payment_totals.refundable|number_format(payment_decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+    </dl>
+{% endif %}
+{% if payment_can_refund %}
+    <button type="button" class="btn btn-sm btn-outline-secondary mb-3" data-bs-toggle="modal" data-bs-target="#order-payment-refund-modal" data-testid="order-payment-refund-btn" data-refund-mode="{{ payment_refund_mode }}">
+        <i class="bi bi-arrow-counterclockwise me-1" aria-hidden="true"></i>{{ payment_refund_mode == 'online' ? 'Refund'|trans : 'Record a refund'|trans }}
+    </button>
 {% endif %}
 
 <h3 class="h6 mt-2 mb-2">{{ 'Payment journal'|trans }}</h3>
@@ -75,6 +87,9 @@
                         {% if line.error_code %}<code>{{ line.error_code }}</code>{% endif %}
                         {{ line.error_message }}
                     </div>
+                {% endif %}
+                {% if line.note %}
+                    <div class="text-muted text-break" data-testid="order-payment-line-note">{{ line.note }}</div>
                 {% endif %}
                 {% if payment_can_settle and line.state == 'pending' %}
                     {# The provider never confirmed: the merchant reads the outcome in the
