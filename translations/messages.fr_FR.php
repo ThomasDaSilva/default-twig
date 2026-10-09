@@ -1540,6 +1540,7 @@ return [
     'Failed' => 'Refusé',
     'Awaiting the provider' => 'En attente du prestataire',
     'Released' => 'Libéré',
+    'The action failed on an internal error. The details are in the log.' => 'L\'action a échoué sur une erreur interne. Le détail est dans le journal.',
     'The payment is authorized, not taken: marking the order paid by hand takes nothing from the buyer. Capture it to take the money.' => 'Le paiement est autorisé, pas encaissé : passer la commande en payée à la main ne prélève rien. Capturez-le pour encaisser.',
     'PDF' => 'PDF',
     'pdf' => 'pdf',

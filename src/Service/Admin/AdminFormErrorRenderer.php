@@ -50,15 +50,43 @@ readonly class AdminFormErrorRenderer
             ),
         );
 
+        // The administrator reads what a rule refused, worded by the rule; the inside of
+        // a database driver, an HTTP client or PHP itself — a table name, a query, a URL
+        // with its key, a file path — only goes to the log written above.
+        $shownMessage = $this->isTechnical($exception)
+            ? $this->translator->trans('The action failed on an internal error. The details are in the log.')
+            : $errorMessage;
+
         $session = $this->requestStack->getMainRequest()?->getSession();
         if ($session instanceof Session) {
-            $session->getFlashBag()->add('danger', $errorMessage);
+            $session->getFlashBag()->add('danger', $shownMessage);
         }
 
         if (null === $form) {
             return;
         }
 
-        $form->addError(new \Symfony\Component\Form\FormError($errorMessage));
+        $form->addError(new \Symfony\Component\Form\FormError($shownMessage));
+    }
+
+    /**
+     * Whether the failure, or one it wraps, comes from below the application: the
+     * database, the network, or the PHP engine.
+     */
+    private function isTechnical(?\Throwable $exception): bool
+    {
+        for ($current = $exception; null !== $current; $current = $current->getPrevious()) {
+            if ($current instanceof \PDOException
+                || $current instanceof \Error
+                || $current instanceof \Propel\Runtime\Exception\PropelException
+                || $current instanceof \Propel\Runtime\ActiveQuery\QueryExecutor\QueryExecutionException
+                || $current instanceof \Symfony\Contracts\HttpClient\Exception\ExceptionInterface
+                || (interface_exists(\GuzzleHttp\Exception\GuzzleException::class) && $current instanceof \GuzzleHttp\Exception\GuzzleException)
+            ) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
