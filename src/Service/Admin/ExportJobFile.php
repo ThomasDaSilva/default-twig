@@ -41,13 +41,13 @@ final readonly class ExportJobFile
     public function isAvailable(ExportJob $job): bool
     {
         return JobStatus::DONE === $job->getJobStatus()
-            && null !== self::exportFile((string) $job->getFilePath())
+            && null !== ExportCachePurger::resolve((string) $job->getFilePath())
             && (null !== $job->getArchiver() || $this->serializerManager->has($job->getSerializer()));
     }
 
     public function response(ExportJob $job): BinaryFileResponse
     {
-        $file = self::exportFile((string) $job->getFilePath())
+        $file = ExportCachePurger::resolve((string) $job->getFilePath())
             ?? throw new \RuntimeException(\sprintf('Export job %d names a file outside the export folder.', (int) $job->getId()));
 
         $archiverId = $job->getArchiver();
@@ -63,23 +63,6 @@ final readonly class ExportJobFile
         $response->setContentDisposition(ResponseHeaderBag::DISPOSITION_ATTACHMENT, (string) $job->getFileName(), self::asciiName((string) $job->getFileName()));
 
         return $response;
-    }
-
-    /**
-     * The path comes from the row: only a file the exports write, in the export folder
-     * of the cache, is ever served, as only a file of the import storage is ever read.
-     * The resolved path is the one served, never the link the row may name.
-     */
-    private static function exportFile(string $path): ?string
-    {
-        $directory = realpath(ExportCachePurger::directory());
-        $file = realpath($path);
-
-        if (false === $directory || false === $file || !is_file($file) || !str_starts_with($file, $directory.\DIRECTORY_SEPARATOR)) {
-            return null;
-        }
-
-        return $file;
     }
 
     /**
