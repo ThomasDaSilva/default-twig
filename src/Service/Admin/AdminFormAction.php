@@ -111,6 +111,7 @@ readonly class AdminFormAction
      * @param callable(\Throwable): Response|null                  $renderError               Optional. When omitted, errors redirect to $successRoute.
      * @param array<string, scalar>                                $successParameters
      * @param callable(object): array<string, scalar>|null          $successParametersResolver Optional. Resolve the redirect parameters from the dispatched event (e.g. the id of an entity the action just created). Overrides $successParameters when provided.
+     * @param list<class-string<\Throwable>>                       $trustedFailures           Optional. The failures whose message the administrator reads; any other is reported as an internal error. Empty shows every message but the technical ones.
      */
     public function tokenAction(
         string $resource,
@@ -124,6 +125,7 @@ readonly class AdminFormAction
         ?callable $describeForLog = null,
         ?callable $renderError = null,
         ?callable $successParametersResolver = null,
+        array $trustedFailures = [],
     ): Response {
         if ($denied = $this->access->check($resource, [], $access)) {
             return $denied;
@@ -150,6 +152,7 @@ readonly class AdminFormAction
                 $exception->getMessage(),
                 null,
                 $exception,
+                $trustedFailures,
             );
 
             return $renderError !== null

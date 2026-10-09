@@ -47,6 +47,7 @@ use Thelia\Core\Event\Order\OrderPaymentCaptureEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
+use Thelia\Domain\Payment\Exception\PaymentException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
 use Thelia\Log\Tlog;
@@ -408,6 +409,9 @@ final class OrderController
             actionLabel: 'Order payment captured',
             successRoute: self::DETAIL_ROUTE,
             successParameters: ['order_id' => $order_id],
+            // The capture runs listeners of modules: their messages may carry what they
+            // sent their provider. The payment rules and the form token word their own.
+            trustedFailures: [PaymentException::class, TokenAuthenticationException::class],
             describeForLog: static function (OrderPaymentCaptureEvent $event) use ($order): array {
                 $transaction = $event->getTransaction();
 
