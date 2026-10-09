@@ -1602,4 +1602,7 @@ return [
     'This export cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Tento export nelze spustit: modul, který jej poskytoval, byl odstraněn. Spusťte „import-export:clean“ a smažte zbylé exporty a importy.',
     'This import cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Tento import nelze spustit: modul, který jej poskytoval, byl odstraněn. Spusťte „import-export:clean“ a smažte zbylé exporty a importy.',
     'Download a CSV template' => 'Stáhnout šablonu CSV',
+    'Unavailable: the module providing this export has been removed' => 'Nedostupné: modul, který poskytoval tento export, byl odstraněn',
+    'Unavailable: the module providing this import has been removed' => 'Nedostupné: modul, který poskytoval tento import, byl odstraněn',
+    'CSV template' => 'Šablona CSV',
 ];
