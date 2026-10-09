@@ -1696,4 +1696,7 @@ return [
     'This export cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Questa esportazione non può essere eseguita: il modulo che la forniva è stato rimosso. Esegui «import-export:clean» per eliminare le esportazioni e le importazioni rimaste.',
     'This import cannot be run: the module that provided it has been removed. Run "import-export:clean" to delete the exports and imports left behind.' => 'Questa importazione non può essere eseguita: il modulo che la forniva è stato rimosso. Esegui «import-export:clean» per eliminare le esportazioni e le importazioni rimaste.',
     'Download a CSV template' => 'Scarica un modello CSV',
+    'Unavailable: the module providing this export has been removed' => 'Non disponibile: il modulo che forniva questa esportazione è stato rimosso',
+    'Unavailable: the module providing this import has been removed' => 'Non disponibile: il modulo che forniva questa importazione è stato rimosso',
+    'CSV template' => 'Modello CSV',
 ];
