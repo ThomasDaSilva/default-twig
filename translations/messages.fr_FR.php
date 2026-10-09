@@ -1540,6 +1540,7 @@ return [
     'Failed' => 'Refusé',
     'Awaiting the provider' => 'En attente du prestataire',
     'Outcome read at the provider' => 'Issue constatée chez le prestataire',
+    'Authorization expired' => 'Autorisation expirée',
     'Provider reference (optional)' => 'Référence du prestataire (facultative)',
     'Choose whether the provider took the movement or not.' => 'Indiquez si le prestataire a effectué le mouvement ou non.',
     'Payment movement recorded by hand' => 'Mouvement de paiement constaté à la main',

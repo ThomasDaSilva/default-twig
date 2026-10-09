@@ -17,6 +17,8 @@ namespace BackOfficeDefaultTwigBundle\Service\Order;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\Order\Enum\OrderHistoryActorType;
+use Thelia\Domain\Payment\Enum\PaymentTransactionType;
+use Thelia\Domain\Payment\Service\PaymentTransactionRecorder;
 use Thelia\Model\OrderPaymentTransaction;
 
 /**
@@ -50,6 +52,9 @@ final readonly class OrderPaymentLinePresenter
         'succeeded' => 'text-bg-success',
         'failed' => 'text-bg-danger',
     ];
+
+    /** A void the provider made itself when the authorization lapsed: not an error. */
+    public const EXPIRED_LABEL = 'Authorization expired';
 
     private const FALLBACK_BADGE = 'text-bg-secondary';
 
@@ -86,11 +91,16 @@ final readonly class OrderPaymentLinePresenter
     {
         $type = (string) $line->getType();
         $state = (string) $line->getState();
+        $expired = PaymentTransactionType::VOID->value === $type && PaymentTransactionRecorder::REASON_EXPIRED === $line->getErrorCode();
 
         return [
             'id' => (int) $line->getId(),
             'type' => $type,
-            'type_label' => isset(self::TYPE_LABELS[$type]) ? $this->trans(self::TYPE_LABELS[$type], $locale) : $type,
+            'type_label' => match (true) {
+                $expired => $this->trans(self::EXPIRED_LABEL, $locale),
+                isset(self::TYPE_LABELS[$type]) => $this->trans(self::TYPE_LABELS[$type], $locale),
+                default => $type,
+            },
             'state' => $state,
             'state_label' => isset(self::STATE_LABELS[$state]) ? $this->trans(self::STATE_LABELS[$state], $locale) : $state,
             'state_badge' => self::STATE_BADGES[$state] ?? self::FALLBACK_BADGE,
@@ -99,8 +109,9 @@ final readonly class OrderPaymentLinePresenter
             'parent_id' => $line->getParentId(),
             'actor' => $this->actorOf($line, $locale),
             'actor_type' => (string) $line->getActorType(),
-            'error_code' => $line->getErrorCode(),
-            'error_message' => $line->getErrorMessage(),
+            // The lapse is said by the label: it is no failure to show in red.
+            'error_code' => $expired ? null : $line->getErrorCode(),
+            'error_message' => $expired ? null : $line->getErrorMessage(),
             'created_at' => $line->getCreatedAt(),
         ];
     }
