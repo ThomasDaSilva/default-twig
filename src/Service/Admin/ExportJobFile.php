@@ -45,7 +45,6 @@ final readonly class ExportJobFile
             && (null !== $job->getArchiver() || $this->serializerManager->has($job->getSerializer()));
     }
 
-
     public function response(ExportJob $job): BinaryFileResponse
     {
         $file = self::exportFile((string) $job->getFilePath())
@@ -69,7 +68,7 @@ final readonly class ExportJobFile
     /**
      * The path comes from the row: only a file the exports write, in the export folder
      * of the cache, is ever served, as only a file of the import storage is ever read.
-     * The path checked is the one served, so a link swapped in between serves nothing.
+     * The resolved path is the one served, never the link the row may name.
      */
     private static function exportFile(string $path): ?string
     {
