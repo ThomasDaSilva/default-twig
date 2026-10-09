@@ -41,6 +41,8 @@ final readonly class OrderHistoryEntryPresenter
         'transaction_ref_updated' => 'bi-credit-card',
         'invoice_ref_allocated' => 'bi-receipt',
         'email_sent' => 'bi-envelope',
+        'payment_reminder_sent' => 'bi-alarm',
+        'payment_reminder_failed' => 'bi-alarm',
         'note' => 'bi-chat-left-text',
         'return_opened' => 'bi-arrow-return-left',
         'return_status_changed' => 'bi-arrow-repeat',
@@ -155,6 +157,8 @@ final readonly class OrderHistoryEntryPresenter
                 'E-mail sent',
                 $locale,
             ),
+            OrderHistoryEventType::PAYMENT_REMINDER_SENT => $this->trans('Payment reminder sent (%hours% h step)', ['%hours%' => (string) (int) ($payload['step'] ?? 0)], $locale),
+            OrderHistoryEventType::PAYMENT_REMINDER_FAILED => $this->trans('Payment reminder of the %hours% h step could not be done', ['%hours%' => (string) (int) ($payload['step'] ?? 0)], $locale),
             OrderHistoryEventType::NOTE => $this->trans('Note', [], $locale),
             OrderHistoryEventType::RETURN_OPENED => $this->summarizeReference(
                 $this->readString($payload, 'return_ref'),

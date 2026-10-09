@@ -2396,4 +2396,6 @@ return [
     'The schedule is applied by a task the host runs regularly, every fifteen minutes or every hour:' => 'Le calendrier est appliqué par une tâche que l\'hébergeur lance régulièrement, toutes les quinze minutes ou toutes les heures :',
     'Add --dry-run to see what it would do.' => 'Ajoutez --dry-run pour voir ce qu\'elle ferait.',
     'The reminder schedule has been saved.' => 'Le calendrier de relance a été enregistré.',
+    'Payment reminder sent (%hours% h step)' => 'Relance de paiement envoyée (étape %hours% h)',
+    'Payment reminder of the %hours% h step could not be done' => 'La relance de paiement de l\'étape %hours% h n\'a pas pu être faite',
 ];
