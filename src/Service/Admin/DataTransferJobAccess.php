@@ -16,9 +16,6 @@ namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Contracts\Translation\TranslatorInterface;
-use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Core\Security\SecurityContext;
-use Thelia\Model\Admin;
 
 /**
  * Who may open an export or an import job.
@@ -30,7 +27,7 @@ use Thelia\Model\Admin;
 final readonly class DataTransferJobAccess
 {
     public function __construct(
-        private SecurityContext $securityContext,
+        private CurrentAdministrator $administrator,
         private TranslatorInterface $translator,
     ) {
     }
@@ -50,15 +47,11 @@ final readonly class DataTransferJobAccess
 
     public function isSuperAdministrator(): bool
     {
-        $admin = $this->securityContext->getAdminUser();
-
-        return $admin instanceof Admin && AdminResources::SUPERADMINISTRATOR === $admin->getPermissions();
+        return $this->administrator->isSuperAdministrator();
     }
 
     public function currentAdminId(): ?int
     {
-        $admin = $this->securityContext->getAdminUser();
-
-        return $admin instanceof Admin ? $admin->getId() : null;
+        return $this->administrator->id();
     }
 }

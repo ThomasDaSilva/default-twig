@@ -14,12 +14,14 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Thelia\Model\Admin;
-use Thelia\Model\Config;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Model\Admin;
+use Thelia\Model\Config;
 use Thelia\Model\ConfigQuery;
+use Thelia\Model\Message;
 use Thelia\Model\MessageQuery;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
@@ -144,6 +146,7 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
 
         $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'someone@example.com', '_token' => $this->token()]);
 
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
         self::assertStringNotContainsString('successfully sent', (string) $this->client->getResponse()->getContent());
     }
 
@@ -163,6 +166,63 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
     }
 
     /**
+     * The answer of a send is shown in the page as it is: it is text, whatever the
+     * recipient typed, and a refusal is one the page can tell from a success.
+     */
+    public function testTheAnswerOfASendIsTextAndARefusalIsNotASuccess(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+        $message = MessageQuery::create()->findOne();
+        self::assertNotNull($message);
+
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => '<b>admin@@example</b>', '_token' => $this->token()]);
+
+        $response = $this->client->getResponse();
+        self::assertStringStartsWith('text/plain', (string) $response->headers->get('Content-Type'));
+        self::assertGreaterThanOrEqual(400, $response->getStatusCode());
+
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'someone@example.com', '_token' => $this->token()]);
+
+        $response = $this->client->getResponse();
+        self::assertSame(200, $response->getStatusCode());
+        self::assertStringStartsWith('text/plain', (string) $response->headers->get('Content-Type'));
+    }
+
+    /**
+     * A message template is written by whoever may edit the messages and previewed in the
+     * session of whoever may read them: the preview shows itself, with its styles and
+     * images, and runs nothing on the origin of the back office.
+     */
+    public function testThePreviewOfAMessageRunsNoScript(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $message = (new Message())
+            ->setName('preview_under_test')
+            ->setLocale('en_US')
+            ->setTitle('Preview under test')
+            ->setSubject('Preview under test')
+            ->setHtmlMessage('<p style="color:red">Hello</p><script>alert(1)</script>')
+            ->setTextMessage('Hello');
+        $message->save($this->getPropelConnection());
+
+        $this->client->request('GET', '/admin/message/preview/'.$message->getId());
+
+        $response = $this->client->getResponse();
+        self::assertSame(200, $response->getStatusCode(), (string) $response->getContent());
+        self::assertStringStartsWith('text/html', (string) $response->headers->get('Content-Type'));
+        $policy = (string) $response->headers->get('Content-Security-Policy');
+        self::assertStringContainsString("default-src 'none'", $policy);
+        self::assertStringNotContainsString('script-src', $policy);
+        self::assertStringContainsString('sandbox', $policy);
+
+        $this->client->request('GET', '/admin/message/preview/text/'.$message->getId());
+
+        self::assertStringStartsWith('text/plain', (string) $this->client->getResponse()->headers->get('Content-Type'));
+    }
+
+    /**
      * A shop without an address to send from is told so.
      */
     public function testATestMessageOfAShopWithoutAnAddressSaysSo(): void
@@ -179,6 +239,13 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
 
         self::assertStringNotContainsString('RFC', (string) $this->client->getResponse()->getContent());
         self::assertStringContainsString('store email', (string) $this->client->getResponse()->getContent());
+        self::assertGreaterThanOrEqual(400, $this->client->getResponse()->getStatusCode());
+
+        $this->client->request('POST', self::URL, ['email' => 'someone@example.com', '_token' => $this->token()]);
+
+        $answer = json_decode((string) $this->client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertFalse($answer['success']);
+        self::assertStringContainsString('store email', $answer['message']);
     }
 
     /**
@@ -222,5 +289,10 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
     {
         $admin->eraseCredentials();
         $this->injector?->setAdmin($admin);
+
+        // The count of test mails survives the test transaction.
+        $limiter = $this->getService('limiter.admin_test_mail');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $limiter);
+        $limiter->create((string) $admin->getId())->reset();
     }
 }

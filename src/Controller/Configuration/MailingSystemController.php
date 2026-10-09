@@ -17,7 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Configuration\MailingSystemType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
-use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use BackOfficeDefaultTwigBundle\Service\Admin\CurrentAdministrator;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -37,6 +37,7 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Mailer\Exception\EmailNotSentException;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Mailer\TransportCredentials;
 use Thelia\Messenger\JobFailureMessage;
@@ -61,7 +62,7 @@ final class MailingSystemController
         private readonly TranslatorInterface $translator,
         private readonly LoggerInterface $logger,
         private readonly TokenProvider $tokens,
-        private readonly DataTransferJobAccess $admins,
+        private readonly CurrentAdministrator $administrator,
         #[Autowire(service: 'limiter.admin_test_mail')]
         private readonly RateLimiterFactoryInterface $testMailLimiter,
     ) {
@@ -116,38 +117,30 @@ final class MailingSystemController
             return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Invalid security token, please try again.')], Response::HTTP_FORBIDDEN);
         }
 
-        if (!$this->testMailLimiter->create((string) $this->admins->currentAdminId())->consume()->isAccepted()) {
+        if (!$this->testMailLimiter->create((string) $this->administrator->id())->consume()->isAccepted()) {
             return new JsonResponse(['success' => false, 'message' => $this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.')], Response::HTTP_TOO_MANY_REQUESTS);
         }
 
-        $contactEmail = (string) ConfigQuery::read('store_email', '');
-        $storeName = (string) ConfigQuery::read('store_name', 'Thelia');
-
-        if ($contactEmail === '') {
-            return new JsonResponse([
-                'success' => false,
-                'message' => $this->translator->trans('You have to configure your store email first !'),
-            ]);
-        }
-
-        $recipient = (string) $request->request->get('email', $contactEmail);
-        $subject = $this->translator->trans('Email test from : %store%', ['%store%' => $storeName]);
-        $html = '<p>'.$subject.'</p>';
+        $recipient = (string) $request->request->get('email', '');
+        $subject = $this->translator->trans('Email test from : %store%', ['%store%' => (string) ConfigQuery::read('store_name', 'Thelia')]);
 
         // Handed to the mail server now, even when the shop delivers its mails through a
         // queue: the point of a test is the server's answer.
         try {
-            $this->mailer->sendNow($this->mailer->createSimpleEmailMessage(
-                [$contactEmail => $storeName],
-                [$recipient => $storeName],
-                $subject,
-                $subject,
-                $html,
-            ));
+            $this->mailer->sendTestMail($recipient, $subject, '<p>'.$subject.'</p>');
 
             return new JsonResponse([
                 'success' => true,
                 'message' => $this->translator->trans('Your configuration seems to be ok. Checked out your mailbox : %email%', ['%email%' => $recipient]),
+            ]);
+        } catch (EmailNotSentException $notSent) {
+            if (!$notSent->isStoreEmailMissing()) {
+                return $this->failed($notSent);
+            }
+
+            return new JsonResponse([
+                'success' => false,
+                'message' => $this->translator->trans('You have to configure your store email first !'),
             ]);
         } catch (TransportExceptionInterface $refusal) {
             // What the mail server answered is what the administrator came for; the
@@ -163,13 +156,18 @@ final class MailingSystemController
                 'message' => $mistypedAddress->getMessage(),
             ]);
         } catch (\Throwable $exception) {
-            $this->logger->error(\sprintf('The test mail could not be sent: %s', JobFailureMessage::forLog($exception)));
-
-            return new JsonResponse([
-                'success' => false,
-                'message' => $this->translator->trans('The test mail could not be sent. The details are in the server log.'),
-            ]);
+            return $this->failed($exception);
         }
+    }
+
+    private function failed(\Throwable $exception): JsonResponse
+    {
+        $this->logger->error(\sprintf('The test mail could not be sent: %s', JobFailureMessage::forLog($exception)));
+
+        return new JsonResponse([
+            'success' => false,
+            'message' => $this->translator->trans('The test mail could not be sent. The details are in the server log.'),
+        ]);
     }
 
     /** @return array<string, mixed> */

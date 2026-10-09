@@ -16,7 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFailureMessage;
-use BackOfficeDefaultTwigBundle\Service\Admin\DataTransferJobAccess;
+use BackOfficeDefaultTwigBundle\Service\Admin\CurrentAdministrator;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Request;
@@ -49,6 +49,14 @@ final class MessagePreviewController
 {
     private const RESOURCE = AdminResources::MESSAGE;
 
+    /**
+     * What a preview may do in the browser: show itself, styled, with its images, and
+     * nothing else. A message template is edited by whoever may edit the messages, and
+     * previewed in the session of whoever may read them: a script it carries would run
+     * in that session, on the origin of the back office.
+     */
+    private const PREVIEW_POLICY = "default-src 'none'; style-src 'unsafe-inline'; img-src * data:; sandbox";
+
     public function __construct(
         private readonly AdminAccessChecker $access,
         private readonly TranslatorInterface $translator,
@@ -56,7 +64,7 @@ final class MessagePreviewController
         private readonly TemplateHelperInterface $templateHelper,
         private readonly MailerFactory $mailer,
         private readonly TokenProvider $tokens,
-        private readonly DataTransferJobAccess $admins,
+        private readonly CurrentAdministrator $administrator,
         private readonly LoggerInterface $logger,
         #[Autowire(service: 'limiter.admin_test_mail')]
         private readonly RateLimiterFactoryInterface $testMailLimiter,
@@ -72,10 +80,7 @@ final class MessagePreviewController
     #[Route(path: '/admin/message/preview/text/{messageId}', name: 'admin.email.preview_text', methods: ['GET'], requirements: ['messageId' => '\d+'])]
     public function previewText(Request $request, int $messageId): Response
     {
-        $response = $this->renderPreview($request, $messageId, false);
-        $response->headers->set('Content-Type', 'text/plain; charset=UTF-8');
-
-        return $response;
+        return $this->renderPreview($request, $messageId, false);
     }
 
     #[Route(path: '/admin/message/send/{messageId}', name: 'admin.email.test_send', methods: ['POST'], requirements: ['messageId' => '\d+'])]
@@ -90,21 +95,21 @@ final class MessagePreviewController
         try {
             $this->tokens->checkToken((string) $request->request->get('_token', ''));
         } catch (TokenAuthenticationException) {
-            return new Response($this->translator->trans('Invalid security token, please try again.'), Response::HTTP_FORBIDDEN);
+            return $this->plain($this->translator->trans('Invalid security token, please try again.'), Response::HTTP_FORBIDDEN);
         }
 
         $message = MessageQuery::create()->findPk($messageId);
         if ($message === null) {
-            return new Response($this->translator->trans('Message not found.'), Response::HTTP_NOT_FOUND);
+            return $this->plain($this->translator->trans('Message not found.'), Response::HTTP_NOT_FOUND);
         }
 
         $recipient = trim((string) $request->request->get('recipient_email', ''));
         if ($recipient === '') {
-            return new Response($this->translator->trans('Recipient email is required.'), Response::HTTP_BAD_REQUEST);
+            return $this->plain($this->translator->trans('Recipient email is required.'), Response::HTTP_BAD_REQUEST);
         }
 
-        if (!$this->testMailLimiter->create((string) $this->admins->currentAdminId())->consume()->isAccepted()) {
-            return new Response($this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.'), Response::HTTP_TOO_MANY_REQUESTS);
+        if (!$this->testMailLimiter->create((string) $this->administrator->id())->consume()->isAccepted()) {
+            return $this->plain($this->translator->trans('Too many test mails in a short time: wait a few minutes before the next one.'), Response::HTTP_TOO_MANY_REQUESTS);
         }
 
         // What the form sends besides the variables of the message.
@@ -114,14 +119,31 @@ final class MessagePreviewController
         try {
             $this->mailer->sendTestMessage($message->getName(), $recipient, $parameters, $this->resolveLocale($request));
 
-            return new Response($this->translator->trans('The message has been successfully sent to %recipient.', ['%recipient' => $recipient]));
-        } catch (EmailNotSentException) {
-            return new Response($this->translator->trans('You have to configure your store email first !'));
-        } catch (\Throwable $exception) {
-            $this->logger->error(\sprintf('A test message could not be sent: %s', JobFailureMessage::forLog($exception)));
+            return $this->plain($this->translator->trans('The message has been successfully sent to %recipient.', ['%recipient' => $recipient]));
+        } catch (EmailNotSentException $notSent) {
+            if ($notSent->isStoreEmailMissing()) {
+                return $this->plain($this->translator->trans('You have to configure your store email first !'), Response::HTTP_UNPROCESSABLE_ENTITY);
+            }
 
-            return new Response($this->translator->trans('Something goes wrong, the message was not sent to recipient. Error is : %err', ['%err' => AdminFailureMessage::of($exception, $this->translator)]));
+            return $this->notSent($notSent);
+        } catch (\Throwable $exception) {
+            return $this->notSent($exception);
         }
+    }
+
+    private function notSent(\Throwable $exception): Response
+    {
+        $this->logger->error(\sprintf('A test message could not be sent: %s', JobFailureMessage::forLog($exception)));
+
+        return $this->plain($this->translator->trans('Something goes wrong, the message was not sent to recipient. Error is : %err', ['%err' => AdminFailureMessage::of($exception, $this->translator)]), Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    /**
+     * The answer of a send, shown as it is in the page: never as HTML.
+     */
+    private function plain(string $text, int $status = Response::HTTP_OK): Response
+    {
+        return new Response($text, $status, ['Content-Type' => 'text/plain; charset=UTF-8']);
     }
 
     private function renderPreview(Request $request, int $messageId, bool $asHtml): Response
@@ -132,7 +154,7 @@ final class MessagePreviewController
 
         $message = MessageQuery::create()->findPk($messageId);
         if ($message === null) {
-            return new Response($this->translator->trans('Message not found.'), Response::HTTP_NOT_FOUND);
+            return $this->plain($this->translator->trans('Message not found.'), Response::HTTP_NOT_FOUND);
         }
 
         $mailTemplate = $this->templateHelper->getActiveMailTemplate();
@@ -152,7 +174,13 @@ final class MessagePreviewController
         }
 
         try {
-            $parser = $this->parserResolver->getParser($mailTemplate->getAbsolutePath(), null);
+            // The parser MailerFactory would send the message with: the one that claims the
+            // template file of the message, the default parser for a body stored in the
+            // database, which no file lets a parser claim.
+            $templateFileName = (string) ($message->getHtmlTemplateFileName() ?: $message->getTextTemplateFileName());
+            $parser = '' === $templateFileName
+                ? $this->parserResolver->getDefaultParser()
+                : $this->parserResolver->getParser($mailTemplate->getAbsolutePath(), pathinfo($templateFileName, \PATHINFO_FILENAME));
             $parser->setTemplateDefinition($mailTemplate, true);
 
             foreach ($request->query->all() as $key => $value) {
@@ -162,14 +190,21 @@ final class MessagePreviewController
             $message->setLocale($locale);
             $content = $asHtml ? $message->getHtmlMessageBody($parser) : $message->getTextMessageBody($parser);
         } catch (\Throwable $exception) {
-            return new Response($this->translator->trans("You probably didn't inject the missing variable to preview the message. Error is : %err", ['%err' => AdminFailureMessage::of($exception, $this->translator)]));
+            return $this->plain($this->translator->trans("You probably didn't inject the missing variable to preview the message. Error is : %err", ['%err' => AdminFailureMessage::of($exception, $this->translator)]), Response::HTTP_UNPROCESSABLE_ENTITY);
         } finally {
             if ($session instanceof TheliaSession && $previousAdminLang instanceof Lang) {
                 $session->setAdminLang($previousAdminLang);
             }
         }
 
-        return new Response($content);
+        if (!$asHtml) {
+            return $this->plain($content);
+        }
+
+        return new Response($content, Response::HTTP_OK, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Security-Policy' => self::PREVIEW_POLICY,
+        ]);
     }
 
     private function resolveLocale(Request $request): string
