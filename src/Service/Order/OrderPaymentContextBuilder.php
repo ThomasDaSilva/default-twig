@@ -61,6 +61,8 @@ final readonly class OrderPaymentContextBuilder
                 'payment_supports_capture' => false,
                 'payment_can_capture' => false,
                 'payment_can_settle' => false,
+                'payment_decimals' => 2,
+                'payment_step' => '0.01',
             ];
         }
 
@@ -78,6 +80,9 @@ final readonly class OrderPaymentContextBuilder
         );
 
         $currencyCode = $order->getCurrency()->getCode();
+        // Amounts read and typed in the smallest coin of the order currency: none for the
+        // yen, three for the Kuwaiti dinar.
+        $decimals = CurrencyMinorUnit::decimalsOf($currencyCode);
 
         return [
             'payment_journal_enabled' => true,
@@ -102,6 +107,8 @@ final readonly class OrderPaymentContextBuilder
             // Recording by hand the outcome of a line the provider never confirmed is a
             // decision on the money too: the same right.
             'payment_can_settle' => $mayCapture,
+            'payment_decimals' => $decimals,
+            'payment_step' => $decimals === 0 ? '1' : '0.'.str_repeat('0', $decimals - 1).'1',
         ];
     }
 }
