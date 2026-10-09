@@ -38,6 +38,7 @@ use Thelia\Core\Event\UpdatePositionEvent;
 use Thelia\Core\Hook\BaseHook;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Messenger\JobFailureMessage;
 use Thelia\Model\HookQuery;
 use Thelia\Model\IgnoredModuleHookQuery;
 use Thelia\Model\LangQuery;
@@ -323,12 +324,8 @@ final class ModuleHookController
 
     private function reportFailure(Request $request, string $actionLabel, \Throwable $exception): void
     {
-        $this->logger->error(
-            $this->translator->trans(
-                'Error during %action process: %error',
-                ['%action' => $this->translator->trans($actionLabel), '%error' => $exception->getMessage()],
-            ),
-        );
+        // By its class, code and place: the text of a database error quotes a customer.
+        $this->logger->error(\sprintf('Error during %s: %s', $actionLabel, JobFailureMessage::forLog($exception)));
 
         $this->flashBag($request)?->add(
             'danger',

@@ -19,6 +19,7 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\Session\Session;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Thelia\Messenger\JobFailureMessage;
 
 /**
  * Push a form validation error to the user through the session flash bag and attach a
@@ -39,35 +40,30 @@ readonly class AdminFormErrorRenderer
      */
     public function fail(string $actionLabel, \Throwable $exception, ?FormInterface $form = null): void
     {
-        $this->setup($actionLabel, AdminFailureMessage::of($exception, $this->translator), $form, $exception);
+        $this->refuse($actionLabel, AdminFailureMessage::of($exception, $this->translator), $form, $exception);
     }
 
-    public function setup(
+    /**
+     * Tells the administrator a refusal written for them, and logs it: the exception, if
+     * any, by its class, code and place, never by a text that may quote a customer.
+     */
+    public function refuse(
         string $actionLabel,
-        string $errorMessage,
+        string $refusal,
         ?FormInterface $form = null,
         ?\Throwable $exception = null,
     ): void {
-        $this->logger->error(
-            $this->translator->trans(
-                'Error during %action process: %error. Exception was %exc',
-                [
-                    '%action' => $actionLabel,
-                    '%error' => $errorMessage,
-                    '%exc' => $exception?->getMessage() ?? 'no exception',
-                ],
-            ),
-        );
+        $this->logger->error(\sprintf('Error during %s: %s', $actionLabel, null === $exception ? $refusal : JobFailureMessage::forLog($exception)));
 
         $session = $this->requestStack->getMainRequest()?->getSession();
         if ($session instanceof Session) {
-            $session->getFlashBag()->add('danger', $errorMessage);
+            $session->getFlashBag()->add('danger', $refusal);
         }
 
         if (null === $form) {
             return;
         }
 
-        $form->addError(new \Symfony\Component\Form\FormError($errorMessage));
+        $form->addError(new \Symfony\Component\Form\FormError($refusal));
     }
 }
