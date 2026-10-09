@@ -19,8 +19,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Serializer\SerializerManager;
+use Thelia\Domain\DataTransfer\Export\ExportStorage;
 use Thelia\Domain\DataTransfer\Job\JobStatus;
-use Thelia\Domain\DataTransfer\Service\ExportCachePurger;
 use Thelia\Model\ExportJob;
 
 /**
@@ -41,13 +41,13 @@ final readonly class ExportJobFile
     public function isAvailable(ExportJob $job): bool
     {
         return JobStatus::DONE === $job->getJobStatus()
-            && null !== ExportCachePurger::resolve((string) $job->getFilePath())
+            && null !== ExportStorage::resolve((string) $job->getFilePath())
             && (null !== $job->getArchiver() || $this->serializerManager->has($job->getSerializer()));
     }
 
     public function response(ExportJob $job): BinaryFileResponse
     {
-        $file = ExportCachePurger::resolve((string) $job->getFilePath())
+        $file = ExportStorage::resolve((string) $job->getFilePath())
             ?? throw new \RuntimeException(\sprintf('Export job %d names a file outside the export folder.', (int) $job->getId()));
 
         $archiverId = $job->getArchiver();
