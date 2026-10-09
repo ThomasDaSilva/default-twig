@@ -38,22 +38,27 @@ readonly class AdminFormErrorRenderer
     /**
      * Tells the administrator the action failed, in the words AdminFailureMessage lets
      * through, and logs it.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures when given, the only failures whose message is shown; any other is reported as an internal error
      */
-    public function fail(string $actionLabel, \Throwable $exception, ?FormInterface $form = null): void
+    public function fail(string $actionLabel, \Throwable $exception, ?FormInterface $form = null, array $trustedFailures = []): void
     {
-        $this->refuse($actionLabel, AdminFailureMessage::of($exception, $this->translator), $form, $exception);
+        $this->refuse($actionLabel, AdminFailureMessage::of($exception, $this->translator), $form, $exception, $trustedFailures);
     }
 
     /**
      * Tells the administrator a refusal written for them, and logs it: an exception as an
      * error, by its class, code and place, never by a text that may quote a customer; a
      * refusal without one as a warning, since nothing broke.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures when given, the only failures whose message is shown; any other is reported as an internal error
      */
     public function refuse(
         string $actionLabel,
         string $refusal,
         ?FormInterface $form = null,
         ?\Throwable $exception = null,
+        array $trustedFailures = [],
     ): void {
         if (null === $exception) {
             $this->logger->warning(\sprintf('%s refused: %s', $actionLabel, $refusal));
@@ -64,7 +69,7 @@ readonly class AdminFormErrorRenderer
         // The administrator reads what a rule refused, worded by the rule; the inside of
         // a database driver, an HTTP client or PHP itself — a table name, a query, a URL
         // with its key, a file path — only goes to the log written above.
-        $shownMessage = $this->isTechnical($exception)
+        $shownMessage = $this->isTechnical($exception) || !$this->isTrusted($exception, $trustedFailures)
             ? $this->translator->trans('The action failed on an internal error. The details are in the log.')
             : $refusal;
 
@@ -82,14 +87,38 @@ readonly class AdminFormErrorRenderer
 
     /**
      * Former name of refuse(), kept for the controllers and modules that still call it.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures
      */
     public function setup(
         string $actionLabel,
         string $errorMessage,
         ?FormInterface $form = null,
         ?\Throwable $exception = null,
+        array $trustedFailures = [],
     ): void {
-        $this->refuse($actionLabel, $errorMessage, $form, $exception);
+        $this->refuse($actionLabel, $errorMessage, $form, $exception, $trustedFailures);
+    }
+
+    /**
+     * An action whose failures may come from code the shop does not word — a module, a
+     * provider — names the failures that are its own rules: only those are shown.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures
+     */
+    private function isTrusted(?\Throwable $exception, array $trustedFailures): bool
+    {
+        if ($exception === null || $trustedFailures === []) {
+            return true;
+        }
+
+        foreach ($trustedFailures as $trustedFailure) {
+            if ($exception instanceof $trustedFailure) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

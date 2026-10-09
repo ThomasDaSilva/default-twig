@@ -117,6 +117,7 @@ readonly class AdminFormAction
      * @param array<string, scalar>                                $successParameters
      * @param callable(object): array<string, scalar>|null         $successParametersResolver Optional. Resolve the redirect parameters from the dispatched event (e.g. the id of an entity the action just created). Overrides $successParameters when provided.
      * @param callable(object): void|null                          $afterDispatch             Optional. Runs once the event is dispatched, before the success is logged: what the action does besides (the other rows an ordering moves). A failure is reported like the dispatch's own.
+     * @param list<class-string<\Throwable>>                       $trustedFailures           Optional. The failures whose message the administrator reads; any other is reported as an internal error. Empty shows every message but the technical ones.
      */
     public function tokenAction(
         string $resource,
@@ -131,6 +132,7 @@ readonly class AdminFormAction
         ?callable $renderError = null,
         ?callable $successParametersResolver = null,
         ?callable $afterDispatch = null,
+        array $trustedFailures = [],
     ): Response {
         if ($denied = $this->access->check($resource, [], $access)) {
             return $denied;
@@ -159,6 +161,7 @@ readonly class AdminFormAction
             $this->errorRenderer->fail(
                 $this->translator->trans($actionLabel),
                 $exception,
+                trustedFailures: $trustedFailures,
             );
 
             return $renderError !== null
