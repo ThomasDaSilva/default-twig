@@ -1551,6 +1551,7 @@ return [
     'Record the refund' => 'Enregistrer le remboursement',
     'The payment module of this order cannot refund through its provider: this records a refund made another way, such as a bank transfer. No money is sent.' => 'Le module de paiement de cette commande ne sait pas rembourser chez son prestataire : vous enregistrez ici un remboursement fait autrement, par virement par exemple. Aucun argent n’est envoyé.',
     'Choose why the money is given back.' => 'Indiquez pourquoi l’argent est rendu.',
+    'How this order can be refunded has changed since the page was loaded. Read the payment card again before refunding.' => 'La façon de rembourser cette commande a changé depuis l’affichage de la page. Relisez le bloc paiement avant de rembourser.',
     'The amount to refund must be a positive number.' => 'Le montant à rembourser doit être un nombre positif.',
     'Order payment refunded' => 'Paiement de commande remboursé',
     'Goods returned' => 'Articles retournés',

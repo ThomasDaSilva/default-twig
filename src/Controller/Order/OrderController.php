@@ -534,6 +534,14 @@ final class OrderController
 
         $comment = trim((string) $request->request->get('comment', ''));
         $offline = !$this->refundService->supportsRefund($order);
+
+        // The dialog said whether money would be sent: if the module changed its answer since,
+        // recording the refund the other way would not be what the administrator confirmed.
+        if ($request->request->get('mode') !== ($offline ? 'offline' : 'online')) {
+            $this->flash('danger', $this->translator->trans('How this order can be refunded has changed since the page was loaded. Read the payment card again before refunding.'));
+
+            return $detail;
+        }
         $event = new OrderPaymentRefundEvent($order, $amount, $reason, $comment === '' ? null : $comment, $offline);
 
         return $this->action->tokenAction(

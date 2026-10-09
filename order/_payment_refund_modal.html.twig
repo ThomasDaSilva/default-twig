@@ -15,6 +15,7 @@
     <div class="modal-dialog">
         <form method="post" action="{{ path('admin.order.update.paymentRefund', { order_id: order.id }) }}" data-testid="order-payment-refund-form">
             <input type="hidden" name="_token" value="{{ token }}">
+            <input type="hidden" name="mode" value="{{ mode }}">
             <div class="modal-content">
                 <div class="modal-header">
                     <h1 class="modal-title fs-5" id="order-payment-refund-modal-label">{{ mode == 'online' ? 'Refund'|trans : 'Record a refund'|trans }}</h1>
