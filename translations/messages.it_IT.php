@@ -1704,4 +1704,5 @@ return [
     'Descending' => 'Decrescente',
     'View details for %identifier%' => 'Visualizza i dettagli di %identifier%',
     'The action failed because of a server error. The details are in the server log.' => 'L\'azione non è riuscita a causa di un errore del server. I dettagli sono nel registro del server.',
+    'The dates of the export are not valid.' => 'Le date dell\'esportazione non sono valide.',
 ];

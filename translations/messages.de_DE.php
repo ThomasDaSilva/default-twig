@@ -1611,4 +1611,5 @@ return [
     'Descending' => 'Absteigend',
     'View details for %identifier%' => 'Details zu %identifier% anzeigen',
     'The action failed because of a server error. The details are in the server log.' => 'Die Aktion ist wegen eines Serverfehlers fehlgeschlagen. Die Einzelheiten stehen im Serverprotokoll.',
+    'The dates of the export are not valid.' => 'Die Daten des Exports sind ungültig.',
 ];
