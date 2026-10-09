@@ -1605,4 +1605,8 @@ return [
     'Unavailable: the module providing this export has been removed' => 'Niet beschikbaar: de module die deze export leverde, is verwijderd',
     'Unavailable: the module providing this import has been removed' => 'Niet beschikbaar: de module die deze import leverde, is verwijderd',
     'CSV template' => 'CSV-sjabloon',
+    'Direction' => 'Richting',
+    'Ascending' => 'Oplopend',
+    'Descending' => 'Aflopend',
+    'View details for %identifier%' => 'Details van %identifier% bekijken',
 ];

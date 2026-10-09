@@ -1605,4 +1605,8 @@ return [
     'Unavailable: the module providing this export has been removed' => 'Nedostupné: modul, který poskytoval tento export, byl odstraněn',
     'Unavailable: the module providing this import has been removed' => 'Nedostupné: modul, který poskytoval tento import, byl odstraněn',
     'CSV template' => 'Šablona CSV',
+    'Direction' => 'Směr',
+    'Ascending' => 'Vzestupně',
+    'Descending' => 'Sestupně',
+    'View details for %identifier%' => 'Zobrazit podrobnosti %identifier%',
 ];

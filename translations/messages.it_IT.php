@@ -1699,4 +1699,8 @@ return [
     'Unavailable: the module providing this export has been removed' => 'Non disponibile: il modulo che forniva questa esportazione è stato rimosso',
     'Unavailable: the module providing this import has been removed' => 'Non disponibile: il modulo che forniva questa importazione è stato rimosso',
     'CSV template' => 'Modello CSV',
+    'Direction' => 'Direzione',
+    'Ascending' => 'Crescente',
+    'Descending' => 'Decrescente',
+    'View details for %identifier%' => 'Visualizza i dettagli di %identifier%',
 ];

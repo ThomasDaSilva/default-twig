@@ -234,7 +234,10 @@ final class AdministratorController
     private function describe(AdministratorEvent $event, string $action): array
     {
         if (!$event->hasAdministrator()) {
-            throw new \LogicException($this->translator->trans('No administrator was '.$action.'.'));
+            // A key per action: one built from the action would never be found in a catalogue.
+            throw new \LogicException('created' === $action
+                ? $this->translator->trans('No administrator was created.')
+                : $this->translator->trans('No administrator was modified.'));
         }
 
         $admin = $event->getAdministrator();

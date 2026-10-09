@@ -235,7 +235,10 @@ final class ProfileController
     private function describeProfile(ProfileEvent $event, string $action): array
     {
         if (!$event->hasProfile()) {
-            throw new \LogicException($this->translator->trans('No profile was '.$action.'.'));
+            // A key per action: one built from the action would never be found in a catalogue.
+            throw new \LogicException('created' === $action
+                ? $this->translator->trans('No profile was created.')
+                : $this->translator->trans('No profile was modified.'));
         }
 
         $profile = $event->getProfile();
