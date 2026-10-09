@@ -1606,4 +1606,8 @@ return [
     'Unavailable: the module providing this export has been removed' => 'Недоступно: модуль, который предоставлял этот экспорт, удалён',
     'Unavailable: the module providing this import has been removed' => 'Недоступно: модуль, который предоставлял этот импорт, удалён',
     'CSV template' => 'Шаблон CSV',
+    'Direction' => 'Направление',
+    'Ascending' => 'По возрастанию',
+    'Descending' => 'По убыванию',
+    'View details for %identifier%' => 'Подробнее о %identifier%',
 ];
