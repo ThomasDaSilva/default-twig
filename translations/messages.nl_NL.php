@@ -1610,4 +1610,5 @@ return [
     'Descending' => 'Aflopend',
     'View details for %identifier%' => 'Details van %identifier% bekijken',
     'The action failed because of a server error. The details are in the server log.' => 'De actie is mislukt door een serverfout. De details staan in het serverlogboek.',
+    'The dates of the export are not valid.' => 'De datums van de export zijn ongeldig.',
 ];
