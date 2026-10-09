@@ -1,5 +1,6 @@
 import { Controller } from '@hotwired/stimulus';
 import { Modal } from 'bootstrap';
+import { backOfficeToken } from '../lib/post-request.js';
 
 /**
  * Powers the mailing template preview tab:
@@ -51,6 +52,7 @@ export default class extends Controller {
         }
 
         const formData = new FormData();
+        formData.append('_token', backOfficeToken());
         formData.append('recipient_email', recipient);
         for (const [key, value] of this.collectVariables()) {
             formData.append(key, value);

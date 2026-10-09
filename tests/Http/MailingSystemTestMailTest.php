@@ -84,11 +84,37 @@ final class MailingSystemTestMailTest extends WebIntegrationTestCase
         $message = MessageQuery::create()->findOne();
         self::assertNotNull($message);
 
-        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'admin@@example']);
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'admin@@example', '_token' => $this->token()]);
 
         $answer = (string) $this->client->getResponse()->getContent();
         self::assertStringNotContainsString('successfully sent', $answer);
         self::assertStringContainsString('admin@@example', $answer);
+    }
+
+    /**
+     * Sending a test message writes to whoever is named: a page of another site never
+     * makes the shop send one through the session of an administrator.
+     */
+    public function testATestMessageIsNeverSentWithoutTheToken(): void
+    {
+        $this->loginAs($this->factory->admin());
+        $this->client->request('GET', '/admin/configuration/mailingSystem');
+        $this->givenAStoreEmail();
+        $message = MessageQuery::create()->findOne();
+        self::assertNotNull($message);
+
+        $this->client->request('POST', '/admin/message/send/'.$message->getId(), ['recipient_email' => 'someone@example.com']);
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertStringNotContainsString('successfully sent', (string) $this->client->getResponse()->getContent());
+    }
+
+    private function token(): string
+    {
+        $html = (string) $this->client->request('GET', '/admin/configuration/mailingSystem')->html();
+        self::assertSame(1, preg_match('/<meta name="bo-token" content="([^"]+)"/', $html, $matches));
+
+        return $matches[1];
     }
 
     /**

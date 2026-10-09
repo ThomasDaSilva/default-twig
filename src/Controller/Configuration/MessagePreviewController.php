@@ -22,6 +22,7 @@ use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\HttpFoundation\Session\Session as TheliaSession;
 use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Template\Parser\ParserResolver;
 use Thelia\Core\Template\TemplateHelperInterface;
@@ -30,6 +31,7 @@ use Thelia\Model\ConfigQuery;
 use Thelia\Model\Lang;
 use Thelia\Model\LangQuery;
 use Thelia\Model\MessageQuery;
+use Thelia\Tools\TokenProvider;
 
 /**
  * Renders the HTML/text preview for a mailing template and sends sample emails.
@@ -48,6 +50,7 @@ final class MessagePreviewController
         private readonly ParserResolver $parserResolver,
         private readonly TemplateHelperInterface $templateHelper,
         private readonly MailerFactory $mailer,
+        private readonly TokenProvider $tokens,
     ) {
     }
 
@@ -71,6 +74,13 @@ final class MessagePreviewController
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
+        }
+
+        // It writes to whoever is named: never on the word of a page of another site.
+        try {
+            $this->tokens->checkToken((string) $request->request->get('_token', ''));
+        } catch (TokenAuthenticationException) {
+            return new Response($this->translator->trans('Invalid security token, please try again.'), Response::HTTP_FORBIDDEN);
         }
 
         $message = MessageQuery::create()->findPk($messageId);
