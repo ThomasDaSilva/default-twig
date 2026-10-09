@@ -24,7 +24,23 @@ use PHPUnit\Framework\TestCase;
  */
 final class DataTransferScreensTranslationTest extends TestCase
 {
-    private const SCREENS = ['export', 'import', 'configuration/background-jobs'];
+    private const TEMPLATES = [
+        'export/*.html.twig',
+        'import/*.html.twig',
+        'configuration/background-jobs/*.html.twig',
+        'fragments/_job_status.html.twig',
+    ];
+
+    private const PHP = [
+        'src/Controller/*Export*.php',
+        'src/Controller/*Import*.php',
+        'src/Controller/DataTransfer*.php',
+        'src/Controller/Configuration/BackgroundJobs*.php',
+        'src/Service/Admin/*Export*.php',
+        'src/Service/Admin/*Import*.php',
+        'src/Service/Admin/DataTransfer*.php',
+        'src/Service/Admin/BackgroundJobs*.php',
+    ];
 
     #[DataProvider('translatedLocales')]
     public function testEveryTextOfTheScreensIsTranslated(string $locale): void
@@ -47,19 +63,47 @@ final class DataTransferScreensTranslationTest extends TestCase
     }
 
     /**
-     * @return list<string> the texts the templates of the screens pass to |trans
+     * @return list<string> the texts the screens translate: in their templates, the
+     *                      labels of the job status badge, and in the PHP behind them
      */
     private static function texts(): array
     {
+        $root = \dirname(__DIR__, 3);
         $texts = [];
 
-        foreach (self::SCREENS as $screen) {
-            foreach (glob(\dirname(__DIR__, 3).'/'.$screen.'/*.html.twig') ?: [] as $template) {
-                preg_match_all("/'((?:[^'\\\\]|\\\\.)+)'\\s*\\|\\s*trans\\b/", (string) file_get_contents($template), $matches);
-                array_push($texts, ...array_map('stripslashes', $matches[1]));
-            }
+        foreach (self::files($root, self::TEMPLATES) as $template) {
+            $source = (string) file_get_contents($template);
+            // '…'|trans and "…"|trans, with or without arguments.
+            preg_match_all('/(\'|")((?:(?!\1)[^\\\\]|\\\\.)+)\1\s*\|\s*trans\b/', $source, $matches);
+            array_push($texts, ...array_map('stripslashes', $matches[2]));
+        }
+
+        // The badge translates a label it picks from a map.
+        preg_match('/set labels = \{([^}]*)\}/', (string) file_get_contents($root.'/fragments/_job_status.html.twig'), $labels);
+        preg_match_all("/:\s*'([^']+)'/", $labels[1] ?? '', $matches);
+        array_push($texts, ...$matches[1]);
+
+        foreach (self::files($root, self::PHP) as $class) {
+            preg_match_all("/->trans\(\s*'((?:[^'\\\\]|\\\\.)+)'/", (string) file_get_contents($class), $matches);
+            array_push($texts, ...array_map('stripslashes', $matches[1]));
         }
 
         return array_values(array_unique($texts));
+    }
+
+    /**
+     * @param list<string> $patterns
+     *
+     * @return list<string>
+     */
+    private static function files(string $root, array $patterns): array
+    {
+        $files = [];
+
+        foreach ($patterns as $pattern) {
+            array_push($files, ...(glob($root.'/'.$pattern) ?: []));
+        }
+
+        return $files;
     }
 }
