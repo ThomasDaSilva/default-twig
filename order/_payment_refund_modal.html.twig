@@ -1,0 +1,63 @@
+{#
+    The dialog that gives back all or part of what the order's payment collected.
+
+    Expects:
+      - order:    the Order model
+      - totals:   { captured, refunded, refundable }
+      - reasons:  list of { value, label }
+      - mode:     online (through the payment module) or offline (recorded as made outside the provider)
+      - currency: { symbol }
+      - decimals: the decimals of the order currency
+      - step:     its smallest coin, as the step of the input
+      - token:    CSRF token
+#}
+<div class="modal fade" id="order-payment-refund-modal" tabindex="-1" aria-labelledby="order-payment-refund-modal-label" aria-hidden="true" data-testid="order-payment-refund-modal">
+    <div class="modal-dialog">
+        <form method="post" action="{{ path('admin.order.update.paymentRefund', { order_id: order.id }) }}" data-testid="order-payment-refund-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="order-payment-refund-modal-label">{{ mode == 'online' ? 'Refund'|trans : 'Record a refund'|trans }}</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{{ 'Close'|trans }}"></button>
+                </div>
+                <div class="modal-body">
+                    {% if mode == 'offline' %}
+                        <div class="alert alert-warning small" data-testid="order-payment-refund-offline-notice">
+                            {{ 'The payment module of this order cannot refund through its provider: this records a refund made another way, such as a bank transfer. No money is sent.'|trans }}
+                        </div>
+                    {% endif %}
+                    <dl class="row small mb-3">
+                        <dt class="col-7">{{ 'Collected'|trans }}</dt>
+                        <dd class="col-5 text-end mb-0" dir="ltr">{{ totals.captured|number_format(decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+                        <dt class="col-7">{{ 'Refunded'|trans }}</dt>
+                        <dd class="col-5 text-end mb-0" dir="ltr">{{ totals.refunded|number_format(decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+                        <dt class="col-7 fw-semibold">{{ 'Left to refund'|trans }}</dt>
+                        <dd class="col-5 text-end mb-0 fw-semibold" dir="ltr">{{ totals.refundable|number_format(decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+                    </dl>
+                    <label for="order-payment-refund-amount" class="form-label">{{ 'Amount to refund'|trans }}</label>
+                    <div class="input-group mb-3">
+                        <input type="number" id="order-payment-refund-amount" name="amount" class="form-control"
+                               step="{{ step }}" min="{{ step }}" max="{{ totals.refundable|number_format(decimals, '.', '') }}"
+                               value="{{ totals.refundable|number_format(decimals, '.', '') }}" required
+                               data-testid="order-payment-refund-amount">
+                        <span class="input-group-text">{{ currency.symbol }}</span>
+                    </div>
+                    <label for="order-payment-refund-reason" class="form-label">{{ 'Reason'|trans }}</label>
+                    <select id="order-payment-refund-reason" name="reason" class="form-select mb-3" required data-testid="order-payment-refund-reason">
+                        {% for reason in reasons %}
+                            <option value="{{ reason.value }}">{{ reason.label }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="order-payment-refund-comment" class="form-label">{{ 'Comment (optional)'|trans }}</label>
+                    <textarea id="order-payment-refund-comment" name="comment" class="form-control" maxlength="255" rows="2"></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Close'|trans }}</button>
+                    <button type="submit" class="btn btn-primary" data-testid="order-payment-refund-submit">
+                        <i class="bi bi-arrow-counterclockwise" aria-hidden="true"></i> {{ mode == 'online' ? 'Refund now'|trans : 'Record the refund'|trans }}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
