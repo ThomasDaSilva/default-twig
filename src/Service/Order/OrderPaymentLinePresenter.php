@@ -19,6 +19,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\Order\Enum\OrderHistoryActorType;
 use Thelia\Domain\Payment\Enum\PaymentTransactionState;
 use Thelia\Domain\Payment\Enum\PaymentTransactionType;
+use Thelia\Domain\Payment\Service\PaymentRefundService;
 use Thelia\Domain\Payment\Service\PaymentTransactionRecorder;
 use Thelia\Model\OrderPaymentTransaction;
 
@@ -56,6 +57,8 @@ final readonly class OrderPaymentLinePresenter
 
     /** A void the provider made itself when the authorization lapsed: not an error. */
     public const EXPIRED_LABEL = 'Authorization expired';
+
+    public const OFFLINE_REFUND_LABEL = 'Refund made outside the provider';
 
     private const FALLBACK_BADGE = 'text-bg-secondary';
 
@@ -97,12 +100,15 @@ final readonly class OrderPaymentLinePresenter
         $expired = PaymentTransactionType::VOID->value === $type
             && PaymentTransactionState::SUCCEEDED->value === $state
             && PaymentTransactionRecorder::REASON_EXPIRED === $line->getErrorCode();
+        // Money given back outside the provider, recorded by hand: the merchant's note, not an error.
+        $offline = PaymentTransactionType::REFUND->value === $type && PaymentRefundService::ERROR_CODE_OFFLINE === $line->getErrorCode();
 
         return [
             'id' => (int) $line->getId(),
             'type' => $type,
             'type_label' => match (true) {
                 $expired => $this->trans(self::EXPIRED_LABEL, $locale),
+                $offline => $this->trans(self::OFFLINE_REFUND_LABEL, $locale),
                 isset(self::TYPE_LABELS[$type]) => $this->trans(self::TYPE_LABELS[$type], $locale),
                 default => $type,
             },
@@ -115,8 +121,9 @@ final readonly class OrderPaymentLinePresenter
             'actor' => $this->actorOf($line, $locale),
             'actor_type' => (string) $line->getActorType(),
             // The lapse is said by the label: it is no failure to show in red.
-            'error_code' => $expired ? null : $line->getErrorCode(),
-            'error_message' => $expired ? null : $line->getErrorMessage(),
+            'error_code' => $expired || $offline ? null : $line->getErrorCode(),
+            'error_message' => $expired || $offline ? null : $line->getErrorMessage(),
+            'note' => $offline ? $line->getErrorMessage() : null,
             'created_at' => $line->getCreatedAt(),
         ];
     }
