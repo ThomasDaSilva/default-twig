@@ -37,6 +37,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Model\Area;
 use Thelia\Model\AreaQuery;
+use Thelia\Model\AreaZipCodeRuleQuery;
 use Thelia\Model\CountryArea;
 use Thelia\Model\CountryAreaQuery;
 use Thelia\Model\CountryQuery;
@@ -158,6 +159,8 @@ final class AreaController
             'countries_in_area' => $this->collectAssignments((int) $area->getId()),
             'countries_data_url' => $this->urls->generate('admin.configuration.countries.data'),
             'unassigned_country_ids' => $this->unassignedCountryIds(),
+            'zip_code_rules' => $this->zipCodeRules((int) $area->getId()),
+            'zone_countries' => $this->zoneCountries((int) $area->getId()),
         ]));
     }
 
@@ -319,6 +322,45 @@ final class AreaController
         }
 
         return $label;
+    }
+
+    /** @return list<array{id: int, pattern: string, excluded: bool, country: string|null}> */
+    private function zipCodeRules(int $areaId): array
+    {
+        $countryTitles = $this->countryStates->countryTitles($this->defaultLocale());
+        $rules = [];
+
+        foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->orderByExcluded()->orderByPattern()->find() as $rule) {
+            $countryId = $rule->getCountryId();
+            $rules[] = [
+                'id' => (int) $rule->getId(),
+                'pattern' => (string) $rule->getPattern(),
+                'excluded' => (bool) $rule->getExcluded(),
+                'country' => null === $countryId ? null : ($countryTitles[$countryId] ?? null),
+            ];
+        }
+
+        return $rules;
+    }
+
+    /**
+     * The countries of the zone a rule can be written for, once each even when the zone
+     * holds several of their states.
+     *
+     * @return array<int, string>
+     */
+    private function zoneCountries(int $areaId): array
+    {
+        $countryTitles = $this->countryStates->countryTitles($this->defaultLocale());
+        $countries = [];
+
+        foreach (CountryAreaQuery::create()->filterByAreaId($areaId)->find() as $countryArea) {
+            $countryId = (int) $countryArea->getCountryId();
+            $countries[$countryId] = $countryTitles[$countryId] ?? (string) $countryId;
+        }
+        asort($countries);
+
+        return $countries;
     }
 
     /** @return list<int> */
