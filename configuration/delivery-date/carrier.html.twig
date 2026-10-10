@@ -1,0 +1,168 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Delivery dates of "%title"'|trans({ '%title': module.title }) }}{% endblock %}
+{% block body_testid %}delivery-date-carrier{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.delivery-date.list') }}">{{ 'Delivery dates'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ module.title }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set can_update = is_granted('UPDATE', 'admin.configuration.delivery-date') %}
+    <div class="container-fluid" data-testid="delivery-date-carrier-page">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <h1 class="h3 mb-0">{{ 'Delivery dates of "%title"'|trans({ '%title': module.title }) }}</h1>
+            <div class="d-flex gap-2 align-items-center">
+                {{ component('BoLanguageSwitcher', { currentLanguageId: edit_language_id }) }}
+                <a href="{{ path('admin.delivery-date.list') }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-x-lg me-1" aria-hidden="true"></i>{{ 'Close'|trans }}
+                </a>
+            </div>
+        </div>
+
+        {% if accepted_modes is empty %}
+            <div class="alert alert-info">{{ 'This carrier does not accept delivery dates'|trans }}</div>
+        {% else %}
+            <div class="row g-3">
+                <div class="col-xl-5">
+                    <div class="card mb-3">
+                        <div class="card-header"><h2 class="h6 mb-0">{{ 'What customers pick'|trans }}</h2></div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ path('admin.delivery-date.carrier.save', { module_id: module.id }) }}" data-testid="delivery-date-rule-form">
+                                <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                <input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">
+                                <fieldset {% if not can_update %}disabled{% endif %}>
+                                    <div class="mb-3">
+                                        <label for="bo-delivery-date-choice-mode" class="form-label">{{ 'Choice offered at checkout'|trans }}</label>
+                                        <select id="bo-delivery-date-choice-mode" name="choice_mode" class="form-select">
+                                            <option value="none" {% if rule.choice_mode == 'none' %}selected{% endif %}>{{ 'No date: the delivery step is unchanged'|trans }}</option>
+                                            {% if 'date' in accepted_modes %}
+                                                <option value="date" {% if rule.choice_mode == 'date' %}selected{% endif %}>{{ 'A day'|trans }}</option>
+                                            {% endif %}
+                                            {% if 'slot' in accepted_modes %}
+                                                <option value="slot" {% if rule.choice_mode == 'slot' %}selected{% endif %}>{{ 'A slot of a day'|trans }}</option>
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                    <div class="row g-2 mb-3">
+                                        <div class="col-sm-6">
+                                            <label for="bo-delivery-date-delay" class="form-label">{{ 'First day offered'|trans }}</label>
+                                            <input type="number" min="0" max="366" step="1" id="bo-delivery-date-delay" name="minimum_delay_days" value="{{ rule.minimum_delay_days }}" class="form-control" required aria-describedby="bo-delivery-date-delay-help">
+                                            <div id="bo-delivery-date-delay-help" class="form-text">{{ 'In days from today; 0 offers today.'|trans }}</div>
+                                        </div>
+                                        <div class="col-sm-6">
+                                            <label for="bo-delivery-date-horizon" class="form-label">{{ 'Last day offered'|trans }}</label>
+                                            <input type="number" min="0" max="366" step="1" id="bo-delivery-date-horizon" name="horizon_days" value="{{ rule.horizon_days }}" class="form-control" required aria-describedby="bo-delivery-date-horizon-help">
+                                            <div id="bo-delivery-date-horizon-help" class="form-text">{{ 'In days from today.'|trans }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="form-check mb-2">
+                                        <input class="form-check-input" type="checkbox" name="follows_shop" value="1" id="bo-delivery-date-follows-shop" {% if rule.follows_shop %}checked{% endif %}>
+                                        <label class="form-check-label" for="bo-delivery-date-follows-shop">{{ 'Same closed days as the shop'|trans }}</label>
+                                    </div>
+                                    {% include '@BackOfficeDefaultTwig/configuration/delivery-date/_weekdays.html.twig' with {
+                                        weekdays: weekdays,
+                                        closed: rule.closed_weekdays,
+                                        legend: 'Closed every week (when not the same as the shop)'|trans,
+                                        testid: 'delivery-date-carrier-weekdays',
+                                    } only %}
+                                    {% if can_update %}
+                                        <button type="submit" class="btn btn-primary">{{ 'Save'|trans }}</button>
+                                    {% endif %}
+                                </fieldset>
+                            </form>
+                            {% if rule.choice_mode != 'none' and effective_mode == 'none' %}
+                                <div class="alert alert-warning mt-3 mb-0">{{ 'This carrier no longer accepts this kind of date: customers are offered none.'|trans }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-7">
+                    <div class="card mb-3" data-testid="delivery-date-slots">
+                        <div class="card-header"><h2 class="h6 mb-0">{{ 'Slots'|trans }}</h2></div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                {{ 'Offered on every open day when customers pick a slot. A slot with a capacity is no longer offered once it holds that many orders on a day; leave it empty for no limit. Placed orders keep their hours when a slot is changed or deleted.'|trans }}
+                            </p>
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead>
+                                        <tr>
+                                            <th>{{ 'Name (%locale)'|trans({ '%locale': edit_locale }) }}</th>
+                                            <th>{{ 'From'|trans }}</th>
+                                            <th>{{ 'To'|trans }}</th>
+                                            <th>{{ 'Capacity (orders)'|trans }}</th>
+                                            <th class="text-center">{{ 'Actions'|trans }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for slot in slots %}
+                                            <tr data-testid="delivery-date-slot-{{ slot.id }}">
+                                                <td>
+                                                    <input form="bo-delivery-slot-{{ slot.id }}" type="text" name="title" value="{{ slot.title }}" class="form-control form-control-sm" maxlength="255" aria-label="{{ 'Name'|trans }}" {% if not can_update %}disabled{% endif %}>
+                                                </td>
+                                                <td><input form="bo-delivery-slot-{{ slot.id }}" type="time" name="start_time" value="{{ slot.start }}" class="form-control form-control-sm" required aria-label="{{ 'From'|trans }}" {% if not can_update %}disabled{% endif %}></td>
+                                                <td><input form="bo-delivery-slot-{{ slot.id }}" type="time" name="end_time" value="{{ slot.end }}" class="form-control form-control-sm" required aria-label="{{ 'To'|trans }}" {% if not can_update %}disabled{% endif %}></td>
+                                                <td><input form="bo-delivery-slot-{{ slot.id }}" type="number" min="1" step="1" name="capacity" value="{{ slot.capacity }}" class="form-control form-control-sm" aria-label="{{ 'Capacity (orders)'|trans }}" {% if not can_update %}disabled{% endif %}></td>
+                                                <td class="text-center text-nowrap">
+                                                    {% if can_update %}
+                                                        <form method="POST" id="bo-delivery-slot-{{ slot.id }}" action="{{ path('admin.delivery-date.slot.save', { slot_id: slot.id }) }}" class="d-inline">
+                                                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                                            <input type="hidden" name="locale" value="{{ edit_locale }}">
+                                                            <input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="{{ 'Save'|trans }}" aria-label="{{ 'Save'|trans }}"><i class="bi bi-check-lg" aria-hidden="true"></i></button>
+                                                        </form>
+                                                        <form method="POST" action="{{ path('admin.delivery-date.slot.delete', { slot_id: slot.id }) }}" class="d-inline">
+                                                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                                            <input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">
+                                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ 'Delete this slot'|trans }}" aria-label="{{ 'Delete this slot'|trans }}"><i class="bi bi-trash" aria-hidden="true"></i></button>
+                                                        </form>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% else %}
+                                            <tr><td colspan="5"><div class="text-center text-muted">{{ 'No slot yet.'|trans }}</div></td></tr>
+                                        {% endfor %}
+                                    </tbody>
+                                    {% if can_update %}
+                                        <tfoot>
+                                            <tr data-testid="delivery-date-slot-add">
+                                                <td><input form="bo-delivery-slot-add" type="text" name="title" class="form-control form-control-sm" maxlength="255" placeholder="{{ 'Morning'|trans }}" aria-label="{{ 'Name'|trans }}"></td>
+                                                <td><input form="bo-delivery-slot-add" type="time" name="start_time" class="form-control form-control-sm" required aria-label="{{ 'From'|trans }}"></td>
+                                                <td><input form="bo-delivery-slot-add" type="time" name="end_time" class="form-control form-control-sm" required aria-label="{{ 'To'|trans }}"></td>
+                                                <td><input form="bo-delivery-slot-add" type="number" min="1" step="1" name="capacity" class="form-control form-control-sm" aria-label="{{ 'Capacity (orders)'|trans }}"></td>
+                                                <td class="text-center">
+                                                    <form method="POST" id="bo-delivery-slot-add" action="{{ path('admin.delivery-date.slot.add', { module_id: module.id }) }}">
+                                                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                                        <input type="hidden" name="locale" value="{{ edit_locale }}">
+                                                        <input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">
+                                                        <button type="submit" class="btn btn-sm btn-primary"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>{{ 'Add'|trans }}</button>
+                                                    </form>
+                                                </td>
+                                            </tr>
+                                        </tfoot>
+                                    {% endif %}
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% include '@BackOfficeDefaultTwig/configuration/delivery-date/_closures.html.twig' with {
+                title: 'Exceptional closures of this carrier'|trans,
+                module_id: module.id,
+                closures: closures,
+                edit_language_id: edit_language_id,
+            } only %}
+        {% endif %}
+    </div>
+{% endblock %}

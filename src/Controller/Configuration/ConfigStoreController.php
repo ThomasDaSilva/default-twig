@@ -149,6 +149,8 @@ final class ConfigStoreController
             'store_legal_mentions' => (string) ConfigQuery::read('store_legal_mentions', ''),
             'store_email' => ConfigQuery::read('store_email'),
             'store_notification_emails' => ConfigQuery::read('store_notification_emails'),
+            // On unless switched off: a shop without the row still sends the e-mail.
+            'order_shipped_email_enabled' => '0' === (string) ConfigQuery::read('order_shipped_email_enabled', '1') ? '0' : '1',
             'store_phone' => ConfigQuery::read('store_phone'),
             'store_fax' => ConfigQuery::read('store_fax'),
             'store_address1' => ConfigQuery::read('store_address1'),

@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Order;
 
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
+use Thelia\Domain\Order\Service\OrderTrackingUrlResolver;
 use Thelia\Model\ModuleQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderConsent;
@@ -26,8 +27,13 @@ final readonly class OrderDetailContextBuilder
 {
     private const FALLBACK_STATUS_COLOR = '#6c757d';
 
+    /**
+     * The tracking resolver is optional so the order page keeps working on a core that
+     * predates the tracking link.
+     */
     public function __construct(
         private UrlGeneratorInterface $urls,
+        private ?OrderTrackingUrlResolver $trackingUrlResolver = null,
     ) {
     }
 
@@ -185,6 +191,12 @@ final readonly class OrderDetailContextBuilder
                     ?: (string) $order->getDeliveryModuleTitle(),
                 'module_description' => $this->moduleDescription((int) $order->getDeliveryModuleId(), $locale),
                 'delivery_ref' => (string) $order->getDeliveryRef(),
+                'tracking_url' => $this->trackingUrlResolver?->resolve($order),
+                // The day and the hours the buyer asked for, frozen on the order: a slot
+                // edited or deleted afterwards does not change them.
+                'delivery_date' => $order->getDeliveryDay(),
+                'delivery_slot_start' => $order->getDeliverySlotStartsAt(),
+                'delivery_slot_end' => $order->getDeliverySlotEndsAt(),
             ],
             'coupons' => $coupons,
             'consents' => $consents,

@@ -35,6 +35,7 @@ use Thelia\Core\Security\SecurityContext;
 use Thelia\Core\Security\User\UserInterface;
 use Thelia\Domain\Legal\Enum\VatVerificationStatus;
 use Thelia\Domain\Legal\Service\VatNumberVerifierInterface;
+use Thelia\Domain\Legal\VatVerificationResult;
 use Thelia\Model\AddressQuery;
 use Thelia\Tools\TokenProvider;
 
@@ -92,16 +93,6 @@ final readonly class AddressVatVerificationController
             return $customerRoute;
         }
 
-        // Everything above is free; from here on an outside authority is
-        // reached, so the throttle sits between the token and the call.
-        $adminUser = $this->securityContext->getAdminUser();
-
-        if (!$this->rateLimiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
-            $this->flash('warning', $this->translator->trans('Too many verifications in a row. Try again in a few minutes.'));
-
-            return $customerRoute;
-        }
-
         $vatNumber = (string) $address->getVatNumber();
 
         if ('' === $vatNumber || !$this->availability->isAvailable()) {
@@ -110,7 +101,21 @@ final readonly class AddressVatVerificationController
             return $customerRoute;
         }
 
-        $result = $this->verifier->verify($vatNumber, (string) $address->getCountry()->getIsoalpha2());
+        // Everything above is free; from here on an outside authority is
+        // reached, so the throttle sits between the checks and the call.
+        $adminUser = $this->securityContext->getAdminUser();
+
+        if (!$this->rateLimiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
+            $this->flash('warning', $this->translator->trans('Too many verifications in a row. Try again in a few minutes.'));
+
+            return $customerRoute;
+        }
+
+        try {
+            $result = $this->verifier->verify($vatNumber, (string) $address->getCountry()->getIsoalpha2());
+        } catch (\Throwable) {
+            $result = VatVerificationResult::undetermined();
+        }
 
         if (VatVerificationStatus::UNDETERMINED !== $result->status) {
             $this->events->dispatch(new VatNumberVerifiedEvent($address, $result), TheliaEvents::VAT_NUMBER_VERIFIED);

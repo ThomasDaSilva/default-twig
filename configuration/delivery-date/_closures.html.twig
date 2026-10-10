@@ -1,0 +1,67 @@
+{# The exceptional closures of the shop (module_id 0) or of one carrier, with the form that adds one. #}
+<div class="card" data-testid="delivery-date-closures">
+    <div class="card-header">
+        <h2 class="h6 mb-0">{{ title }}</h2>
+    </div>
+    <div class="card-body">
+        <p class="text-muted small">{{ 'No delivery is offered from the first day to the last one, both included.'|trans }}</p>
+        {% if is_granted('UPDATE', 'admin.configuration.delivery-date') %}
+            <form method="POST" action="{{ path('admin.delivery-date.closure.add') }}" class="row g-2 align-items-end mb-3" data-testid="delivery-date-closure-add-form">
+                <input type="hidden" name="_token" value="{{ assignToken() }}">
+                <input type="hidden" name="module_id" value="{{ module_id }}">
+                {% if edit_language_id is defined %}<input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">{% endif %}
+                <div class="col-sm-3">
+                    <label for="bo-delivery-closure-start-{{ module_id }}" class="form-label">{{ 'First day'|trans }}</label>
+                    <input type="date" id="bo-delivery-closure-start-{{ module_id }}" name="start_date" class="form-control" required>
+                </div>
+                <div class="col-sm-3">
+                    <label for="bo-delivery-closure-end-{{ module_id }}" class="form-label">{{ 'Last day'|trans }}</label>
+                    <input type="date" id="bo-delivery-closure-end-{{ module_id }}" name="end_date" class="form-control" required>
+                </div>
+                <div class="col-sm-4">
+                    <label for="bo-delivery-closure-label-{{ module_id }}" class="form-label">{{ 'Note (not shown to customers)'|trans }}</label>
+                    <input type="text" id="bo-delivery-closure-label-{{ module_id }}" name="label" class="form-control" maxlength="255">
+                </div>
+                <div class="col-sm-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-plus-lg me-1" aria-hidden="true"></i>{{ 'Add'|trans }}
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle mb-0 bo-table-wrap">
+                <thead>
+                    <tr>
+                        <th>{{ 'First day'|trans }}</th>
+                        <th>{{ 'Last day'|trans }}</th>
+                        <th>{{ 'Note'|trans }}</th>
+                        <th class="text-center">{{ 'Actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for closure in closures %}
+                        <tr data-testid="delivery-date-closure-{{ closure.id }}" class="{{ closure.past ? 'text-muted' : '' }}">
+                            <td>{{ closure.start|format_date('medium') }}</td>
+                            <td>{{ closure.end|format_date('medium') }}</td>
+                            <td>{{ closure.label }}</td>
+                            <td class="text-center">
+                                {% if is_granted('UPDATE', 'admin.configuration.delivery-date') %}
+                                    <form method="POST" action="{{ path('admin.delivery-date.closure.delete', { closure_id: closure.id }) }}" class="d-inline">
+                                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                        {% if edit_language_id is defined %}<input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">{% endif %}
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="{{ 'Delete this closure'|trans }}" aria-label="{{ 'Delete this closure'|trans }}">
+                                            <i class="bi bi-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="4"><div class="text-center text-muted">{{ 'No closure.'|trans }}</div></td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>

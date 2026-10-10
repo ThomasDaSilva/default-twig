@@ -66,6 +66,12 @@
                         <div class="card-body">
                             {{ form_row(form.store_email) }}
                             {{ form_row(form.store_notification_emails) }}
+
+                            <div class="form-check" data-testid="config-store-order-shipped-email">
+                                {{ form_widget(form.order_shipped_email_enabled, { attr: { class: 'form-check-input' } }) }}
+                                {{ form_label(form.order_shipped_email_enabled, null, { label_attr: { class: 'form-check-label' } }) }}
+                                {{ form_help(form.order_shipped_email_enabled) }}
+                            </div>
                         </div>
                     </div>
 

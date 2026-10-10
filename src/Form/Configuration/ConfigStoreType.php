@@ -67,6 +67,7 @@ final class ConfigStoreType extends AbstractType
         'store_vat_exempt',
         'store_registration_exempt',
         'admin_two_factor_required',
+        'order_shipped_email_enabled',
     ];
 
     public function __construct(
@@ -159,6 +160,11 @@ final class ConfigStoreType extends AbstractType
                 'constraints' => [new NotBlank(), new Callback($this->checkEmailList(...))],
                 'label' => $this->translator->trans('Email addresses of notification recipients'),
                 'help' => $this->translator->trans('A comma separated list of email addresses.'),
+            ])
+            ->add('order_shipped_email_enabled', CheckboxType::class, [
+                'required' => false,
+                'label' => $this->translator->trans('Send the customer an email when their order is shipped'),
+                'help' => $this->translator->trans('Sent when an order enters the "Sent" status, with the carrier, the tracking number and the tracking link. Turn it off when the customer is notified another way.'),
             ])
             ->add('store_phone', TextType::class, [
                 'required' => false,

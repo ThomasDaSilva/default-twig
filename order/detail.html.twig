@@ -562,6 +562,22 @@
                         {% endif %}
                         {% if delivery.delivery_ref %}
                             <p class="mb-1 text-muted">{{ 'Tracking reference'|trans }}: <code>{{ delivery.delivery_ref }}</code></p>
+                            {% if delivery.tracking_url|default(null) %}
+                                <p class="mb-1">
+                                    <a href="{{ delivery.tracking_url }}" target="_blank" rel="noopener noreferrer" data-testid="order-delivery-tracking-link">
+                                        <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>{{ 'Track the parcel on the carrier site'|trans }}
+                                    </a>
+                                </p>
+                            {% endif %}
+                        {% endif %}
+                        {% if delivery.delivery_date %}
+                            <p class="mb-1" data-testid="order-delivery-date">
+                                <i class="bi bi-calendar-week me-1" aria-hidden="true"></i>{{ 'Requested delivery'|trans }}:
+                                <strong>{{ delivery.delivery_date|format_date('full') }}</strong>
+                                {% if delivery.delivery_slot_start %}
+                                    {{ 'from %start to %end'|trans({ '%start': delivery.delivery_slot_start, '%end': delivery.delivery_slot_end }) }}
+                                {% endif %}
+                            </p>
                         {% endif %}
                         {{ safe_hook('order-edit.delivery-module-bottom', { order_id: order.id, module: delivery.module_id, module_id: delivery.module_id }) }}
                     </div>

@@ -429,4 +429,13 @@ return [
     'File' => 'File',
     'Import' => 'Import',
     'Delete this failed job? It can no longer be replayed.' => 'Delete this failed job? It can no longer be replayed.',
+    'Track the parcel on the carrier site' => 'Track the parcel on the carrier site',
+    'Parcel tracking' => 'Parcel tracking',
+    'Tracking address' => 'Tracking address',
+    '%ID% is replaced by the tracking number of the order. Leave empty when the carrier has no tracking page.' => '%ID% is replaced by the tracking number of the order. Leave empty when the carrier has no tracking page.',
+    'This module builds the tracking link of its parcels itself.' => 'This module builds the tracking link of its parcels itself.',
+    'The tracking address has been saved.' => 'The tracking address has been saved.',
+    'The tracking address must start with http:// or https:// and contain %ID% after the domain name. %ID% is replaced by the tracking number.' => 'The tracking address must start with http:// or https:// and contain %ID% after the domain name. %ID% is replaced by the tracking number.',
+    'Send the customer an email when their order is shipped' => 'Send the customer an email when their order is shipped',
+    'Sent when an order enters the "Sent" status, with the carrier, the tracking number and the tracking link. Turn it off when the customer is notified another way.' => 'Sent when an order enters the "Sent" status, with the carrier, the tracking number and the tracking link. Turn it off when the customer is notified another way.',
 ];

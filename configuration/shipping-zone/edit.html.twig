@@ -51,6 +51,29 @@
                         {% endif %}
                     </div>
                 </div>
+                {% if tracking.supported %}
+                    <div class="card mt-3" data-testid="shipping-zones-tracking-url">
+                        <div class="card-header">{{ 'Parcel tracking'|trans }}</div>
+                        <div class="card-body">
+                            {% if tracking.provided_by_module %}
+                                <p class="mb-0 text-muted small" data-testid="shipping-zones-tracking-url-provided">{{ 'This module builds the tracking link of its parcels itself.'|trans }}</p>
+                            {% else %}
+                                <form method="POST" action="{{ path('admin.configuration.shipping-zones.tracking-url.update') }}" data-testid="shipping-zones-tracking-url-form">
+                                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                    <input type="hidden" name="delivery_module_id" value="{{ delivery_module_id }}">
+
+                                    <label for="bo-shipping-zones-tracking-url" class="form-label">{{ 'Tracking address'|trans }}</label>
+                                    <input type="text" inputmode="url" spellcheck="false" id="bo-shipping-zones-tracking-url" name="tracking_url" class="form-control" value="{{ tracking.template }}" placeholder="https://www.example.com/tracking?number=%ID%" aria-describedby="bo-shipping-zones-tracking-url-help" data-testid="shipping-zones-tracking-url-input">
+                                    <div id="bo-shipping-zones-tracking-url-help" class="form-text">{{ '%ID% is replaced by the tracking number of the order. Leave empty when the carrier has no tracking page.'|trans }}</div>
+
+                                    {% if is_granted('UPDATE', 'admin.configuration.shipping-zone') %}
+                                        <button type="submit" class="btn btn-primary btn-sm mt-2" data-testid="shipping-zones-tracking-url-submit">{{ 'Save'|trans }}</button>
+                                    {% endif %}
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
             </div>
 
             <div class="col-md-8">

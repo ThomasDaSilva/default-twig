@@ -1,0 +1,98 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Delivery dates'|trans }}{% endblock %}
+{% block body_testid %}delivery-date-list{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Delivery dates'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="delivery-date-page">
+        <h1 class="h3 mb-1">{{ 'Delivery dates'|trans }}</h1>
+        <p class="text-muted">{{ 'Let customers pick the day, or a slot of a day, they are delivered on. Only carriers that accept dates can offer them; the others keep the delivery step as it is.'|trans }}</p>
+
+        <div class="row g-3">
+            <div class="col-xl-5">
+                <div class="card mb-3" data-testid="delivery-date-shop">
+                    <div class="card-header"><h2 class="h6 mb-0">{{ 'Days the shop does not deliver'|trans }}</h2></div>
+                    <div class="card-body">
+                        <form method="POST" action="{{ path('admin.delivery-date.shop.save') }}" data-testid="delivery-date-shop-form">
+                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                            {% include '@BackOfficeDefaultTwig/configuration/delivery-date/_weekdays.html.twig' with {
+                                weekdays: weekdays,
+                                closed: shop_closed_weekdays,
+                                legend: 'Closed every week'|trans,
+                                testid: 'delivery-date-shop-weekdays',
+                                disabled: not is_granted('UPDATE', 'admin.configuration.delivery-date'),
+                            } only %}
+                            <p class="text-muted small">{{ 'A carrier follows these days unless it sets its own.'|trans }}</p>
+                            {% if is_granted('UPDATE', 'admin.configuration.delivery-date') %}
+                                <button type="submit" class="btn btn-primary">{{ 'Save'|trans }}</button>
+                            {% endif %}
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-7">
+                <div class="card mb-3">
+                    <div class="card-header"><h2 class="h6 mb-0">{{ 'Carriers'|trans }}</h2></div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-striped align-middle mb-0 bo-table-wrap" data-testid="delivery-date-carriers">
+                                <thead>
+                                    <tr>
+                                        <th>{{ 'Carrier'|trans }}</th>
+                                        <th>{{ 'Customers pick'|trans }}</th>
+                                        <th class="text-center">{{ 'Actions'|trans }}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for carrier in carriers %}
+                                        <tr data-testid="delivery-date-carrier-{{ carrier.code }}">
+                                            <td>
+                                                {{ carrier.title }}
+                                                {% if not carrier.active %}<span class="badge text-bg-secondary ms-1">{{ 'Inactive'|trans }}</span>{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if not carrier.accepts_dates %}
+                                                    <span class="text-muted">{{ 'This carrier does not accept delivery dates'|trans }}</span>
+                                                {% elseif carrier.choice_mode == 'date' %}
+                                                    {{ 'A day'|trans }}
+                                                {% elseif carrier.choice_mode == 'slot' %}
+                                                    {{ 'A slot of a day'|trans }}
+                                                {% else %}
+                                                    {{ 'Nothing'|trans }}
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                {% if carrier.accepts_dates %}
+                                                    <a href="{{ path('admin.delivery-date.carrier', { module_id: carrier.id }) }}" class="btn btn-sm btn-outline-primary" data-testid="delivery-date-carrier-edit-{{ carrier.code }}">
+                                                        <i class="bi bi-pencil me-1" aria-hidden="true"></i>{{ 'Configure'|trans }}
+                                                    </a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% include '@BackOfficeDefaultTwig/configuration/delivery-date/_closures.html.twig' with {
+            title: 'Exceptional closures of the shop'|trans,
+            module_id: 0,
+            closures: shop_closures,
+        } only %}
+    </div>
+{% endblock %}
