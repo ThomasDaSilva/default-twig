@@ -2407,4 +2407,5 @@ return [
     'The order has been edited: its total went from %before to %after.' => 'La commande a été modifiée : son total est passé de %before à %after.',
     'Lines edited, total %before% → %after%' => 'Lignes modifiées, total %before% → %after%',
     'When an order in this status is edited' => 'Quand une commande dans ce statut est modifiée',
+    'The form did not send every line of the order: open it again.' => 'Le formulaire n\'a pas transmis toutes les lignes de la commande : rouvrez-le.',
 ];

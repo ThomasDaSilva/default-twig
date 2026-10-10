@@ -130,6 +130,14 @@ final class OrderEditionController
      */
     private function editOf(Order $order, array $form): OrderEdit
     {
+        // A line left out of the edit is removed: a form cut short (input limit, lost
+        // request) must not remove the lines it lost on the way.
+        foreach ($this->productLines($order) as $orderLine) {
+            if (!isset($form['lines'][(int) $orderLine->getId()])) {
+                throw new InvalidOrderEditException($this->translator->trans('The form did not send every line of the order: open it again.'));
+            }
+        }
+
         $lines = [];
 
         foreach ($form['lines'] as $orderProductId => $line) {
