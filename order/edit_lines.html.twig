@@ -1,0 +1,130 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{#
+    Edits the lines, the discount and the postage of an order, as one form.
+
+    Expects:
+      - order:       the Order model
+      - lines:       list of { id, ref, pse_ref, title, unit_price }, the product lines
+      - form:        { lines: {id: {quantity, price, remove}}, new: [{reference, quantity, price}], discount, postage }
+      - fingerprint: the state of the order the form was composed on
+      - total:       the total of the order as it stands
+      - currency:    the Currency of the order
+      - preview:     the OrderEditOutcome of a preview, or null
+      - error:       why the edit was refused, or null
+      - refusal:     why the order cannot be edited at all, or null
+      - token:       CSRF token
+#}
+
+{% block title %}{{ 'Edit order'|trans }} #{{ order.ref }}{% endblock %}
+{% block body_testid %}order-edit-lines{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.order.list') }}">{{ 'Orders'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.order.update.view', { order_id: order.id }) }}">#{{ order.ref }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Edit the lines'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="order-edit-lines-page">
+        <h1 class="h3 mb-3">{{ 'Edit the lines of order %ref'|trans({'%ref': order.ref}) }}</h1>
+
+        <p class="text-muted">
+            {{ 'Change the quantities and the unit prices, remove a line, add a product by its reference or its GTIN, set the discount or the postage. Nothing is written until you save: preview first to see the totals. A line added takes the label and the price of the catalogue now; a price typed here, excluding tax, stays as typed. The postage is not computed again: type it if it changes.'|trans }}
+        </p>
+
+        {% if refusal %}
+            <div class="alert alert-warning" data-testid="order-edit-refusal">{{ refusal }}</div>
+        {% endif %}
+
+        {% if error %}
+            <div class="alert alert-danger" role="alert" data-testid="order-edit-error">{{ error }}</div>
+        {% endif %}
+
+        {% if preview %}
+            <div class="alert alert-info" data-testid="order-edit-preview">
+                {{ 'Total now: %before.'|trans({'%before': preview.totalBefore|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol}) }}
+                {{ 'After this edit:'|trans }} <strong dir="ltr" data-testid="order-edit-total-after">{{ preview.totalAfter|number_format(2, '.', ' ') }} {{ currency.symbol }}</strong>
+                {% if preview.amountToRefund > 0 %}
+                    <br>{{ 'The order was paid: %amount is to be refunded to the customer.'|trans({'%amount': preview.amountToRefund|number_format(2, '.', ' ')}) }}
+                {% elseif preview.amountToCollect > 0 %}
+                    <br>{{ 'The order was paid: %amount remains to be paid by the customer.'|trans({'%amount': preview.amountToCollect|number_format(2, '.', ' ')}) }}
+                {% endif %}
+            </div>
+        {% endif %}
+
+        <form method="post" action="{{ path('admin.order.edit-lines.save', { order_id: order.id }) }}" data-testid="order-edit-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <input type="hidden" name="fingerprint" value="{{ fingerprint }}">
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Lines'|trans }}</div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th scope="col">{{ 'Product'|trans }}</th>
+                                    <th scope="col" class="text-end">{{ 'Current unit price (excl. tax)'|trans }}</th>
+                                    <th scope="col" style="width: 9rem">{{ 'Quantity'|trans }}</th>
+                                    <th scope="col" style="width: 11rem">{{ 'New unit price (excl. tax)'|trans }}</th>
+                                    <th scope="col" class="text-center">{{ 'Remove'|trans }}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for line in lines %}
+                                    {% set entered = form.lines[line.id] ?? { quantity: '', price: '', remove: false } %}
+                                    <tr data-testid="order-edit-line">
+                                        <td>{{ line.title }}<br><small class="text-muted">{{ line.pse_ref }}</small></td>
+                                        <td class="text-end" dir="ltr">{{ line.unit_price|number_format(2, '.', ' ') }} {{ currency.symbol }}</td>
+                                        <td><input type="text" inputmode="decimal" class="form-control" name="lines[{{ line.id }}][quantity]" value="{{ entered.quantity }}" aria-label="{{ 'Quantity'|trans }}" required></td>
+                                        <td><input type="text" inputmode="decimal" class="form-control" name="lines[{{ line.id }}][price]" value="{{ entered.price }}" placeholder="{{ line.unit_price|number_format(2, '.', '') }}" aria-label="{{ 'New unit price (excl. tax)'|trans }}"></td>
+                                        <td class="text-center"><input type="checkbox" class="form-check-input" name="lines[{{ line.id }}][remove]" value="1" {% if entered.remove %}checked{% endif %} aria-label="{{ 'Remove'|trans }}"></td>
+                                    </tr>
+                                {% endfor %}
+                                {% for new in form.new %}
+                                    <tr data-testid="order-edit-new-line">
+                                        <td colspan="2"><input type="text" class="form-control" name="new[{{ loop.index0 }}][reference]" value="{{ new.reference }}" placeholder="{{ 'Add a product: reference or GTIN'|trans }}" aria-label="{{ 'Add a product: reference or GTIN'|trans }}"></td>
+                                        <td><input type="text" inputmode="decimal" class="form-control" name="new[{{ loop.index0 }}][quantity]" value="{{ new.quantity }}" placeholder="1" aria-label="{{ 'Quantity'|trans }}"></td>
+                                        <td><input type="text" inputmode="decimal" class="form-control" name="new[{{ loop.index0 }}][price]" value="{{ new.price }}" placeholder="{{ 'Catalogue price'|trans }}" aria-label="{{ 'New unit price (excl. tax)'|trans }}"></td>
+                                        <td></td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Discount and postage'|trans }}</div>
+                <div class="card-body row g-3">
+                    <div class="col-md-4">
+                        <label for="order-edit-discount" class="form-label">{{ 'Discount (incl. tax)'|trans }}</label>
+                        <input type="text" inputmode="decimal" class="form-control" id="order-edit-discount" name="discount" value="{{ form.discount }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="order-edit-postage" class="form-label">{{ 'Postage (incl. tax)'|trans }}</label>
+                        <input type="text" inputmode="decimal" class="form-control" id="order-edit-postage" name="postage" value="{{ form.postage }}">
+                        <div class="form-text">{{ 'The postage of the order, not computed again. Its tax keeps the rate of the old one.'|trans }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex gap-2">
+                <a class="btn btn-secondary" href="{{ path('admin.order.update.view', { order_id: order.id }) }}">{{ 'Cancel'|trans }}</a>
+                <button type="submit" name="preview" value="1" class="btn btn-outline-primary" data-testid="order-edit-preview-btn" {% if refusal %}disabled{% endif %}>
+                    <i class="bi bi-calculator" aria-hidden="true"></i> {{ 'Preview the totals'|trans }}
+                </button>
+                <button type="submit" name="save" value="1" class="btn btn-primary" data-testid="order-edit-save" {% if refusal %}disabled{% endif %}>
+                    <i class="bi bi-check-lg" aria-hidden="true"></i> {{ 'Save'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endblock %}

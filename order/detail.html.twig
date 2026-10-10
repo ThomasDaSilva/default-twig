@@ -175,6 +175,15 @@
                     }]) %}
                 {% endfor %}
 
+                {% if edit_lines_url %}
+                    <div class="d-flex justify-content-end mb-2">
+                        <a class="btn btn-sm btn-outline-primary" href="{{ edit_lines_url }}" data-testid="order-edit-lines-btn">
+                            <i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Edit the lines'|trans }}
+                        </a>
+                    </div>
+                {% elseif edit_lines_refusal %}
+                    <p class="small text-muted text-end mb-2" data-testid="order-edit-lines-refusal"><i class="bi bi-lock" aria-hidden="true"></i> {{ edit_lines_refusal }}</p>
+                {% endif %}
                 {{ safe_hook('order-edit.before-order-product-list', { order_id: order.id, location: 'before-order-product-list' }) }}
                 {{ component('BoDataTable', {
                     id: 'order-items',

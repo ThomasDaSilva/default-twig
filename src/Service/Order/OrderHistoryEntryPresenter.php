@@ -45,6 +45,7 @@ final readonly class OrderHistoryEntryPresenter
         'return_opened' => 'bi-arrow-return-left',
         'return_status_changed' => 'bi-arrow-repeat',
         'return_received' => 'bi-box-arrow-in-down',
+        'order_edited' => 'bi-pencil-square',
     ];
 
     private const FALLBACK_ICON = 'bi-record-circle';
@@ -155,6 +156,10 @@ final readonly class OrderHistoryEntryPresenter
                 'E-mail sent',
                 $locale,
             ),
+            OrderHistoryEventType::ORDER_EDITED => $this->trans('Lines edited, total %before% → %after%', [
+                '%before%' => $this->readString($payload, 'total_before'),
+                '%after%' => $this->readString($payload, 'total_after'),
+            ], $locale),
             OrderHistoryEventType::NOTE => $this->trans('Note', [], $locale),
             OrderHistoryEventType::RETURN_OPENED => $this->summarizeReference(
                 $this->readString($payload, 'return_ref'),

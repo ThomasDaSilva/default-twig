@@ -22,6 +22,7 @@ use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\Order\ForcedStatusChangeLog;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderBulkStatusPlanner;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderDetailContextBuilder;
+use BackOfficeDefaultTwigBundle\Service\Order\OrderEditionContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderHistoryContextBuilder;
@@ -90,6 +91,7 @@ final class OrderController
         private readonly AdminLogger $adminLogger,
         private readonly RequestStack $requestStack,
         private readonly OrderHistoryContextBuilder $historyContextBuilder,
+        private readonly OrderEditionContextBuilder $editionContext,
     ) {
     }
 
@@ -150,6 +152,7 @@ final class OrderController
                 'items_last_page' => $itemsLastPage,
                 'order_addresses' => $this->orderAddresses($order, $locale),
                 ...$this->statusChangeContext->build($order, $locale),
+                ...$this->editionContext->build($order),
                 'customer_titles' => $this->customerTitleChoices($locale),
                 'countries' => $this->countryChoices($locale),
                 'states' => $this->stateChoices($locale),
