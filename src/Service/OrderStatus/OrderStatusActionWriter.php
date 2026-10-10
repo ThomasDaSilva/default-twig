@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Service\OrderStatus;
 use Propel\Runtime\Propel;
 use Thelia\Domain\Order\Enum\OrderStatusActionTrigger;
 use Thelia\Domain\Order\Exception\InvalidOrderStatusActionPayloadException;
+use Thelia\Domain\Order\StatusAction\Effect\AbstractEmailAction;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRegistry;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRunner;
 use Thelia\Model\Map\OrderStatusActionTableMap;
@@ -48,6 +49,11 @@ final readonly class OrderStatusActionWriter
 
         if (OrderStatusActionTrigger::TRANSITION === $trigger && null === $fromStatusId) {
             throw new \InvalidArgumentException('A transition needs the status it starts from.');
+        }
+
+        // An edit moves the stock and the totals itself: only an e-mail runs on it.
+        if (OrderStatusActionTrigger::EDIT === $trigger && !$service instanceof AbstractEmailAction) {
+            throw new \InvalidArgumentException('Only an e-mail can be sent when an order is edited.');
         }
 
         $lastPosition = (int) (OrderStatusActionQuery::create()
