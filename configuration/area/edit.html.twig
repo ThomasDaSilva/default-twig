@@ -136,7 +136,7 @@
                                                 <span class="badge text-bg-success">{{ 'Included'|trans }}</span>
                                             {% endif %}
                                         </td>
-                                        <td>{{ rule.country ?? ('Every country of the zone'|trans) }}</td>
+                                        <td>{% if rule.outside_zone %}<span class="text-muted">{{ 'A country that left the zone'|trans }}</span>{% else %}{{ rule.country ?? ('Every country of the zone'|trans) }}{% endif %}</td>
                                         <td class="text-end">
                                             <form method="POST" class="d-inline" action="{{ path('admin.configuration.shipping-configuration.zip-code-rule.delete', { area_id: area_id, rule_id: rule.id }) }}">
                                                 <input type="hidden" name="_token" value="{{ assignToken() }}">
