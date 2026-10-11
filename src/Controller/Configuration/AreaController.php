@@ -324,10 +324,10 @@ final class AreaController
         return $label;
     }
 
-    /** @return list<array{id: int, pattern: string, excluded: bool, country: string|null}> */
+    /** @return list<array{id: int, pattern: string, excluded: bool, country: string|null, outside_zone: bool}> */
     private function zipCodeRules(int $areaId): array
     {
-        $countryTitles = $this->countryStates->countryTitles($this->defaultLocale());
+        $zoneCountries = $this->zoneCountries($areaId);
         $rules = [];
 
         foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->orderByExcluded()->orderByPattern()->find() as $rule) {
@@ -336,7 +336,10 @@ final class AreaController
                 'id' => (int) $rule->getId(),
                 'pattern' => (string) $rule->getPattern(),
                 'excluded' => (bool) $rule->getExcluded(),
-                'country' => null === $countryId ? null : ($countryTitles[$countryId] ?? null),
+                'country' => null === $countryId ? null : ($zoneCountries[$countryId] ?? null),
+                // A rule written for a country the zone no longer holds applies to no one
+                // until the country comes back: it must not read "every country".
+                'outside_zone' => null !== $countryId && !isset($zoneCountries[$countryId]),
             ];
         }
 

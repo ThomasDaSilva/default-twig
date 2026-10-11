@@ -2457,5 +2457,7 @@ return [
     'This delivery zone does not exist.' => 'Cette zone de livraison n\'existe pas.',
     'A rule can only name a country of its zone.' => 'Une règle ne peut désigner qu\'un pays de sa zone.',
     'A postal code pattern needs at least one character other than *.' => 'Un motif de code postal demande au moins un caractère autre que *.',
-    'A postal code range goes from a number to a greater or equal number, as in 75001...75020.' => 'Une plage de codes postaux va d\'un nombre à un nombre supérieur ou égal, comme 75001...75020.',
+    'A postal code range goes from a number to a greater or equal number of the same length, as in 75001...75020.' => 'Une plage de codes postaux va d\'un nombre à un nombre supérieur ou égal de même longueur, comme 75001...75020.',
+    'A postal code pattern is 50 characters long at most.' => 'Un motif de code postal compte 50 caractères au plus.',
+    'A country that left the zone' => 'Un pays sorti de la zone',
 ];
