@@ -33,6 +33,11 @@
                                 disabled: not is_granted('UPDATE', 'admin.configuration.delivery-date'),
                             } only %}
                             <p class="text-muted small">{{ 'A carrier follows these days unless it sets its own.'|trans }}</p>
+                            <div class="mb-3">
+                                <label for="bo-delivery-date-cutoff" class="form-label">{{ 'Order cutoff hour'|trans }}</label>
+                                <input type="time" id="bo-delivery-date-cutoff" name="cutoff_time" value="{{ shop_cutoff_time }}" class="form-control" aria-describedby="bo-delivery-date-cutoff-help" data-testid="delivery-date-cutoff" {% if not is_granted('UPDATE', 'admin.configuration.delivery-date') %}disabled{% endif %}>
+                                <div id="bo-delivery-date-cutoff-help" class="form-text">{{ 'An order taken from this hour on is prepared the next working day. Leave empty for none.'|trans }}</div>
+                            </div>
                             {% if is_granted('UPDATE', 'admin.configuration.delivery-date') %}
                                 <button type="submit" class="btn btn-primary">{{ 'Save'|trans }}</button>
                             {% endif %}
@@ -51,6 +56,7 @@
                                     <tr>
                                         <th>{{ 'Carrier'|trans }}</th>
                                         <th>{{ 'Customers pick'|trans }}</th>
+                                        <th>{{ 'Estimated delivery'|trans }}</th>
                                         <th class="text-center">{{ 'Actions'|trans }}</th>
                                     </tr>
                                 </thead>
@@ -72,12 +78,17 @@
                                                     {{ 'Nothing'|trans }}
                                                 {% endif %}
                                             </td>
-                                            <td class="text-center">
-                                                {% if carrier.accepts_dates %}
-                                                    <a href="{{ path('admin.delivery-date.carrier', { module_id: carrier.id }) }}" class="btn btn-sm btn-outline-primary" data-testid="delivery-date-carrier-edit-{{ carrier.code }}">
-                                                        <i class="bi bi-pencil me-1" aria-hidden="true"></i>{{ 'Configure'|trans }}
-                                                    </a>
+                                            <td data-testid="delivery-date-carrier-estimate-{{ carrier.code }}">
+                                                {% if carrier.estimate.transit_min_days is not null %}
+                                                    {{ '%preparation + %min to %max working days'|trans({ '%preparation': carrier.estimate.preparation_days ?? 0, '%min': carrier.estimate.transit_min_days, '%max': carrier.estimate.transit_max_days }) }}
+                                                {% else %}
+                                                    <span class="text-muted">{{ 'None announced'|trans }}</span>
                                                 {% endif %}
+                                            </td>
+                                            <td class="text-center">
+                                                <a href="{{ path('admin.delivery-date.carrier', { module_id: carrier.id }) }}" class="btn btn-sm btn-outline-primary" data-testid="delivery-date-carrier-edit-{{ carrier.code }}">
+                                                    <i class="bi bi-pencil me-1" aria-hidden="true"></i>{{ 'Configure'|trans }}
+                                                </a>
                                             </td>
                                         </tr>
                                     {% endfor %}

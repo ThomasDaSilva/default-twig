@@ -604,6 +604,16 @@
                                 {% endif %}
                             </p>
                         {% endif %}
+                        {% if delivery.estimated_delivery_from ?? null %}
+                            <p class="mb-1" data-testid="order-estimated-delivery">
+                                <i class="bi bi-truck me-1" aria-hidden="true"></i>{{ 'Delivery announced to the customer'|trans }}:
+                                {% if delivery.estimated_delivery_from == delivery.estimated_delivery_to %}
+                                    <strong>{{ delivery.estimated_delivery_from|format_date('full') }}</strong>
+                                {% else %}
+                                    {{ 'between %from and %to'|trans({ '%from': delivery.estimated_delivery_from|format_date('full'), '%to': delivery.estimated_delivery_to|format_date('full') }) }}
+                                {% endif %}
+                            </p>
+                        {% endif %}
                         {{ safe_hook('order-edit.delivery-module-bottom', { order_id: order.id, module: delivery.module_id, module_id: delivery.module_id }) }}
                     </div>
                 </div>

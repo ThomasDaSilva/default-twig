@@ -27,6 +27,36 @@
             </div>
         </div>
 
+        <div class="card mb-3" data-testid="delivery-date-estimate">
+            <div class="card-header"><h2 class="h6 mb-0">{{ 'Estimated delivery'|trans }}</h2></div>
+            <div class="card-body">
+                <p class="text-muted small">{{ 'Customers see between which days a parcel is expected, on the delivery step and on product pages, and the order keeps what they were told. Counted in working days; the day the order comes in, before the cutoff hour, is the first day of preparation. Leave the transit days empty to announce nothing.'|trans }}</p>
+                <form method="POST" action="{{ path('admin.delivery-date.carrier.delays.save', { module_id: module.id }) }}" data-testid="delivery-date-estimate-form">
+                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    <input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">
+                    <fieldset {% if not can_update %}disabled{% endif %}>
+                        <div class="row g-2 mb-3">
+                            <div class="col-sm-4">
+                                <label for="bo-delivery-estimate-preparation" class="form-label">{{ 'Preparation days'|trans }}</label>
+                                <input type="number" min="0" max="366" step="1" id="bo-delivery-estimate-preparation" name="preparation_days" value="{{ estimate.preparation_days }}" class="form-control">
+                            </div>
+                            <div class="col-sm-4">
+                                <label for="bo-delivery-estimate-transit-min" class="form-label">{{ 'Fewest transit days'|trans }}</label>
+                                <input type="number" min="0" max="366" step="1" id="bo-delivery-estimate-transit-min" name="transit_min_days" value="{{ estimate.transit_min_days }}" class="form-control">
+                            </div>
+                            <div class="col-sm-4">
+                                <label for="bo-delivery-estimate-transit-max" class="form-label">{{ 'Most transit days'|trans }}</label>
+                                <input type="number" min="0" max="366" step="1" id="bo-delivery-estimate-transit-max" name="transit_max_days" value="{{ estimate.transit_max_days }}" class="form-control">
+                            </div>
+                        </div>
+                        {% if can_update %}
+                            <button type="submit" class="btn btn-primary">{{ 'Save'|trans }}</button>
+                        {% endif %}
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+
         {% if accepted_modes is empty %}
             <div class="alert alert-info">{{ 'This carrier does not accept delivery dates'|trans }}</div>
         {% else %}

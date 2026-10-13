@@ -437,6 +437,7 @@ final class ProductController
             'brand_id' => $product->getBrandId(),
             'virtual_document_id' => $this->currentVirtualDocumentId($product),
             'guest_checkout_forbidden' => (bool) $product->getGuestCheckoutForbidden(),
+            'availability_delay_days' => $product->getAvailabilityDelayDays(),
         ], [
             'include_id' => true,
         ]);
@@ -497,6 +498,10 @@ final class ProductController
             // 0 clears the association, -1 leaves it untouched (product with several combinations).
             ->setVirtualDocumentId(isset($data['virtual_document_id']) ? (int) $data['virtual_document_id'] : -1)
             ->setGuestCheckoutForbidden((bool) ($data['guest_checkout_forbidden'] ?? false));
+
+        if (\array_key_exists('availability_delay_days', $data)) {
+            $event->setAvailabilityDelayDays($this->intOrNull($data['availability_delay_days']));
+        }
 
         return $event;
     }

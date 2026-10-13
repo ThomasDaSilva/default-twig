@@ -25,6 +25,7 @@ use Symfony\Component\Form\FormBuilderInterface;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\GreaterThan;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 final class ProductType extends AbstractType
@@ -122,6 +123,12 @@ final class ProductType extends AbstractType
                     'required' => false,
                     'label' => $this->translator->trans('Conclusion'),
                 ]);
+
+            $builder->add('availability_delay_days', IntegerType::class, [
+                'required' => false,
+                'constraints' => [new Range(min: 0, max: 366)],
+                'label' => $this->translator->trans('Availability delay (working days)'),
+            ]);
         }
     }
 

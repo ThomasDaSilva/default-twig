@@ -90,6 +90,7 @@ final class DeliveryDateController
                 'active' => (bool) $module->getActivate(),
                 'accepts_dates' => [] !== $this->calendar->acceptedChoiceModesOf($module),
                 'choice_mode' => $this->calendar->choiceModeOf($module)->value,
+                'estimate' => $this->estimateOf($module),
             ];
         }
 
@@ -98,6 +99,7 @@ final class DeliveryDateController
             'weekdays' => $this->weekdays($locale),
             'shop_closed_weekdays' => $this->settings->shopClosedWeekdays(),
             'shop_closures' => $this->closureRows(null),
+            'shop_cutoff_time' => $this->settings->shopCutoffTime(),
         ]));
     }
 
@@ -107,7 +109,13 @@ final class DeliveryDateController
         return $this->write(
             $request,
             'Shop delivery days update',
-            fn () => $this->settings->saveShopClosedWeekdays($this->weekdayList($request)),
+            function () use ($request): void {
+                $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
+
+                if ($request->request->has('cutoff_time')) {
+                    $this->settings->saveShopCutoffTime((string) $request->request->get('cutoff_time'));
+                }
+            },
             $this->urls->generate(self::LIST_ROUTE),
         );
     }
@@ -161,6 +169,7 @@ final class DeliveryDateController
                 'title' => $titles[(int) $slot->getId()] ?? '',
             ], $slots),
             'closures' => $this->closureRows($module),
+            'estimate' => $this->estimateOf($module),
             'edit_language_id' => (int) $editLang->getId(),
             'edit_locale' => $editLocale,
         ]));
@@ -290,6 +299,50 @@ final class DeliveryDateController
      * The one road every write takes: permission, token read from the body, the write
      * itself, the log, and the way back to the screen — with the refusal as a flash message.
      */
+    #[Route('/carrier/{module_id}/delays/save', name: 'carrier.delays.save', methods: ['POST'], requirements: ['module_id' => '\d+'])]
+    public function saveDelays(int $module_id, Request $request): Response
+    {
+        $module = $this->deliveryModule($module_id);
+
+        return $this->write(
+            $request,
+            'Carrier delivery estimate update',
+            function () use ($module, $request): void {
+                $this->settings->saveDeliveryDelays(
+                    $module ?? throw new \InvalidArgumentException($this->translator->trans('No such carrier.')),
+                    $this->days($request, 'preparation_days'),
+                    $this->days($request, 'transit_min_days'),
+                    $this->days($request, 'transit_max_days'),
+                );
+            },
+            $this->carrierUrl($module_id, $request),
+            $module_id,
+        );
+    }
+
+    /**
+     * The delays a delivery of this carrier is estimated with.
+     *
+     * @return array{preparation_days: ?int, transit_min_days: ?int, transit_max_days: ?int}
+     */
+    private function estimateOf(Module $module): array
+    {
+        $rule = $this->settings->ruleOf($module);
+
+        return [
+            'preparation_days' => $rule?->getPreparationDays(),
+            'transit_min_days' => $rule?->getTransitMinDays(),
+            'transit_max_days' => $rule?->getTransitMaxDays(),
+        ];
+    }
+
+    private function days(Request $request, string $field): ?int
+    {
+        $days = trim((string) $request->request->get($field, ''));
+
+        return '' === $days ? null : (int) $days;
+    }
+
     private function write(Request $request, string $actionLabel, callable $write, string $backTo, ?int $resourceId = null): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
