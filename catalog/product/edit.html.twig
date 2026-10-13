@@ -135,6 +135,13 @@
                                 {{ form_widget(form.guest_checkout_forbidden, { attr: { class: 'form-check-input', 'data-testid': 'product-edit-guest-checkout-forbidden' } }) }}
                                 {{ form_label(form.guest_checkout_forbidden, null, { label_attr: { class: 'form-check-label' } }) }}
                             </div>
+                            {% if form.availability_delay_days is defined %}
+                                <div class="mb-3">
+                                    {{ form_label(form.availability_delay_days) }}
+                                    {{ form_widget(form.availability_delay_days, { attr: { class: 'form-control', min: 0, max: 366, 'aria-describedby': 'bo-product-availability-delay-help', 'data-testid': 'product-edit-availability-delay' } }) }}
+                                    <div id="bo-product-availability-delay-help" class="form-text">{{ 'Added to the preparation days of the carrier in the delivery estimate. Leave empty when the product ships like the others.'|trans }}</div>
+                                </div>
+                            {% endif %}
                             <div class="mb-3">
                                 {{ form_label(form.default_category) }}
                                 <select name="{{ form.default_category.vars.full_name }}" class="form-select" data-testid="product-edit-category" required>

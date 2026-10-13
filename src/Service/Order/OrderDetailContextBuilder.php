@@ -197,6 +197,9 @@ final readonly class OrderDetailContextBuilder
                 'delivery_date' => $order->getDeliveryDay(),
                 'delivery_slot_start' => $order->getDeliverySlotStartsAt(),
                 'delivery_slot_end' => $order->getDeliverySlotEndsAt(),
+                // The interval announced at checkout, frozen on the order too.
+                'estimated_delivery_from' => $order->getEstimatedDeliveryFromDay(),
+                'estimated_delivery_to' => $order->getEstimatedDeliveryToDay(),
             ],
             'coupons' => $coupons,
             'consents' => $consents,
