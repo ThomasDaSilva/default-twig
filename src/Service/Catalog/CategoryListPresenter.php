@@ -30,6 +30,14 @@ final readonly class CategoryListPresenter
 {
     private const PRODUCT_PAGE_SIZE = 20;
 
+    /**
+     * Marks the actions sent from the products of a category list, so the
+     * product controller sends the user back to that list, not the catalog one.
+     */
+    public const ORIGIN_PARAMETER = 'origin';
+
+    public const ORIGIN = 'category-list';
+
     public function __construct(
         private CategoryRepository $categories,
         private ProductRepository $products,
@@ -48,7 +56,7 @@ final readonly class CategoryListPresenter
         $children = $this->categories->findChildrenOrderedByPosition($parentId, $locale);
         $rows = [];
         foreach ($children as $child) {
-            $rows[] = $this->categoryToRow($child);
+            $rows[] = $this->categoryToRow($child, $productPage);
         }
 
         $current = $this->categories->find($parentId, $locale);
@@ -60,6 +68,10 @@ final readonly class CategoryListPresenter
             'breadcrumb_path' => $breadcrumbPath,
             'update_position_url' => $this->urls->generate('admin.categories.update-position'),
             'update_position_token' => $this->tokens->assignToken(),
+            'product_update_position_url' => $this->urls->generate('admin.products.update-position', ['category_id' => $parentId]),
+            'product_update_position_token' => $this->tokens->assignToken(),
+            'category_action_params' => ['page' => $productPage],
+            'product_action_params' => $this->productActionParameters($parentId, $productPage),
         ] + $this->buildProductSection($parentId, $productPage, $locale);
     }
 
@@ -98,7 +110,7 @@ final readonly class CategoryListPresenter
 
         $productRows = [];
         foreach ($products as $product) {
-            $productRows[] = $this->productToRow($product);
+            $productRows[] = $this->productToRow($product, $categoryId, $page);
         }
 
         return [
@@ -110,9 +122,17 @@ final readonly class CategoryListPresenter
     }
 
     /**
+     * @return array{origin: string, category_id: int, page: int}
+     */
+    private function productActionParameters(int $categoryId, int $page): array
+    {
+        return [self::ORIGIN_PARAMETER => self::ORIGIN, 'category_id' => $categoryId, 'page' => $page];
+    }
+
+    /**
      * @return array<string, mixed>
      */
-    private function categoryToRow(Category $category): array
+    private function categoryToRow(Category $category, int $productPage): array
     {
         $id = (int) $category->getId();
         $title = (string) $category->getTitle();
@@ -129,7 +149,7 @@ final readonly class CategoryListPresenter
             'visible' => (bool) $category->getVisible(),
             'position' => (int) $category->getPosition(),
             'parent' => (int) $category->getParent(),
-            'toggle_visible_url' => $this->urls->generate('admin.categories.set-default', ['category_id' => $id]),
+            'toggle_visible_url' => $this->urls->generate('admin.categories.set-default', ['category_id' => $id, 'page' => $productPage]),
             'children_url' => $browseUrl,
             '_actions' => $this->buildCategoryActions($category, $id, $title, $browseUrl),
         ];
@@ -196,7 +216,7 @@ final readonly class CategoryListPresenter
     /**
      * @return array<string, mixed>
      */
-    private function productToRow(Product $product): array
+    private function productToRow(Product $product, int $categoryId, int $page): array
     {
         $id = (int) $product->getId();
         $title = (string) $product->getTitle();
@@ -214,8 +234,8 @@ final readonly class CategoryListPresenter
                 htmlspecialchars($title, \ENT_QUOTES | \ENT_SUBSTITUTE, 'UTF-8'),
             ),
             'visible' => (bool) $product->getVisible(),
-            'position' => (int) $product->getPosition(),
-            'toggle_visible_url' => $this->urls->generate('admin.products.set-default', ['product_id' => $id]),
+            'position' => (int) $product->getVirtualColumn(ProductRepository::CATEGORY_POSITION_COLUMN),
+            'toggle_visible_url' => $this->urls->generate('admin.products.set-default', ['product_id' => $id] + $this->productActionParameters($categoryId, $page)),
             '_actions' => [
                 new RowAction(
                     kind: 'edit',

@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\DTO\Dashboard\DateRange;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
 use Propel\Runtime\Propel;
+use Thelia\Model\Map\ProductCategoryTableMap;
 use Thelia\Model\Product;
 use Thelia\Model\ProductCategoryQuery;
 use Thelia\Model\ProductQuery;
@@ -26,6 +27,12 @@ use Thelia\Model\ProductSaleElementsQuery;
 
 final readonly class ProductRepository
 {
+    /**
+     * Position is stored per category in the product_category pivot, not on the product row.
+     * Expose it as a virtual column so the listing reflects the category-scoped order.
+     */
+    public const CATEGORY_POSITION_COLUMN = 'category_position';
+
     /**
      * @return ObjectCollection<int, Product>
      */
@@ -51,6 +58,7 @@ final readonly class ProductRepository
                 ->filterByCategoryId($categoryId)
                 ->orderByPosition()
             ->endUse()
+            ->withColumn(ProductCategoryTableMap::COL_POSITION, self::CATEGORY_POSITION_COLUMN)
             ->offset($offset)
             ->limit($limit)
             ->find();

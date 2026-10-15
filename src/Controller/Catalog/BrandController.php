@@ -97,6 +97,7 @@ final class BrandController
             eventFactory: $this->createEvent(...),
             actionLabel: 'Brand creation',
             successRoute: self::EDIT_ROUTE,
+            successParametersResolver: static fn (BrandCreateEvent $event): array => ['brand_id' => (int) $event->getBrand()?->getId()],
             renderError: fn (): RedirectResponse => new RedirectResponse($this->urls->generate(self::LIST_ROUTE)),
             describeForLog: $this->describeCreated(...),
         );

@@ -1,0 +1,23 @@
+{#- Arrows move the row one step; the number opens the field of the bo-position
+    controller hosted by the <tbody>, which posts the move and reloads the list. -#}
+<span class="bo-position" data-position="{{ value }}">
+    <button type="button" class="bo-position__step"
+            data-action="bo-position#up"
+            data-testid="datatable-{{ column.key }}-up"
+            title="{{ 'Move up'|trans }}"
+            aria-label="{{ 'Move up'|trans }}">
+        <i class="bi bi-arrow-up" aria-hidden="true"></i>
+    </button>
+    <button type="button" class="bo-position__value"
+            data-action="bo-position#edit"
+            data-testid="datatable-{{ column.key }}-value"
+            title="{{ 'Change the position'|trans }}"
+            aria-label="{{ 'Change the position'|trans }} ({{ value }})">{{ value }}</button>
+    <button type="button" class="bo-position__step"
+            data-action="bo-position#down"
+            data-testid="datatable-{{ column.key }}-down"
+            title="{{ 'Move down'|trans }}"
+            aria-label="{{ 'Move down'|trans }}">
+        <i class="bi bi-arrow-down" aria-hidden="true"></i>
+    </button>
+</span>

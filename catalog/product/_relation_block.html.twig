@@ -1,47 +1,47 @@
 <div class="col-lg-6">
     <div class="card shadow-sm border-0 h-100">
-        <div class="card-body"
-             data-controller="bo-category-product-picker"
-             data-bo-category-product-picker-url-template-value="{{ relation.available_url }}">
+        <div class="card-body">
             <h2 class="h5 mb-1">{{ relation.title }}</h2>
             <p class="text-muted">{{ relation.description ?? '' }}</p>
 
-            {% if category_tree_for_relations|length > 0 %}
-                <form method="post" action="{{ relation.add_url }}" class="mb-3" data-testid="{{ relation.id_prefix }}-form">
-                    <input type="hidden" name="product_id" value="{{ product.id }}">
-                    <input type="hidden" name="type_code" value="{{ relation.type_code }}">
-                    <input type="hidden" name="current_tab" value="related">
-                    <input type="hidden" name="_token" value="{{ token }}">
-                    <div class="mb-2">
-                        <label for="{{ relation.id_prefix }}-category-id" class="form-label">{{ 'Category'|trans }}</label>
-                        <select id="{{ relation.id_prefix }}-category-id" name="relation_category_id" class="form-select"
-                                data-bo-category-product-picker-target="category"
-                                data-action="change->bo-category-product-picker#categoryChanged">
-                            <option value="">{{ 'Select a category...'|trans }}</option>
-                            {% for category in category_tree_for_relations %}
-                                <option value="{{ category.id }}" style="padding-inline-start: {{ 3 + category.level * 20 }}px">{{ category.title }}</option>
-                            {% endfor %}
-                        </select>
-                        <small class="form-text text-muted">{{ 'Select a category to get its products'|trans }}</small>
+            <form method="post" action="{{ relation.add_url }}" class="mb-3" data-testid="{{ relation.id_prefix }}-form"
+                  data-controller="bo-relation-picker"
+                  data-bo-relation-picker-url-value="{{ relation.available_url }}"
+                  data-bo-relation-picker-empty-label-value="{{ 'No matching product.'|trans }}">
+                <input type="hidden" name="product_id" value="{{ product.id }}">
+                <input type="hidden" name="type_code" value="{{ relation.type_code }}">
+                <input type="hidden" name="current_tab" value="related">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <input type="hidden" name="associated_product_id" value="" data-bo-relation-picker-target="value">
+                <label for="{{ relation.id_prefix }}-search" class="form-label">{{ 'Product'|trans }}</label>
+                <div class="bo-relation-picker">
+                    <div class="input-group">
+                        <input type="text"
+                               id="{{ relation.id_prefix }}-search"
+                               class="form-control"
+                               autocomplete="off"
+                               role="combobox"
+                               aria-autocomplete="list"
+                               aria-expanded="false"
+                               aria-controls="{{ relation.id_prefix }}-menu"
+                               placeholder="{{ 'Search by reference or title…'|trans }}"
+                               data-testid="{{ relation.id_prefix }}-search"
+                               data-bo-relation-picker-target="input"
+                               data-action="input->bo-relation-picker#search focus->bo-relation-picker#open blur->bo-relation-picker#close keydown->bo-relation-picker#key">
+                        <button type="submit" class="btn btn-primary" disabled
+                                aria-label="{{ 'Add'|trans }}"
+                                data-testid="{{ relation.id_prefix }}-add"
+                                data-bo-relation-picker-target="submit">
+                            <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                        </button>
                     </div>
-                    <div data-bo-category-product-picker-target="picker" class="d-none">
-                        <label for="{{ relation.id_prefix }}-product-id" class="form-label">{{ 'Product'|trans }}</label>
-                        <div class="input-group">
-                            <select id="{{ relation.id_prefix }}-product-id" name="associated_product_id" class="form-select" required
-                                    data-bo-category-product-picker-target="product">
-                                <option value="">{{ 'Select a product...'|trans }}</option>
-                            </select>
-                            <button type="submit" class="btn btn-primary" data-testid="{{ relation.id_prefix }}-add">
-                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                            </button>
-                        </div>
-                        <small class="form-text text-muted">{{ 'Select a product and click + to add it to this block'|trans }}</small>
-                    </div>
-                    <div data-bo-category-product-picker-target="empty" class="d-none alert alert-info mt-2 mb-0">{{ 'No available product in this category'|trans }}</div>
-                </form>
-            {% else %}
-                <div class="alert alert-info">{{ 'No categories found'|trans }}</div>
-            {% endif %}
+                    <ul class="bo-tag-picker__menu bo-relation-picker__menu d-none"
+                        id="{{ relation.id_prefix }}-menu"
+                        role="listbox"
+                        data-bo-relation-picker-target="menu"></ul>
+                </div>
+                <small class="form-text text-muted">{{ 'Select a product and click + to add it to this block'|trans }}</small>
+            </form>
 
             {% set relation_rows = [] %}
             {% for row in relation.rows %}

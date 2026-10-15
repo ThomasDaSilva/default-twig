@@ -96,6 +96,7 @@ final class FeatureController
             eventFactory: $this->createEvent(...),
             actionLabel: 'Feature creation',
             successRoute: self::EDIT_ROUTE,
+            successParametersResolver: static fn (FeatureCreateEvent $event): array => ['feature_id' => (int) $event->getFeature()?->getId()],
             renderError: fn (): RedirectResponse => new RedirectResponse($this->urls->generate(self::LIST_ROUTE)),
             describeForLog: $this->describeCreated(...),
         );

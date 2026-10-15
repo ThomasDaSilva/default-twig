@@ -92,6 +92,10 @@ export default class extends Controller {
         event.preventDefault();
         target.classList.remove('bo-sortable-target');
 
+        // A row showing its position is sent to that very position: the list may be
+        // one page of many, or carry gaps, and its rank on screen would then be wrong.
+        const targetPosition = Number.parseInt(target.querySelector('.bo-position')?.dataset.position ?? '', 10);
+
         const rows = this.rows();
         const fromIndex = rows.indexOf(this.dragged);
         const toIndex = rows.indexOf(target);
@@ -105,7 +109,7 @@ export default class extends Controller {
             target.before(this.dragged);
         }
 
-        const newPosition = this.rows().indexOf(this.dragged) + 1;
+        const newPosition = Number.isInteger(targetPosition) ? targetPosition : this.rows().indexOf(this.dragged) + 1;
         const rowId = this.dragged.dataset.rowId;
         this.persist(rowId, newPosition);
     }

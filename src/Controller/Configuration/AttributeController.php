@@ -96,6 +96,7 @@ final class AttributeController
             eventFactory: $this->createEvent(...),
             actionLabel: 'Attribute creation',
             successRoute: self::EDIT_ROUTE,
+            successParametersResolver: static fn (AttributeCreateEvent $event): array => ['attribute_id' => (int) $event->getAttribute()?->getId()],
             renderError: fn (): RedirectResponse => new RedirectResponse($this->urls->generate(self::LIST_ROUTE)),
             describeForLog: $this->describeCreated(...),
         );

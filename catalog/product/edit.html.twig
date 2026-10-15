@@ -20,6 +20,8 @@
     {{ safe_hook('product-edit.top', { product_id: product.id }) }}
 
     {% set extra_tabs = hook_block('product.tab', { product: product.id, id: product.id }) %}
+    {# A module tab opens like a native one when current_tab names it; an unknown tab falls back to the general one. #}
+    {% set current_tab = current_tab in ['general', 'attributes', 'pse', 'related', 'images', 'documents', 'seo', 'modules']|merge(extra_tabs|map(block => block.id)) ? current_tab : 'general' %}
 
     <div class="container-fluid" data-testid="product-edit-page"
          data-controller="bo-unsaved-changes"
@@ -76,7 +78,7 @@
             </li>
             {% for block in extra_tabs %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
+                    <button class="nav-link {% if current_tab == block.id %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
                             {% if block.href is defined and block.href %}data-href="{{ block.href }}"{% endif %}
                             type="button" data-testid="product-tab-{{ block.id }}">{{ block.title }}</button>
                 </li>
@@ -190,15 +192,32 @@
                                 {% do form.virtual_document_id.setRendered %}
                             </div>
                             {{ safe_hook('product.modification.form-right.bottom', { product_id: product.id }) }}
+                            {% set edit_toolbar = {
+                                closeUrl: path('admin.products.default'),
+                                closeAttributes: { 'data-bo-unsaved-changes-target': 'link' },
+                                closeFirst: false,
+                                closeIcon: 'bi-x-lg',
+                                saveIcon: 'bi-check-lg',
+                                saveCloseIcon: 'bi-x-lg',
+                                saveVariant: 'success',
+                                saveCloseVariant: 'info',
+                                iconAfterLabel: true,
+                                align: 'start'
+                            } %}
+                            {% set edit_dates = 'Product created on %date_create. Last modification on %date_change'|trans({
+                                '%date_create': product.createdAt ? product.createdAt|format_datetime('medium', 'short') : '-',
+                                '%date_change': product.updatedAt ? product.updatedAt|format_datetime('medium', 'short') : '-',
+                            }) %}
+                            {{ component('BoSaveModeToolbar', edit_toolbar|merge({ wrapperClass: 'mb-2', testid: 'product-edit-top' })) }}
+                            <p class="small text-muted mb-3" data-testid="product-edit-dates-top">{{ edit_dates }}</p>
                         </div>
                     </div>
                     {{ safe_hook('product.modification.form_bottom', { product_id: product.id }) }}
                     {{ form_widget(form.id) }}
                     {{ form_widget(form.locale) }}
                     {{ safe_hook('product.update-form', { product: product.id }) }}
-                    <button type="submit" class="btn btn-primary" data-testid="product-edit-submit">
-                        <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save'|trans }}
-                    </button>
+                    {{ component('BoSaveModeToolbar', edit_toolbar|merge({ testid: 'product-edit' })) }}
+                    <p class="small text-muted mt-3 mb-0" data-testid="product-edit-dates">{{ edit_dates }}</p>
                 {{ form_widget(form._token) }}
                 {# module fields added through the legacy form bridge are rendered by the module hooks, not auto-dumped #}
                 {{ form_end(form, {render_rest: false}) }}
@@ -256,7 +275,7 @@
             </div>
 
             {% for block in extra_tabs %}
-                <div class="tab-pane fade" id="{{ block.id }}" role="tabpanel">
+                <div class="tab-pane fade {% if current_tab == block.id %}show active{% endif %}" id="{{ block.id }}" role="tabpanel">
                     {% if block.href is defined and block.href %}
                         <div class="text-center"><span class="loading">{{ 'Please wait, loading'|trans }}</span></div>
                     {% else %}

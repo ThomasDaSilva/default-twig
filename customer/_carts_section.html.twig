@@ -66,12 +66,12 @@
         emptyMessage: 'No abandoned cart in the last %days% days.'|trans({ '%days%': carts.horizonDays }),
     }) }}
     {% if carts.moreAbandoned %}
-        <p class="small text-muted mt-2 mb-0" data-testid="customer-abandoned-carts-more">
+        <p class="small text-muted mt-3 mb-0" data-testid="customer-abandoned-carts-more">
             {{ 'Only the %count% most recent abandoned carts are shown.'|trans({ '%count%': carts.abandoned|length }) }}
         </p>
     {% endif %}
 
-    <p class="small text-muted mt-2 mb-0" data-testid="customer-carts-horizon">
+    <p class="small text-muted mt-3 mb-0" data-testid="customer-carts-horizon">
         <i class="bi bi-info-circle" aria-hidden="true"></i>
         {{ 'The shop maintenance deletes the carts without order after %days% days: older carts cannot be shown.'|trans({ '%days%': carts.horizonDays }) }}
     </p>

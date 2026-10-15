@@ -15,6 +15,7 @@
 
 {% block content %}
     {{ safe_hook('order-edit.top', { order: order.id }) }}
+    {% set active_tab = active_tab|default('cart') %}
 
     {% set extra_tabs = hook_block('order.tab', { order: order.id, id: order.id }) %}
 
@@ -99,13 +100,18 @@
             <div class="col-lg-8" data-controller="bo-ajax-tab">
                 <ul class="nav nav-tabs mb-3" id="order-detail-tabs" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="tab-cart-toggle" data-bs-toggle="tab" data-bs-target="#tab-cart" type="button" role="tab" aria-controls="tab-cart" aria-selected="true" data-testid="order-tab-cart">
+                        <button class="nav-link{% if active_tab == 'cart' %} active{% endif %}" id="tab-cart-toggle" data-bs-toggle="tab" data-bs-target="#tab-cart" type="button" role="tab" aria-controls="tab-cart" aria-selected="{{ active_tab == 'cart' ? 'true' : 'false' }}" data-testid="order-tab-cart">
                             <i class="bi bi-bag" aria-hidden="true"></i> {{ 'Ordered products'|trans }}
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
                         <button class="nav-link" id="tab-bill-toggle" data-bs-toggle="tab" data-bs-target="#tab-bill" type="button" role="tab" aria-controls="tab-bill" data-testid="order-tab-bill">
                             <i class="bi bi-receipt" aria-hidden="true"></i> {{ 'Invoice and Delivery'|trans }}
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link{% if active_tab == 'shipments' %} active{% endif %}" id="tab-shipments-toggle" data-bs-toggle="tab" data-bs-target="#tab-shipments" type="button" role="tab" aria-controls="tab-shipments" aria-selected="{{ active_tab == 'shipments' ? 'true' : 'false' }}" data-testid="order-tab-shipments">
+                            <i class="bi bi-box-seam" aria-hidden="true"></i> {{ 'Shipments'|trans }}{% if shipments is not empty %} <span class="badge text-bg-secondary">{{ shipments|length }}</span>{% endif %}
                         </button>
                     </li>
                     {% for block in extra_tabs %}
@@ -126,7 +132,7 @@
 
                 <div class="tab-content">
 
-                <div class="tab-pane fade show active" id="tab-cart" role="tabpanel" aria-labelledby="tab-cart-toggle">
+                <div class="tab-pane fade{% if active_tab == 'cart' %} show active{% endif %}" id="tab-cart" role="tabpanel" aria-labelledby="tab-cart-toggle">
                 {{ safe_hook('order-edit.cart-top', { order_id: order.id, location: 'order-edit-cart-top' }) }}
 
                 {% set order_rows = [] %}
@@ -168,6 +174,8 @@
                         'tax': item.tax|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol,
                         'unit_taxed_price': item.unit_taxed_price|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol,
                         'quantity': item.quantity,
+                        'shipped': shipped_by_line[item.id]|default(0),
+                        'left': left_by_line[item.id] is defined ? left_by_line[item.id] : '',
                         'line_ht': item.line_ht|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol,
                         'line_tax': item.line_tax|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol,
                         'line_ttc': '<span class="fw-semibold" dir="ltr">' ~ item.line_ttc|number_format(2, '.', ' ') ~ ' ' ~ currency.symbol ~ '</span>',
@@ -182,6 +190,8 @@
                     columns: [
                         column_html('product_html', 'Product'|trans),
                         column('quantity', 'Quantity'|trans, 'end'),
+                        column('shipped', 'Shipped'|trans, 'end', leftToRight: true),
+                        column('left', 'Left to ship'|trans, 'end', leftToRight: true),
                         column('price', 'Unit price (excl. tax)'|trans, 'end', hideBelow: 'lg', leftToRight: true),
                         column('tax', 'Tax'|trans, 'end', hideBelow: 'xl', leftToRight: true),
                         column('unit_taxed_price', 'Unit price (incl. tax)'|trans, 'end', hideBelow: 'lg', leftToRight: true),
@@ -377,6 +387,18 @@
                 </div>
                 {{ safe_hook('order-edit.bill-bottom', { order_id: order.id, location: 'order-edit-bill-bottom' }) }}
                 </div>{# /tab-bill #}
+
+                <div class="tab-pane fade{% if active_tab == 'shipments' %} show active{% endif %}" id="tab-shipments" role="tabpanel" aria-labelledby="tab-shipments-toggle">
+                    {% include '@BackOfficeDefaultTwig/order/_shipments_tab.html.twig' with {
+                        order: order,
+                        shipments: shipments,
+                        shippable_lines: shippable_lines,
+                        carriers: carriers,
+                        order_delivery_module_id: order_delivery_module_id,
+                        can_ship: can_ship,
+                        token: token,
+                    } only %}
+                </div>
 
                 {% for block in extra_tabs %}
                     <div class="tab-pane fade" id="{{ block.id }}" role="tabpanel">

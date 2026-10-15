@@ -28,6 +28,8 @@ use Thelia\Model\ConfigQuery;
 use Thelia\Model\LangQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderQuery;
+use Thelia\Model\OrderShipment;
+use Thelia\Model\OrderShipmentQuery;
 
 /**
  * Renders order invoice / delivery PDFs through the active PDF template,
@@ -57,15 +59,31 @@ final class OrderPdfRenderer
     ) {
     }
 
-    public function render(int $orderId, string $kind, bool $browser): Response
+    public function render(int $orderId, string $kind, bool $browser, ?int $shipmentId = null): Response
     {
         if (!isset(self::PDF_FILE_BY_KIND[$kind])) {
             throw new \InvalidArgumentException(\sprintf('Unsupported PDF kind "%s"', $kind));
         }
 
+        // A shipment narrows the delivery note to one parcel; an invoice is always the whole order.
+        if (null !== $shipmentId && self::KIND_DELIVERY !== $kind) {
+            throw new \InvalidArgumentException(\sprintf('A shipment can only be rendered as a "%s" PDF', self::KIND_DELIVERY));
+        }
+
         $order = OrderQuery::create()->findPk($orderId);
         if (!$order instanceof Order) {
             throw new NotFoundHttpException(\sprintf('Order %d not found', $orderId));
+        }
+
+        $shipment = null;
+        if (null !== $shipmentId) {
+            $shipment = OrderShipmentQuery::create()
+                ->filterById($shipmentId)
+                ->filterByOrderId($orderId)
+                ->findOne();
+            if (!$shipment instanceof OrderShipment) {
+                throw new NotFoundHttpException(\sprintf('Shipment %d not found for order %d', $shipmentId, $orderId));
+            }
         }
 
         $locale = $this->resolveLocale();
@@ -76,6 +94,8 @@ final class OrderPdfRenderer
         $parser->setTemplateDefinition($pdfTemplate, true);
         $parser->assign('order_id', $orderId);
         $parser->assign('lang', $locale);
+        // Assigned even when null, so a parser reused within the request keeps no shipment from a previous render.
+        $parser->assign('shipment_id', $shipmentId);
 
         $html = $parser->render($pdfFile);
 
@@ -106,12 +126,17 @@ final class OrderPdfRenderer
             throw new \RuntimeException('PDF rendering listener did not produce a binary output.');
         }
 
+        // The shipment reference already begins with the order's.
+        $downloadName = $shipment instanceof OrderShipment
+            ? \sprintf('%s-%s', $kind, (string) $shipment->getRef())
+            : \sprintf('%s-%s', $kind, (string) $order->getRef());
+
         $disposition = $browser ? 'inline' : 'attachment';
         $response = new Response($event->getPdf());
         $response->headers->set('Content-Type', 'application/pdf');
         $response->headers->set(
             'Content-Disposition',
-            \sprintf('%s; filename="%s-%s.pdf"', $disposition, $kind, (string) $order->getRef()),
+            \sprintf('%s; filename="%s.pdf"', $disposition, $downloadName),
         );
 
         return $response;

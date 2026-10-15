@@ -20,6 +20,8 @@
     {{ safe_hook('category-edit.top', { category_id: category.id }) }}
 
     {% set extra_tabs = hook_block('category.tab', { category: category.id, id: category.id }) %}
+    {# A module tab opens like a native one when current_tab names it; an unknown tab falls back to the general one. #}
+    {% set current_tab = current_tab in ['general', 'children', 'associations', 'images', 'documents', 'seo', 'modules']|merge(extra_tabs|map(block => block.id)) ? current_tab : 'general' %}
 
     <div class="container-fluid" data-testid="category-edit-page">
         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -77,7 +79,7 @@
             </li>
             {% for block in extra_tabs %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
+                    <button class="nav-link {% if current_tab == block.id %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
                             {% if block.href is defined and block.href %}data-href="{{ block.href }}"{% endif %}
                             type="button" data-testid="category-tab-{{ block.id }}">{{ block.title }}</button>
                 </li>
@@ -98,6 +100,7 @@
                 {% form_theme form with bo_form_themes only %}
                 {{ form_start(form, { action: path('admin.categories.save', { category_id: category.id }), method: 'post', attr: { 'data-testid': 'category-edit-form' } }) }}
                     <input type="hidden" name="category_id" value="{{ category.id }}">
+
                     <div class="row">
                         <div class="col-md-8">
                             <div class="mb-3">
@@ -144,14 +147,30 @@
                                 {% do form.default_template_id.setRendered %}
                             </div>
                             {{ safe_hook('category.modification.form-right.bottom', { category_id: category.id }) }}
+                            {% set edit_toolbar = {
+                                closeUrl: path('admin.categories.default', { category_id: category.parent }),
+                                closeFirst: false,
+                                closeIcon: 'bi-x-lg',
+                                saveIcon: 'bi-check-lg',
+                                saveCloseIcon: 'bi-x-lg',
+                                saveVariant: 'success',
+                                saveCloseVariant: 'info',
+                                iconAfterLabel: true,
+                                align: 'start'
+                            } %}
+                            {% set edit_dates = 'Category created on %date_create. Last modification on %date_change'|trans({
+                                '%date_create': category.createdAt ? category.createdAt|format_datetime('medium', 'short') : '-',
+                                '%date_change': category.updatedAt ? category.updatedAt|format_datetime('medium', 'short') : '-',
+                            }) %}
+                            {{ component('BoSaveModeToolbar', edit_toolbar|merge({ wrapperClass: 'mb-2', testid: 'category-edit-top' })) }}
+                            <p class="small text-muted mb-3" data-testid="category-edit-dates-top">{{ edit_dates }}</p>
                         </div>
                     </div>
                     {{ form_widget(form.id) }}
                     {{ form_widget(form.locale) }}
                     {{ safe_hook('category.update-form', { category: category.id }) }}
-                    <button type="submit" class="btn btn-primary" data-testid="category-edit-submit">
-                        <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save'|trans }}
-                    </button>
+                    {{ component('BoSaveModeToolbar', edit_toolbar|merge({ testid: 'category-edit' })) }}
+                    <p class="small text-muted mt-3 mb-0" data-testid="category-edit-dates">{{ edit_dates }}</p>
                 {{ form_widget(form._token) }}
                 {# module fields added through the legacy form bridge are rendered by the module hooks, not auto-dumped #}
                 {{ form_end(form, {render_rest: false}) }}
@@ -188,49 +207,47 @@
 
             <div class="tab-pane fade {% if current_tab == 'associations' %}show active{% endif %}" id="tab-associations" role="tabpanel" data-testid="category-associations-tab">
                 <div class="card shadow-sm border-0 mb-4">
-                    <div class="card-body"
-                         data-controller="bo-folder-content-picker"
-                         data-bo-folder-content-picker-url-template-value="{{ available_related_content_url }}">
+                    <div class="card-body">
                         <h2 class="h5 mb-1">{{ 'Related content'|trans }}</h2>
                         <p class="text-muted">{{ 'You can attach here some content to this category'|trans }}</p>
 
-                        {% if folder_tree|length > 0 %}
-                            <form action="{{ path('admin.categories.related-content.add') }}" method="post" class="row g-3 align-items-end mb-3" data-testid="category-related-content-form">
-                                <input type="hidden" name="category_id" value="{{ category.id }}">
-                                <input type="hidden" name="current_tab" value="associations">
-                                <input type="hidden" name="_token" value="{{ delete_related_content_token }}">
-                                <div class="col-md-6">
-                                    <label for="category-folder-id" class="form-label">{{ 'Folder'|trans }}</label>
-                                    <select id="category-folder-id" name="folder_id" class="form-select"
-                                            data-bo-folder-content-picker-target="folder"
-                                            data-action="change->bo-folder-content-picker#folderChanged">
-                                        <option value="">{{ 'Select a folder...'|trans }}</option>
-                                        {% for folder in folder_tree %}
-                                            <option value="{{ folder.id }}" {% if folder.id == selected_folder_id %}selected{% endif %} style="padding-inline-start: {{ 3 + folder.level * 20 }}px">{{ folder.title }}</option>
-                                        {% endfor %}
-                                    </select>
-                                    <small class="form-text text-muted">{{ 'Select a folder to get its content'|trans }}</small>
+                        <form action="{{ path('admin.categories.related-content.add') }}" method="post" class="mb-3" data-testid="category-related-content-form"
+                              data-controller="bo-relation-picker"
+                              data-bo-relation-picker-url-value="{{ available_related_content_url }}"
+                              data-bo-relation-picker-empty-label-value="{{ 'No matching content.'|trans }}">
+                            <input type="hidden" name="category_id" value="{{ category.id }}">
+                            <input type="hidden" name="current_tab" value="associations">
+                            <input type="hidden" name="_token" value="{{ delete_related_content_token }}">
+                            <input type="hidden" name="content_id" value="" data-bo-relation-picker-target="value">
+                            <label for="category-related-content-search" class="form-label">{{ 'Content'|trans }}</label>
+                            <div class="bo-relation-picker">
+                                <div class="input-group">
+                                    <input type="text"
+                                           id="category-related-content-search"
+                                           class="form-control"
+                                           autocomplete="off"
+                                           role="combobox"
+                                           aria-autocomplete="list"
+                                           aria-expanded="false"
+                                           aria-controls="category-related-content-menu"
+                                           placeholder="{{ 'Search by title…'|trans }}"
+                                           data-testid="category-related-content-search"
+                                           data-bo-relation-picker-target="input"
+                                           data-action="input->bo-relation-picker#search focus->bo-relation-picker#open blur->bo-relation-picker#close keydown->bo-relation-picker#key">
+                                    <button type="submit" class="btn btn-primary" disabled
+                                            aria-label="{{ 'Add'|trans }}"
+                                            data-testid="category-related-content-add"
+                                            data-bo-relation-picker-target="submit">
+                                        <i class="bi bi-plus-lg" aria-hidden="true"></i>
+                                    </button>
                                 </div>
-                                <div class="col-md-6">
-                                    <div data-bo-folder-content-picker-target="picker" class="d-none">
-                                        <label for="category-content-id" class="form-label">{{ 'Content'|trans }}</label>
-                                        <div class="input-group">
-                                            <select id="category-content-id" name="content_id" class="form-select" required
-                                                    data-bo-folder-content-picker-target="content">
-                                                <option value="">{{ 'Select a folder content...'|trans }}</option>
-                                            </select>
-                                            <button type="submit" class="btn btn-primary" data-testid="category-related-content-add">
-                                                <i class="bi bi-plus-lg" aria-hidden="true"></i>
-                                            </button>
-                                        </div>
-                                        <small class="form-text text-muted">{{ 'Select a content and click + to add it to this category'|trans }}</small>
-                                    </div>
-                                    <div data-bo-folder-content-picker-target="empty" class="d-none alert alert-info mb-0">{{ 'No available content in this folder'|trans }}</div>
-                                </div>
-                            </form>
-                        {% else %}
-                            <div class="alert alert-info">{{ 'No folders found'|trans }}</div>
-                        {% endif %}
+                                <ul class="bo-tag-picker__menu bo-relation-picker__menu d-none"
+                                    id="category-related-content-menu"
+                                    role="listbox"
+                                    data-bo-relation-picker-target="menu"></ul>
+                            </div>
+                            <small class="form-text text-muted">{{ 'Select a content and click + to add it to this category'|trans }}</small>
+                        </form>
 
                         {% set related_rows = [] %}
                         {% for content in assigned_contents %}
@@ -321,7 +338,7 @@
             </div>
 
             {% for block in extra_tabs %}
-                <div class="tab-pane fade" id="{{ block.id }}" role="tabpanel">
+                <div class="tab-pane fade {% if current_tab == block.id %}show active{% endif %}" id="{{ block.id }}" role="tabpanel">
                     {% if block.href is defined and block.href %}
                         <div class="text-center"><span class="loading">{{ 'Please wait, loading'|trans }}</span></div>
                     {% else %}

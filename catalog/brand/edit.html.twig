@@ -17,6 +17,8 @@
     {{ safe_hook('brand-edit.top', { brand_id: brand.id }) }}
 
     {% set extra_tabs = hook_block('brand.tab', { brand: brand.id, id: brand.id }) %}
+    {# A module tab opens like a native one when current_tab names it; an unknown tab falls back to the general one. #}
+    {% set current_tab = current_tab in ['general', 'images', 'documents', 'seo', 'modules']|merge(extra_tabs|map(block => block.id)) ? current_tab : 'general' %}
 
     <div class="container-fluid" data-testid="brand-edit-page">
         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -64,7 +66,7 @@
             </li>
             {% for block in extra_tabs %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
+                    <button class="nav-link {% if current_tab == block.id %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
                             {% if block.href is defined and block.href %}data-href="{{ block.href }}"{% endif %}
                             type="button" data-testid="brand-tab-{{ block.id }}">{{ block.title }}</button>
                 </li>
@@ -228,7 +230,7 @@
             </div>
 
             {% for block in extra_tabs %}
-                <div class="tab-pane fade" id="{{ block.id }}" role="tabpanel">
+                <div class="tab-pane fade {% if current_tab == block.id %}show active{% endif %}" id="{{ block.id }}" role="tabpanel">
                     {% if block.href is defined and block.href %}
                         <div class="text-center"><span class="loading">{{ 'Please wait, loading'|trans }}</span></div>
                     {% else %}

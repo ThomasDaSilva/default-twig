@@ -159,6 +159,14 @@
                     </div>
 
                     <div class="card mb-4">
+                        <div class="card-header">{{ 'Public pages cache'|trans }}</div>
+                        <div class="card-body">
+                            {{ form_row(form.shared_cache_mode, { attr: { 'data-testid': 'config-store-shared-cache-mode' } }) }}
+                            {{ form_row(form.shared_cache_ttl, { attr: { 'data-testid': 'config-store-shared-cache-ttl' } }) }}
+                        </div>
+                    </div>
+
+                    <div class="card mb-4">
                         <div class="card-header">{{ 'Product videos'|trans }}</div>
                         <div class="card-body">
                             {{ form_row(form.video_providers, { attr: { 'data-testid': 'config-store-video-providers' } }) }}

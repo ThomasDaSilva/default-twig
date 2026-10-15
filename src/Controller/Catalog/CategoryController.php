@@ -44,8 +44,6 @@ use Thelia\Model\Category;
 use Thelia\Model\CategoryAssociatedContentQuery;
 use Thelia\Model\CategoryQuery;
 use Thelia\Model\ContentQuery;
-use Thelia\Model\Folder;
-use Thelia\Model\FolderQuery;
 use Thelia\Model\LangQuery;
 use Thelia\Model\TemplateQuery;
 use Thelia\Tools\TokenProvider;
@@ -109,6 +107,7 @@ final class CategoryController
             eventFactory: $this->createEvent(...),
             actionLabel: 'Category creation',
             successRoute: self::EDIT_ROUTE,
+            successParametersResolver: static fn (CategoryCreateEvent $event): array => ['category_id' => (int) $event->getCategory()?->getId()],
             renderError: fn (): RedirectResponse => new RedirectResponse($this->urls->generate(self::LIST_ROUTE)),
             describeForLog: $this->describeCreated(...),
         );
@@ -149,11 +148,9 @@ final class CategoryController
             'available_templates' => $this->availableTemplates($uiLocale),
             'current_tab' => (string) $request->query->get('current_tab', 'general'),
             'edit_language_id' => (int) $editLang->getId(),
-            'folder_tree' => $this->folderTree($locale),
             'assigned_contents' => $this->assignedContents($category, $locale),
-            'available_related_content_url' => $this->urls->generate('admin.category.available-related-content', ['categoryId' => (int) $category->getId(), 'folderId' => 0, '_format' => 'json']),
+            'available_related_content_url' => $this->urls->generate('admin.category.available-related-content', ['categoryId' => (int) $category->getId(), 'locale' => $locale]),
             'delete_related_content_token' => $this->tokens->assignToken(),
-            'selected_folder_id' => (int) $request->query->get('folder_id', 0),
             'choice_filter' => $this->choiceFilterPresenter->forCategory($categoryId, $locale),
             'breadcrumb_path' => $this->categories->buildBreadcrumbPath($parentCategory, $uiLocale),
             'prev_url' => $navigation['previous'] !== null ? $this->urls->generate(self::EDIT_ROUTE, ['category_id' => $navigation['previous']]) : null,
@@ -170,6 +167,7 @@ final class CategoryController
         ]);
 
         $categoryId = (int) $request->request->get('category_id', 0);
+        $closeAfterSave = $request->request->get('save_mode') === 'close';
 
         return $this->action->submit(
             resource: self::RESOURCE,
@@ -178,9 +176,10 @@ final class CategoryController
             eventName: TheliaEvents::CATEGORY_UPDATE,
             eventFactory: $this->updateEvent(...),
             actionLabel: 'Category update',
-            successRoute: self::EDIT_ROUTE,
-            successParameters: ['category_id' => $categoryId],
+            successRoute: $closeAfterSave ? self::LIST_ROUTE : self::EDIT_ROUTE,
+            successParameters: $closeAfterSave ? [] : ['category_id' => $categoryId],
             renderError: fn (): RedirectResponse => new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['category_id' => $categoryId])),
+            successParametersResolver: $closeAfterSave ? static fn (CategoryUpdateEvent $event): array => ['category_id' => (int) $event->getParent()] : null,
             describeForLog: $this->describeUpdated(...),
         );
     }
@@ -228,7 +227,7 @@ final class CategoryController
             eventName: TheliaEvents::CATEGORY_TOGGLE_VISIBILITY,
             actionLabel: 'Category visibility',
             successRoute: self::LIST_ROUTE,
-            successParameters: ['category_id' => (int) $category->getParent()],
+            successParameters: ['category_id' => (int) $category->getParent(), 'page' => $this->listPage($request)],
         );
     }
 
@@ -341,8 +340,16 @@ final class CategoryController
             eventName: TheliaEvents::CATEGORY_DELETE,
             actionLabel: 'Category deletion',
             successRoute: self::LIST_ROUTE,
-            successParameters: ['category_id' => $parentId],
+            successParameters: ['category_id' => $parentId, 'page' => $this->listPage($request)],
         );
+    }
+
+    /**
+     * The page of products of the category list the action was sent from.
+     */
+    private function listPage(Request $request): int
+    {
+        return max(1, (int) $request->query->get('page', 1));
     }
 
     private function createEvent(FormInterface $validated): CategoryCreateEvent
@@ -484,29 +491,6 @@ final class CategoryController
         }
 
         return $rows;
-    }
-
-    /**
-     * @return list<array{id: int, title: string, level: int}>
-     */
-    private function folderTree(string $locale, int $parentId = 0, int $level = 0): array
-    {
-        $items = [];
-        $folders = FolderQuery::create()
-            ->filterByParent($parentId)
-            ->orderByPosition()
-            ->find();
-
-        foreach ($folders as $folder) {
-            \assert($folder instanceof Folder);
-            $folder->setLocale($locale);
-            $items[] = ['id' => (int) $folder->getId(), 'title' => (string) $folder->getTitle(), 'level' => $level];
-            foreach ($this->folderTree($locale, (int) $folder->getId(), $level + 1) as $child) {
-                $items[] = $child;
-            }
-        }
-
-        return $items;
     }
 
     /**

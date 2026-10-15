@@ -54,7 +54,6 @@ final readonly class ProductRelationsContext
             'product' => $product,
             'default_category_id' => $defaultCategoryId,
             'folder_tree' => $this->folderTree($this->foldersByParent($locale)),
-            'category_tree_for_relations' => $this->categoryTree($categoryChildren),
             'category_tree_for_additional' => $this->categoryTree($categoryChildren, excluded: $excludedFromTree),
             'assigned_contents' => $this->assignedContents($product, $locale),
             'relation_blocks' => $this->relationBlocks($product, $locale, $uiLocale),
@@ -231,8 +230,7 @@ final readonly class ProductRelationsContext
                 'available_url' => $this->urls->generate('admin.product.associations-content', [
                     'productId' => $productId,
                     'typeCode' => $code,
-                    'categoryId' => 0,
-                    '_format' => 'json',
+                    'locale' => $locale,
                 ]),
                 'position_url' => $this->urls->generate('admin.product.update-association-position'),
                 // Modules hooked on the accessory table keep the names they were written

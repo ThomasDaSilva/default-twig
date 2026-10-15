@@ -88,6 +88,7 @@
                         {% form_theme form with bo_form_themes only %}
                         {{ form_start(form, { action: path('admin.content.save'), method: 'post', attr: { 'data-testid': 'content-edit-form' } }) }}
                             <input type="hidden" name="content_id" value="{{ content.id }}">
+
                             <div class="row g-3">
                                 <div class="col-md-8">
                                     <div class="mb-3">
@@ -124,16 +125,30 @@
                                         {% do form.default_folder.setRendered %}
                                     </div>
                                     {{ safe_hook('content.modification.form-right.bottom', { content_id: content.id }) }}
+                                    {% set edit_toolbar = {
+                                        closeUrl: path('admin.folders.default', { folder_id: content.defaultFolderId|default(0) }),
+                                        closeFirst: false,
+                                        closeIcon: 'bi-x-lg',
+                                        saveIcon: 'bi-check-lg',
+                                        saveCloseIcon: 'bi-x-lg',
+                                        saveVariant: 'success',
+                                        saveCloseVariant: 'info',
+                                        iconAfterLabel: true,
+                                        align: 'start'
+                                    } %}
+                                    {% set edit_dates = 'Content created on %date_create. Last modification on %date_change'|trans({
+                                        '%date_create': content.createdAt ? content.createdAt|format_datetime('medium', 'short') : '-',
+                                        '%date_change': content.updatedAt ? content.updatedAt|format_datetime('medium', 'short') : '-',
+                                    }) %}
+                                    {{ component('BoSaveModeToolbar', edit_toolbar|merge({ wrapperClass: 'mb-2', testid: 'content-edit-top' })) }}
+                                    <p class="small text-muted mb-3" data-testid="content-edit-dates-top">{{ edit_dates }}</p>
                                 </div>
                             </div>
                             {{ form_widget(form.id) }}
                             {{ form_widget(form.locale) }}
                             {{ safe_hook('content.update-form', { content: content.id }) }}
-                            <div class="mt-3">
-                                <button type="submit" class="btn btn-primary" data-testid="content-edit-submit">
-                                    <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save'|trans }}
-                                </button>
-                            </div>
+                            {{ component('BoSaveModeToolbar', edit_toolbar|merge({ testid: 'content-edit' })) }}
+                            <p class="small text-muted mt-3 mb-0" data-testid="content-edit-dates">{{ edit_dates }}</p>
                         {{ form_widget(form._token) }}
                         {# module fields added through the legacy form bridge are rendered by the module hooks, not auto-dumped #}
                         {{ form_end(form, {render_rest: false}) }}

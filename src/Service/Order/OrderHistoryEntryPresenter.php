@@ -45,6 +45,9 @@ final readonly class OrderHistoryEntryPresenter
         'return_opened' => 'bi-arrow-return-left',
         'return_status_changed' => 'bi-arrow-repeat',
         'return_received' => 'bi-box-arrow-in-down',
+        'shipment_opened' => 'bi-box-seam',
+        'shipment_shipped' => 'bi-truck',
+        'shipment_cancelled' => 'bi-x-octagon',
     ];
 
     private const FALLBACK_ICON = 'bi-record-circle';
@@ -173,6 +176,19 @@ final readonly class OrderHistoryEntryPresenter
                 'Return received',
                 $locale,
             ),
+            OrderHistoryEventType::SHIPMENT_OPENED => $this->summarizeReference(
+                $this->readString($payload, 'shipment_ref'),
+                'Shipment %reference% opened',
+                'Shipment opened',
+                $locale,
+            ),
+            OrderHistoryEventType::SHIPMENT_SHIPPED => $this->summarizeShipmentShipped($payload, $locale),
+            OrderHistoryEventType::SHIPMENT_CANCELLED => $this->summarizeReference(
+                $this->readString($payload, 'shipment_ref'),
+                'Shipment %reference% cancelled',
+                'Shipment cancelled',
+                $locale,
+            ),
             // A type this theme cannot name — a module's own code, or an enum case
             // added by a core more recent than this theme: its raw code is the only
             // thing that can be said about it without inventing a meaning, and a
@@ -256,6 +272,23 @@ final readonly class OrderHistoryEntryPresenter
             'invoice' => $this->trans('Invoice address updated', [], $locale),
             default => $this->trans('Address updated', [], $locale),
         };
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function summarizeShipmentShipped(array $payload, string $locale): string
+    {
+        $reference = $this->readString($payload, 'shipment_ref');
+        $trackingNumber = $this->readString($payload, 'delivery_ref');
+
+        if ('' === $reference) {
+            return $this->trans('Shipment shipped', [], $locale);
+        }
+
+        return '' === $trackingNumber
+            ? $this->trans('Shipment %reference% shipped', ['%reference%' => $reference], $locale)
+            : $this->trans('Shipment %reference% shipped, tracking number %tracking%', ['%reference%' => $reference, '%tracking%' => $trackingNumber], $locale);
     }
 
     private function summarizeReference(

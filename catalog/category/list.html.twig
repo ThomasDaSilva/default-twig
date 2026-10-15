@@ -51,7 +51,7 @@
                 column_html('thumbnail_html', 'Image'|trans, 'center', hideBelow: 'md'),
                 column_html('title_html', 'Title'|trans),
                 column_toggle('visible', 'Online'|trans, 'toggle_visible_url'),
-                column('position', 'Position'|trans, 'center', hideBelow: 'lg'),
+                column_position('position', 'Position'|trans, 'center', hideBelow: 'lg'),
                 column_actions('_actions', 'Actions'|trans),
             ],
             rows: rows,
@@ -62,10 +62,16 @@
             rowHookContext: { location: 'category_list_row' },
             rowHookArgs: { category_id: 'id' },
             tbodyAttributes: {
-                'data-controller': 'bo-sortable',
+                'data-controller': 'bo-sortable bo-position',
                 'data-bo-sortable-url-value': update_position_url,
                 'data-bo-sortable-token-value': update_position_token,
                 'data-bo-sortable-param-name-value': 'category_id',
+                'data-bo-position-url-value': update_position_url,
+                'data-bo-position-token-value': update_position_token,
+                'data-bo-position-param-name-value': 'category_id',
+                'data-bo-position-title-value': 'Position'|trans,
+                'data-bo-position-save-label-value': 'Save'|trans,
+                'data-bo-position-cancel-label-value': 'Cancel'|trans,
             },
         }) }}
 
@@ -90,7 +96,7 @@
                         column('ref', 'Reference'|trans),
                         column_html('title_html', 'Title'|trans),
                         column_toggle('visible', 'Online'|trans, 'toggle_visible_url'),
-                        column('position', 'Position'|trans, 'center', hideBelow: 'lg'),
+                        column_position('position', 'Position'|trans, 'center', hideBelow: 'lg'),
                         column_actions('_actions', 'Actions'|trans),
                     ],
                     rows: product_rows,
@@ -100,6 +106,18 @@
                     headerHookContext: { location: 'product_list_header' },
                     rowHookContext: { location: 'product_list_row' },
                     rowHookArgs: { product_id: 'id' },
+                    tbodyAttributes: {
+                        'data-controller': 'bo-sortable bo-position',
+                        'data-bo-sortable-url-value': product_update_position_url,
+                        'data-bo-sortable-token-value': product_update_position_token,
+                        'data-bo-sortable-param-name-value': 'product_id',
+                        'data-bo-position-url-value': product_update_position_url,
+                        'data-bo-position-token-value': product_update_position_token,
+                        'data-bo-position-param-name-value': 'product_id',
+                        'data-bo-position-title-value': 'Position'|trans,
+                        'data-bo-position-save-label-value': 'Save'|trans,
+                        'data-bo-position-cancel-label-value': 'Cancel'|trans,
+                    },
                 }) }}
 
                 {{ component('BoPagination', {
@@ -157,7 +175,7 @@
     {{ component('BoConfirmDialog', {
         id: 'category-delete-modal',
         title: 'Delete category',
-        formAction: path('admin.categories.delete'),
+        formAction: path('admin.categories.delete', category_action_params),
         message: 'Do you really want to delete this category? Its subcategories and the products it owns will also be deleted.',
         testid: 'category-delete',
         hook: 'category.delete-form',
@@ -170,7 +188,7 @@
         {{ component('BoConfirmDialog', {
             id: 'category-product-delete-modal',
             title: 'Delete product',
-            formAction: path('admin.products.delete'),
+            formAction: path('admin.products.delete', product_action_params),
             message: 'Do you really want to delete this product?',
             testid: 'category-product-delete',
             hook: 'product.delete-form',

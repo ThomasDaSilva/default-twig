@@ -48,7 +48,7 @@
                 column_html('thumbnail_html', 'Image'|trans, 'center', hideBelow: 'md'),
                 column_html('title_html', 'Title'|trans, 'start', 'title'),
                 column_toggle('visible', 'Online'|trans, 'toggle_visible_url', 'center', 'bi-check-circle-fill text-success', 'bi-circle text-secondary', 'visible'),
-                column('position', 'Position'|trans, 'center', 'position', hideBelow: 'lg'),
+                column_position('position', 'Position'|trans, 'center', 'position', hideBelow: 'lg'),
                 column_actions('_actions', 'Actions'|trans),
             ],
             rows: rows,
@@ -62,10 +62,16 @@
             sortDirection: sort_direction,
             sortKeepParams: { folder_id: parent_id ?: null },
             tbodyAttributes: {
-                'data-controller': 'bo-sortable',
+                'data-controller': 'bo-sortable bo-position',
                 'data-bo-sortable-url-value': update_position_url,
                 'data-bo-sortable-token-value': update_position_token,
                 'data-bo-sortable-param-name-value': 'folder_id',
+                'data-bo-position-url-value': update_position_url,
+                'data-bo-position-token-value': update_position_token,
+                'data-bo-position-param-name-value': 'folder_id',
+                'data-bo-position-title-value': 'Position'|trans,
+                'data-bo-position-save-label-value': 'Save'|trans,
+                'data-bo-position-cancel-label-value': 'Cancel'|trans,
             },
         }) }}
 
@@ -89,7 +95,7 @@
                         column_html('thumbnail_html', 'Image'|trans, 'center', hideBelow: 'md'),
                         column_html('title_html', 'Title'|trans, 'start'),
                         column_toggle('visible', 'Online'|trans, 'toggle_visible_url', 'center', 'bi-check-circle-fill text-success', 'bi-circle text-secondary', 'visible'),
-                        column('position', 'Position'|trans, 'center', hideBelow: 'lg'),
+                        column_position('position', 'Position'|trans, 'center', hideBelow: 'lg'),
                         column_actions('_actions', 'Actions'|trans),
                     ],
                     rows: content_rows,
@@ -99,10 +105,16 @@
                     headerHookContext: { location: 'content_list_header' },
                     rowHookContext: { location: 'content_list_row' },
                     tbodyAttributes: {
-                        'data-controller': 'bo-sortable',
+                        'data-controller': 'bo-sortable bo-position',
                         'data-bo-sortable-url-value': content_update_position_url,
                         'data-bo-sortable-token-value': content_update_position_token,
                         'data-bo-sortable-param-name-value': 'content_id',
+                        'data-bo-position-url-value': content_update_position_url,
+                        'data-bo-position-token-value': content_update_position_token,
+                        'data-bo-position-param-name-value': 'content_id',
+                        'data-bo-position-title-value': 'Position'|trans,
+                        'data-bo-position-save-label-value': 'Save'|trans,
+                        'data-bo-position-cancel-label-value': 'Cancel'|trans,
                     },
                 }) }}
 
@@ -158,7 +170,7 @@
     {{ component('BoConfirmDialog', {
         id: 'folder-delete-modal',
         title: 'Delete folder',
-        formAction: path('admin.folders.delete'),
+        formAction: path('admin.folders.delete', list_query_params),
         message: 'Do you really want to delete this folder? Subfolders and products are not deleted but become orphaned.',
         testid: 'folder-delete',
         hook: 'folder.delete-form',
@@ -203,7 +215,7 @@
         {{ component('BoConfirmDialog', {
             id: 'content-delete-modal',
             title: 'Delete content',
-            formAction: path('admin.content.delete'),
+            formAction: path('admin.content.delete', list_query_params|merge({ folder_id: parent_id })),
             message: 'Do you really want to delete this content?',
             testid: 'content-delete',
             hook: 'content.delete-form',

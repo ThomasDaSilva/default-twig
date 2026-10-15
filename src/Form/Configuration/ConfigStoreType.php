@@ -19,6 +19,7 @@ use Symfony\Component\Form\CallbackTransformer;
 use Symfony\Component\Form\Extension\Core\Type\CheckboxType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
 use Symfony\Component\Form\Extension\Core\Type\FileType;
+use Symfony\Component\Form\Extension\Core\Type\IntegerType;
 use Symfony\Component\Form\Extension\Core\Type\TextareaType;
 use Symfony\Component\Form\Extension\Core\Type\TextType;
 use Symfony\Component\Form\FormBuilderInterface;
@@ -28,9 +29,12 @@ use Symfony\Component\Validator\Constraints\Email;
 use Symfony\Component\Validator\Constraints\Image;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\NotBlank;
+use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Component\Validator\Constraints\Regex;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Thelia\Core\SharedCache\SharedCacheMode;
+use Thelia\Core\SharedCache\SharedCachePolicy;
 use Thelia\Domain\Checkout\Enum\GuestCheckoutMode;
 use Thelia\Domain\Legal\CompanyIdentifier;
 use Thelia\Domain\Media\Video\VideoProvider;
@@ -210,6 +214,22 @@ final class ConfigStoreType extends AbstractType
                     $this->translator->trans('Enabled, except for products that require an account') => GuestCheckoutMode::EnabledUnlessProductForbids->value,
                 ],
                 'placeholder' => false,
+            ])
+            ->add('shared_cache_mode', ChoiceType::class, [
+                'constraints' => [new NotBlank()],
+                'label' => $this->translator->trans('Shared cache of the public pages'),
+                'help' => $this->translator->trans('Lets a proxy in front of the shop keep the pages of anonymous visitors. It needs a proxy configured to purge on catalogue changes.'),
+                'choices' => [
+                    $this->translator->trans('Disabled — no page is announced as shareable') => SharedCacheMode::DISABLED->value,
+                    $this->translator->trans('Announce — pages state how long a shared cache may keep them, cookies untouched') => SharedCacheMode::ANNOUNCE->value,
+                    $this->translator->trans('Enabled — also remove the cookies of an anonymous page so a proxy can keep it') => SharedCacheMode::ENABLED->value,
+                ],
+                'placeholder' => false,
+            ])
+            ->add('shared_cache_ttl', IntegerType::class, [
+                'constraints' => [new NotBlank(), new Range(min: 1, max: SharedCachePolicy::MAX_TTL)],
+                'label' => $this->translator->trans('Shared cache lifetime (seconds)'),
+                'help' => $this->translator->trans('How long a shared cache may keep a public page. An invalid value falls back to 300 seconds.'),
             ])
             ->add('video_providers', ChoiceType::class, [
                 'required' => false,

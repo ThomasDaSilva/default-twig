@@ -104,6 +104,7 @@ final class TemplateController
             eventFactory: $this->createEvent(...),
             actionLabel: 'Template creation',
             successRoute: self::EDIT_ROUTE,
+            successParametersResolver: static fn (TemplateCreateEvent $event): array => ['template_id' => (int) $event->getTemplate()?->getId()],
             renderError: fn (): RedirectResponse => new RedirectResponse($this->urls->generate(self::LIST_ROUTE)),
             describeForLog: $this->describeCreated(...),
         );

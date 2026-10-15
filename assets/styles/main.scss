@@ -1193,6 +1193,50 @@ td.bo-datatable__details-col {
     box-shadow: inset 0 2px 0 0 var(--bs-primary, #0d6efd);
 }
 
+// Position cell: arrows move a row one step, the number opens a field to send it
+// to any position (bo-position controller).
+.bo-position {
+    display: inline-flex;
+    align-items: center;
+    gap: .125rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.bo-position__step,
+.bo-position__value {
+    padding: .125rem .25rem;
+    color: var(--bs-primary);
+    background: none;
+    border: 0;
+    border-radius: .25rem;
+    line-height: 1;
+}
+
+.bo-position__value {
+    min-width: 1.75rem;
+    color: var(--bs-body-color);
+    text-decoration: underline dotted;
+    text-underline-offset: .2em;
+}
+
+.bo-position__step:hover,
+.bo-position__value:hover,
+.bo-position__step:focus-visible,
+.bo-position__value:focus-visible {
+    background-color: var(--bs-tertiary-bg);
+}
+
+// Bootstrap leaves a popover's positioning to Popper; the controller places
+// this one itself, so the stylesheet takes it out of the flow.
+.bo-position__editor {
+    position: absolute;
+    width: 15rem;
+
+    .form-control {
+        min-width: 0;
+    }
+}
+
 .bo-drag-handle {
     cursor: grab;
 }
@@ -2543,6 +2587,22 @@ tr.bo-order-row--urgent {
 .bo-tag-picker__empty {
     padding: .375rem .5rem;
     color: var(--bs-secondary-color);
+}
+
+// ---------- Relation picker ----------
+// Search field of a relation block, for related products and related contents.
+// It borrows the tag picker's menu and options, but floats the menu over the
+// table below instead of pushing it down at every keystroke.
+
+.bo-relation-picker {
+    position: relative;
+}
+
+.bo-relation-picker__menu {
+    position: absolute;
+    inset-inline: 0;
+    top: 100%;
+    z-index: 1000;
 }
 
 // Tag badges in a list cell. Same dot as the picker, read-only and tighter: a

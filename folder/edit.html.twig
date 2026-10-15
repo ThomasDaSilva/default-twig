@@ -22,6 +22,8 @@
     {% set current_tab = current_tab|default('general') %}
     {% set children = children|default([]) %}
     {% set extra_tabs = hook_block('folder.tab', { folder: folder.id, id: folder.id }) %}
+    {# A module tab opens like a native one when current_tab names it; an unknown tab falls back to the general one. #}
+    {% set current_tab = current_tab in ['general', 'children', 'images', 'documents', 'seo', 'modules']|merge(extra_tabs|map(block => block.id)) ? current_tab : 'general' %}
 
     <div class="container-fluid" data-testid="folder-edit-page">
         <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
@@ -67,7 +69,7 @@
             </li>
             {% for block in extra_tabs %}
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
+                    <button class="nav-link {% if current_tab == block.id %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#{{ block.id }}"
                             {% if block.href is defined and block.href %}data-href="{{ block.href }}"{% endif %}
                             type="button" data-testid="folder-tab-{{ block.id }}">{{ block.title }}</button>
                 </li>
@@ -88,6 +90,7 @@
                 {% form_theme form with bo_form_themes only %}
                 {{ form_start(form, { action: path('admin.folders.save', { folder_id: folder.id }), method: 'post', attr: { 'data-testid': 'folder-edit-form' } }) }}
                     <input type="hidden" name="folder_id" value="{{ folder.id }}">
+
                     <div class="row">
                         <div class="col-md-8">
                             <div class="mb-3">
@@ -119,14 +122,30 @@
                                 {{ form_widget(form.parent, { attr: { class: 'form-control' } }) }}
                             </div>
                             {{ safe_hook('folder.modification.form-right.bottom', { folder_id: folder.id }) }}
+                            {% set edit_toolbar = {
+                                closeUrl: path('admin.folders.default', { folder_id: folder.parent }),
+                                closeFirst: false,
+                                closeIcon: 'bi-x-lg',
+                                saveIcon: 'bi-check-lg',
+                                saveCloseIcon: 'bi-x-lg',
+                                saveVariant: 'success',
+                                saveCloseVariant: 'info',
+                                iconAfterLabel: true,
+                                align: 'start'
+                            } %}
+                            {% set edit_dates = 'Folder created on %date_create. Last modification on %date_change'|trans({
+                                '%date_create': folder.createdAt ? folder.createdAt|format_datetime('medium', 'short') : '-',
+                                '%date_change': folder.updatedAt ? folder.updatedAt|format_datetime('medium', 'short') : '-',
+                            }) %}
+                            {{ component('BoSaveModeToolbar', edit_toolbar|merge({ wrapperClass: 'mb-2', testid: 'folder-edit-top' })) }}
+                            <p class="small text-muted mb-3" data-testid="folder-edit-dates-top">{{ edit_dates }}</p>
                         </div>
                     </div>
                     {{ form_widget(form.id) }}
                     {{ form_widget(form.locale) }}
                     {{ safe_hook('folder.update-form', { folder: folder.id }) }}
-                    <button type="submit" class="btn btn-primary" data-testid="folder-edit-submit">
-                        <i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save'|trans }}
-                    </button>
+                    {{ component('BoSaveModeToolbar', edit_toolbar|merge({ testid: 'folder-edit' })) }}
+                    <p class="small text-muted mt-3 mb-0" data-testid="folder-edit-dates">{{ edit_dates }}</p>
                 {{ form_widget(form._token) }}
                 {# module fields added through the legacy form bridge are rendered by the module hooks, not auto-dumped #}
                 {{ form_end(form, {render_rest: false}) }}
@@ -199,7 +218,7 @@
             </div>
 
             {% for block in extra_tabs %}
-                <div class="tab-pane fade" id="{{ block.id }}" role="tabpanel">
+                <div class="tab-pane fade {% if current_tab == block.id %}show active{% endif %}" id="{{ block.id }}" role="tabpanel">
                     {% if block.href is defined and block.href %}
                         <div class="text-center"><span class="loading">{{ 'Please wait, loading'|trans }}</span></div>
                     {% else %}

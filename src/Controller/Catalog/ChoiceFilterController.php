@@ -27,6 +27,11 @@ use Thelia\Model\ChoiceFilter;
 use Thelia\Model\ChoiceFilterQuery;
 use Thelia\Tools\TokenProvider;
 
+/**
+ * The filters of a category or a template are deleted row by row rather than by one
+ * query: each deletion dispatches its Propel event, which the shared cache of the core
+ * listens to, so emptying the list purges the pages that read it.
+ */
 final class ChoiceFilterController
 {
     public function __construct(
@@ -50,11 +55,11 @@ final class ChoiceFilterController
         [$templateId, $categoryId, $redirectUrl] = $this->resolveScope($data);
 
         if ($templateId !== null) {
-            ChoiceFilterQuery::create()->filterByTemplateId($templateId)->delete();
+            $this->deleteRowByRow(ChoiceFilterQuery::create()->filterByTemplateId($templateId));
             $base = (new ChoiceFilter())->setTemplateId($templateId);
         } else {
             \assert($categoryId !== null);
-            ChoiceFilterQuery::create()->filterByCategoryId($categoryId)->delete();
+            $this->deleteRowByRow(ChoiceFilterQuery::create()->filterByCategoryId($categoryId));
             $base = (new ChoiceFilter())->setCategoryId($categoryId);
         }
 
@@ -94,15 +99,22 @@ final class ChoiceFilterController
         [$templateId, $categoryId, $redirectUrl] = $this->resolveScope($data);
 
         if ($templateId !== null) {
-            ChoiceFilterQuery::create()->filterByTemplateId($templateId)->delete();
+            $this->deleteRowByRow(ChoiceFilterQuery::create()->filterByTemplateId($templateId));
         } else {
             \assert($categoryId !== null);
-            ChoiceFilterQuery::create()->filterByCategoryId($categoryId)->delete();
+            $this->deleteRowByRow(ChoiceFilterQuery::create()->filterByCategoryId($categoryId));
         }
 
         $this->flash($request, $this->translator->trans('Configuration cleared.'));
 
         return new RedirectResponse($redirectUrl);
+    }
+
+    private function deleteRowByRow(ChoiceFilterQuery $query): void
+    {
+        foreach ($query->find() as $filter) {
+            $filter->delete();
+        }
     }
 
     /**

@@ -63,6 +63,7 @@ use Thelia\Model\Product;
 use Thelia\Model\ProductAssociationTypeQuery;
 use Thelia\Model\ProductDocument;
 use Thelia\Model\ProductDocumentQuery;
+use Thelia\Model\ProductI18nQuery;
 use Thelia\Model\ProductImage;
 use Thelia\Model\ProductImageQuery;
 use Thelia\Model\ProductPrice;
@@ -88,6 +89,7 @@ final class ProductAdvancedController
     private const EDIT_ROUTE = 'admin.products.update';
     private const PSE_THUMBNAIL_WIDTH = 200;
     private const PSE_THUMBNAIL_HEIGHT = 200;
+    private const ASSOCIATION_SEARCH_LIMIT = 20;
 
     public function __construct(
         private readonly AdminFormAction $action,
@@ -163,27 +165,27 @@ final class ProductAdvancedController
     }
 
     /**
-     * The products a category offers for a relation of this type.
+     * The products matching a search on reference or title, offered for a relation of this type.
      *
      * Products already related under this very type are out, and so is the product
      * itself. Products related under another type stay in: a case may be both an
      * accessory of the phone and a cross-sell of the charger, and excluding every
      * relation whatever its type would hide them from the other blocks.
      */
-    #[Route('/admin/product/{productId}/available-associations/{typeCode}/{categoryId}.{_format}', name: 'admin.product.associations-content', methods: ['GET'], requirements: ['productId' => '\d+', 'typeCode' => '[a-z0-9_]+', 'categoryId' => '\d+'])]
-    public function availableAssociations(int $productId, string $typeCode, int $categoryId, string $_format): Response
+    #[Route('/admin/product/{productId}/available-associations/{typeCode}.json', name: 'admin.product.associations-content', methods: ['GET'], requirements: ['productId' => '\d+', 'typeCode' => '[a-z0-9_]+'])]
+    public function availableAssociations(int $productId, string $typeCode, Request $request): JsonResponse
     {
-        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
-            return $denied;
+        if ($this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
+            return new JsonResponse([], Response::HTTP_FORBIDDEN);
         }
 
+        $term = trim((string) $request->query->get('q', ''));
         $type = ProductAssociationTypeQuery::create()->filterByCode($typeCode)->findOne();
 
-        if (null === $type) {
-            return $_format === 'json' ? new JsonResponse([]) : new Response('');
+        if ('' === $term || null === $type) {
+            return new JsonResponse([]);
         }
 
-        $locale = $this->defaultLocale();
         $alreadyRelated = AccessoryQuery::create()
             ->filterByProductId($productId)
             ->filterByTypeId($type->getId())
@@ -191,21 +193,38 @@ final class ProductAdvancedController
             ->find()
             ->toArray();
         $excluded = array_merge([$productId], array_map('intval', $alreadyRelated));
+        $pattern = '%'.addcslashes($term, '%_\\').'%';
 
-        $query = ProductQuery::create()
-            ->useProductCategoryQuery()
-                ->filterByCategoryId($categoryId)
-            ->endUse()
+        // The title is searched in every language, so the operator finds a product
+        // by the name they know it under, whichever translation carries it.
+        $products = ProductQuery::create()
+            ->leftJoinProductI18n('search_i18n')
+            ->condition('byRef', 'Product.Ref LIKE ?', $pattern)
+            ->condition('byTitle', 'search_i18n.Title LIKE ?', $pattern)
+            ->where(['byRef', 'byTitle'], Criteria::LOGICAL_OR)
             ->filterById($excluded, Criteria::NOT_IN)
-            ->orderByPosition();
+            ->distinct()
+            ->orderByRef()
+            ->limit(self::ASSOCIATION_SEARCH_LIMIT)
+            ->find();
 
-        $items = [];
-        foreach ($query->find() as $product) {
-            $product->setLocale($locale);
-            $items[] = ['id' => (int) $product->getId(), 'title' => (string) $product->getTitle(), 'ref' => (string) $product->getRef()];
+        $productIds = array_map(static fn (Product $product): int => (int) $product->getId(), iterator_to_array($products));
+        $titles = [];
+        $translations = ProductI18nQuery::create()
+            ->filterById($productIds, Criteria::IN)
+            ->filterByLocale($this->associationSearchLocale($request))
+            ->find();
+        foreach ($translations as $translation) {
+            $titles[(int) $translation->getId()] = (string) $translation->getTitle();
         }
 
-        return $_format === 'json' ? new JsonResponse($items) : new Response('');
+        $items = [];
+        foreach ($products as $product) {
+            $productId = (int) $product->getId();
+            $items[] = ['id' => $productId, 'title' => $titles[$productId] ?? '', 'ref' => (string) $product->getRef()];
+        }
+
+        return new JsonResponse($items);
     }
 
     #[Route('/admin/product/update-association-position', name: 'admin.product.update-association-position', methods: ['POST'])]
@@ -1110,6 +1129,21 @@ final class ProductAdvancedController
         $defaultLang = LangQuery::create()->findOneByByDefault(1);
 
         return $defaultLang?->getLocale() ?? 'en_US';
+    }
+
+    /**
+     * The edit locale of the product sheet the search comes from, so a suggestion
+     * reads like the rows of the block it is added to.
+     */
+    private function associationSearchLocale(Request $request): string
+    {
+        $locale = (string) $request->query->get('locale', '');
+
+        if ('' !== $locale && null !== LangQuery::create()->findOneByLocale($locale)) {
+            return $locale;
+        }
+
+        return $this->defaultLocale();
     }
 
     private function defaultCurrencyId(): int

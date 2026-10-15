@@ -23,4 +23,5 @@ enum ColumnKind: string
     case ACTIONS = 'actions';
     case RADIO = 'radio';
     case SELECT = 'select';
+    case POSITION = 'position';
 }

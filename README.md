@@ -211,6 +211,10 @@ TheliaBlocks) are all wired. A hook code that is **not** emitted is considered d
 Twig back-office. Open an issue if your module needs one that is missing. The `<screen>.js` /
 `<entity>.edit-js` script hooks are emitted on a per-screen basis as screens are migrated.
 
+On the product, category, folder and brand sheets, a tab returned by `<entity>.tab` reopens like a native one: a
+module that saves a form of its tab redirects to the sheet with `current_tab` set to the `id` of its block. A
+`current_tab` the sheet does not have opens the general tab.
+
 #### Adding a section to the customer sheet
 
 The customer sheet is made of collapsible sections (overview, addresses, orders, carts, personal data). A module

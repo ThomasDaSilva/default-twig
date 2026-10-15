@@ -25,6 +25,13 @@ final class SaveModeToolbar
 
     public string $closeVariant = 'outline-secondary';
 
+    public ?string $closeIcon = null;
+
+    /** @var array<string, string> */
+    public array $closeAttributes = [];
+
+    public bool $closeFirst = true;
+
     public string $saveModeField = 'save_mode';
 
     public string $saveLabel = 'Save';
@@ -38,6 +45,8 @@ final class SaveModeToolbar
     public string $saveVariant = 'outline-primary';
 
     public string $saveCloseVariant = 'primary';
+
+    public bool $iconAfterLabel = false;
 
     public bool $showSave = true;
 

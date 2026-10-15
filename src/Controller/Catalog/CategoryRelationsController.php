@@ -30,14 +30,16 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Model\CategoryAssociatedContentQuery;
 use Thelia\Model\CategoryQuery;
+use Thelia\Model\Content;
+use Thelia\Model\ContentI18nQuery;
 use Thelia\Model\ContentQuery;
-use Thelia\Model\FolderQuery;
 use Thelia\Model\LangQuery;
 
 final class CategoryRelationsController
 {
     private const RESOURCE = AdminResources::CATEGORY;
     private const EDIT_ROUTE = 'admin.categories.update';
+    private const CONTENT_SEARCH_LIMIT = 20;
 
     public function __construct(
         private readonly AdminFormAction $action,
@@ -105,21 +107,24 @@ final class CategoryRelationsController
         return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['category_id' => $categoryId, 'current_tab' => 'images']));
     }
 
+    /**
+     * The contents matching a search on their title, offered as related contents of
+     * the category. Contents already related to it are out.
+     */
     #[Route(
-        '/admin/category/{categoryId}/available-related-content/{folderId}.{_format}',
+        '/admin/category/{categoryId}/available-related-content.json',
         name: 'admin.category.available-related-content',
         methods: ['GET'],
-        requirements: ['categoryId' => '\d+', 'folderId' => '\d+', '_format' => 'json|xml'],
+        requirements: ['categoryId' => '\d+'],
     )]
-    public function availableRelatedContent(int $categoryId, int $folderId): JsonResponse
+    public function availableRelatedContent(int $categoryId, Request $request): JsonResponse
     {
-        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
+        if ($this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return new JsonResponse([], Response::HTTP_FORBIDDEN);
         }
 
-        $locale = $this->defaultLocale();
-        $folder = FolderQuery::create()->findPk($folderId);
-        if ($folder === null) {
+        $term = trim((string) $request->query->get('q', ''));
+        if ('' === $term) {
             return new JsonResponse([]);
         }
 
@@ -128,19 +133,56 @@ final class CategoryRelationsController
             ->findByCategoryId($categoryId)
             ->toArray();
 
+        // The title is searched in every language, so the operator finds a content
+        // by the name they know it under, whichever translation carries it.
         $contents = ContentQuery::create()
-            ->joinWithI18n($locale)
-            ->filterByFolder($folder, Criteria::IN)
-            ->filterById($alreadyAssigned, Criteria::NOT_IN)
-            ->orderByPosition()
+            ->useContentI18nQuery()
+                ->filterByTitle('%'.addcslashes($term, '%_\\').'%', Criteria::LIKE)
+            ->endUse()
+            ->filterById(array_map('intval', $alreadyAssigned), Criteria::NOT_IN)
+            ->distinct()
+            ->orderById()
+            ->limit(self::CONTENT_SEARCH_LIMIT)
             ->find();
+
+        $contentIds = array_map(static fn (Content $content): int => (int) $content->getId(), iterator_to_array($contents));
+        // A content without a title in the edit locale shows the one the search
+        // matched in another language rather than an empty suggestion.
+        $locale = $this->searchLocale($request);
+        $titles = [];
+        $translations = ContentI18nQuery::create()
+            ->filterById($contentIds, Criteria::IN)
+            ->find();
+        foreach ($translations as $translation) {
+            $contentId = (int) $translation->getId();
+            $title = (string) $translation->getTitle();
+            if ('' !== $title && ($translation->getLocale() === $locale || !isset($titles[$contentId]))) {
+                $titles[$contentId] = $title;
+            }
+        }
 
         $items = [];
         foreach ($contents as $content) {
-            $items[] = ['id' => (int) $content->getId(), 'title' => (string) $content->getTitle()];
+            $contentId = (int) $content->getId();
+            $items[] = ['id' => $contentId, 'title' => $titles[$contentId] ?? ''];
         }
 
         return new JsonResponse($items);
+    }
+
+    /**
+     * The edit locale of the category sheet the search comes from, so a suggestion
+     * reads like the rows of the related contents table.
+     */
+    private function searchLocale(Request $request): string
+    {
+        $locale = (string) $request->query->get('locale', '');
+
+        if ('' !== $locale && null !== LangQuery::create()->findOneByLocale($locale)) {
+            return $locale;
+        }
+
+        return $this->defaultLocale();
     }
 
     private function defaultLocale(): string

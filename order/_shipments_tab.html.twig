@@ -1,0 +1,164 @@
+{#
+    The parcels of the order, and the form that composes the next one.
+
+    Expects:
+      - order:                    the Order model
+      - shipments:                list of { id, ref, status, is_draft, carrier, delivery_ref, tracking_url, shipped_at, created_at, lines, pdf_url, pdf_download_url }
+      - shippable_lines:          list of { order_product_id, title, ref, remaining }, empty when nothing is left or the admin may not ship
+      - carriers:                 list of { id, title }
+      - order_delivery_module_id: the carrier of the order, selected by default
+      - can_ship:                 whether the admin may compose a parcel
+      - token:                    CSRF token
+#}
+{% set status_labels = {
+    draft: 'Draft'|trans,
+    shipped: 'Shipped'|trans,
+    cancelled: 'Cancelled'|trans,
+} %}
+{% set status_classes = {
+    draft: 'text-bg-secondary',
+    shipped: 'text-bg-success',
+    cancelled: 'text-bg-dark',
+} %}
+
+<div class="card mb-3" data-testid="order-shipments-card">
+    <div class="card-header">{{ 'Shipments'|trans }}</div>
+    {% if shipments is empty %}
+        <div class="card-body small text-muted" data-testid="order-shipments-empty">
+            {{ 'Nothing has left yet.'|trans }}
+        </div>
+    {% else %}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <caption class="visually-hidden">{{ 'Shipments'|trans }}</caption>
+                <thead>
+                    <tr>
+                        <th scope="col">{{ 'Shipment'|trans }}</th>
+                        <th scope="col">{{ 'Status'|trans }}</th>
+                        <th scope="col">{{ 'Carrier'|trans }}</th>
+                        <th scope="col">{{ 'Lines'|trans }}</th>
+                        <th scope="col" class="text-end">{{ 'Actions'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for shipment in shipments %}
+                        <tr data-testid="order-shipment-row-{{ shipment.id }}" data-shipment-status="{{ shipment.status }}">
+                            <td>
+                                {# Plain text rather than <code> and text-muted: both sit under 4.5:1 on a striped row. #}
+                                <span class="font-monospace">{{ shipment.ref }}</span>
+                                {% if shipment.shipped_at %}
+                                    <small class="d-block">{{ 'Shipped on'|trans }} {{ shipment.shipped_at|date('Y-m-d H:i') }}</small>
+                                {% endif %}
+                            </td>
+                            <td><span class="badge {{ status_classes[shipment.status]|default('text-bg-secondary') }}">{{ status_labels[shipment.status]|default(shipment.status) }}</span></td>
+                            <td>
+                                {{ shipment.carrier }}
+                                <small class="d-block">
+                                    {% if shipment.delivery_ref %}
+                                        {% if shipment.tracking_url %}
+                                            <a href="{{ shipment.tracking_url }}" target="_blank" rel="noopener noreferrer" data-testid="order-shipment-tracking-link">{{ shipment.delivery_ref }}</a>
+                                        {% else %}
+                                            <span dir="ltr">{{ shipment.delivery_ref }}</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span>{{ 'No tracking number'|trans }}</span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td>
+                                <ul class="list-unstyled mb-0 small">
+                                    {% for line in shipment.lines %}
+                                        <li><span dir="ltr">{{ line.quantity }}</span> &times; {{ line.title }} <span class="font-monospace small">{{ line.ref }}</span></li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{{ shipment.pdf_url }}" target="_blank" class="btn btn-outline-secondary" title="{{ 'View delivery slip as PDF'|trans }}" data-testid="order-shipment-pdf-link">
+                                        <i class="bi bi-file-pdf" aria-hidden="true"></i>
+                                    </a>
+                                    <a href="{{ shipment.pdf_download_url }}" class="btn btn-outline-secondary" title="{{ 'Download delivery slip as PDF'|trans }}" data-testid="order-shipment-pdf-download">
+                                        <i class="bi bi-download" aria-hidden="true"></i>
+                                    </a>
+                                </div>
+                                {% if shipment.is_draft and can_ship %}
+                                    <form method="post" action="{{ path('admin.order.shipment.ship', { shipment_id: shipment.id }) }}" class="d-inline" data-testid="order-shipment-ship-form">
+                                        <input type="hidden" name="_token" value="{{ token }}">
+                                        <button type="submit" class="btn btn-sm btn-primary">{{ 'Ship'|trans }}</button>
+                                    </form>
+                                    <form method="post" action="{{ path('admin.order.shipment.cancel', { shipment_id: shipment.id }) }}" class="d-inline" data-testid="order-shipment-cancel-form">
+                                        <input type="hidden" name="_token" value="{{ token }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">{{ 'Cancel'|trans }}</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% endif %}
+</div>
+
+{% if can_ship and shippable_lines is not empty %}
+    <div class="card mb-3" data-testid="order-shipment-compose-card">
+        <div class="card-header">{{ 'New shipment'|trans }}</div>
+        <form method="post" action="{{ path('admin.order.shipment.create', { order_id: order.id }) }}" data-testid="order-shipment-form">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <div class="card-body">
+                <p class="small">{{ 'Set the quantity each line leaves with. A line left at zero stays to ship.'|trans }}</p>
+                <div class="table-responsive">
+                    <table class="table table-sm align-middle">
+                        <caption class="visually-hidden">{{ 'Lines left to ship'|trans }}</caption>
+                        <thead>
+                            <tr>
+                                <th scope="col">{{ 'Product'|trans }}</th>
+                                <th scope="col" class="text-end">{{ 'Left to ship'|trans }}</th>
+                                <th scope="col" class="text-end">{{ 'Quantity in this shipment'|trans }}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for line in shippable_lines %}
+                                <tr data-testid="order-shipment-line-{{ line.order_product_id }}">
+                                    <td>{{ line.title }} <span class="font-monospace small">{{ line.ref }}</span></td>
+                                    <td class="text-end"><span dir="ltr">{{ line.remaining }}</span></td>
+                                    <td class="text-end">
+                                        <label for="shipment-line-{{ line.order_product_id }}" class="visually-hidden">{{ 'Quantity in this shipment'|trans }}</label>
+                                        <input type="number" id="shipment-line-{{ line.order_product_id }}" name="line[{{ line.order_product_id }}]"
+                                               class="form-control form-control-sm text-end ms-auto" style="max-width: 8rem"
+                                               min="0" max="{{ line.remaining }}" step="any" value="{{ line.remaining }}" dir="ltr">
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label for="shipment-carrier" class="form-label">{{ 'Carrier'|trans }}</label>
+                        <select id="shipment-carrier" name="delivery_module_id" class="form-select">
+                            {% for carrier in carriers %}
+                                <option value="{{ carrier.id }}" {% if carrier.id == order_delivery_module_id %}selected{% endif %}>{{ carrier.title }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label for="shipment-delivery-ref" class="form-label">{{ 'Tracking number'|trans }}</label>
+                        <input type="text" id="shipment-delivery-ref" name="delivery_ref" class="form-control" maxlength="100" autocomplete="off" dir="ltr">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" id="shipment-ship-now" name="ship" value="1" checked>
+                            <label class="form-check-label" for="shipment-ship-now">{{ 'Leaves now'|trans }}</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer text-end">
+                <button type="submit" class="btn btn-primary" data-testid="order-shipment-submit">
+                    <i class="bi bi-box-seam me-1" aria-hidden="true"></i>{{ 'Create the shipment'|trans }}
+                </button>
+            </div>
+        </form>
+    </div>
+{% endif %}

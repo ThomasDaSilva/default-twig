@@ -8,6 +8,9 @@
         closeUrl         when set, renders a Close link to this URL (default: none)
         closeLabel       close link label, |trans (default: Close)
         closeVariant     close link colour (default: outline-secondary)
+        closeIcon        Close link icon (default: none)
+        closeAttributes  extra attributes on the Close link, e.g. a Stimulus target (default: none)
+        closeFirst       render the Close link before the submit buttons (default: true)
         saveModeField    name of the submit buttons (default: save_mode)
         saveLabel        Save button label, |trans (default: Save)
         saveCloseLabel   Save and close button label, |trans (default: Save and close)
@@ -15,24 +18,34 @@
         saveCloseIcon    Save and close button icon (default: bi-check2-all)
         saveVariant      Save button colour (default: outline-primary)
         saveCloseVariant Save and close button colour (default: primary)
+        iconAfterLabel   render the icons after the labels (default: false)
         showSave         render the Save (stay) button (default: true)
         showSaveClose    render the Save and close button (default: true)
         align            start | center | end (default: end)
         wrapperClass     extra classes on the toolbar container (default: mt-3)
         testid           base data-testid: appends -cancel / -save-stay / -save-close (default: none)
 #}
-<div class="d-flex flex-wrap justify-content-{{ align }} gap-2{% if wrapperClass %} {{ wrapperClass }}{% endif %}">
+{% macro labelled(label, icon, iconAfterLabel) %}
+    {%- if icon and not iconAfterLabel %}<i class="bi {{ icon }}" aria-hidden="true"></i> {% endif -%}
+    {{ label|trans }}
+    {%- if icon and iconAfterLabel %} <i class="bi {{ icon }}" aria-hidden="true"></i>{% endif -%}
+{% endmacro %}
+{% set close_link %}
     {% if closeUrl %}
-        <a href="{{ closeUrl }}" class="btn btn-{{ closeVariant }}"{% if testid %} data-testid="{{ testid }}-cancel"{% endif %}>{{ closeLabel|trans }}</a>
+        <a href="{{ closeUrl }}" class="btn btn-{{ closeVariant }}"{% for name, value in closeAttributes %} {{ name|e('html_attr') }}="{{ value }}"{% endfor %}{% if testid %} data-testid="{{ testid }}-cancel"{% endif %}>{{ _self.labelled(closeLabel, closeIcon, iconAfterLabel) }}</a>
     {% endif %}
+{% endset %}
+<div class="d-flex flex-wrap justify-content-{{ align }} gap-2{% if wrapperClass %} {{ wrapperClass }}{% endif %}">
+    {% if closeFirst %}{{ close_link }}{% endif %}
     {% if showSave %}
         <button type="submit" name="{{ saveModeField }}" value="stay" class="btn btn-{{ saveVariant }}"{% if testid %} data-testid="{{ testid }}-save-stay"{% endif %}>
-            <i class="bi {{ saveIcon }}" aria-hidden="true"></i> {{ saveLabel|trans }}
+            {{ _self.labelled(saveLabel, saveIcon, iconAfterLabel) }}
         </button>
     {% endif %}
     {% if showSaveClose %}
         <button type="submit" name="{{ saveModeField }}" value="close" class="btn btn-{{ saveCloseVariant }}"{% if testid %} data-testid="{{ testid }}-save-close"{% endif %}>
-            <i class="bi {{ saveCloseIcon }}" aria-hidden="true"></i> {{ saveCloseLabel|trans }}
+            {{ _self.labelled(saveCloseLabel, saveCloseIcon, iconAfterLabel) }}
         </button>
     {% endif %}
+    {% if not closeFirst %}{{ close_link }}{% endif %}
 </div>

@@ -33,6 +33,7 @@ final class DataTableExtension extends AbstractExtension
             new TwigFunction('column_actions', $this->actionsColumn(...)),
             new TwigFunction('column_radio', $this->radioColumn(...)),
             new TwigFunction('column_select', $this->selectColumn(...)),
+            new TwigFunction('column_position', $this->positionColumn(...)),
             new TwigFunction('row_action', $this->rowAction(...)),
             new TwigFunction('datatable_max_breakpoint', Column::maxVisibleFromBreakpoint(...)),
             new TwigFunction('datatable_max_collapse_breakpoint', RowAction::maxCollapseBelowBreakpoint(...)),
@@ -120,6 +121,16 @@ final class DataTableExtension extends AbstractExtension
             $hideBelow,
             $visibleFrom,
         );
+    }
+
+    /**
+     * Position of a row in a manually ordered list: arrows move it one step, and the
+     * number opens a field to send it to any position. The table's <tbody> hosts the
+     * bo-position controller, which knows where to post the move.
+     */
+    public function positionColumn(string $key, string $label, string $cellAlign = 'center', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always'): Column
+    {
+        return new Column($key, $label, ColumnKind::POSITION, $cellAlign, sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
     }
 
     public function actionsColumn(string $key = '_actions', string $label = 'Actions', string $cellAlign = 'end', string $visibleFrom = 'always'): Column
