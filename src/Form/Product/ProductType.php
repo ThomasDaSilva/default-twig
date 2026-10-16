@@ -27,6 +27,7 @@ use Symfony\Component\Validator\Constraints\GreaterThan;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Range;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Thelia\Domain\Shipping\DeliveryDate\Service\DeliveryDateCalendar;
 
 final class ProductType extends AbstractType
 {
@@ -126,7 +127,7 @@ final class ProductType extends AbstractType
 
             $builder->add('availability_delay_days', IntegerType::class, [
                 'required' => false,
-                'constraints' => [new Range(min: 0, max: 366)],
+                'constraints' => [new Range(min: 0, max: DeliveryDateCalendar::MAXIMUM_HORIZON_DAYS)],
                 'label' => $this->translator->trans('Availability delay (working days)'),
             ]);
         }
