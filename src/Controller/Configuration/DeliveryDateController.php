@@ -18,7 +18,6 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
-use Propel\Runtime\Propel;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -35,7 +34,6 @@ use Thelia\Domain\Shipping\DeliveryDate\Service\DeliveryDateCalendar;
 use Thelia\Domain\Shipping\DeliveryDate\Service\DeliveryDateSettings;
 use Thelia\Model\DeliveryClosureQuery;
 use Thelia\Model\DeliverySlotI18nQuery;
-use Thelia\Model\Map\ConfigTableMap;
 use Thelia\Model\DeliverySlotQuery;
 use Thelia\Model\Module;
 use Thelia\Model\ModuleQuery;
@@ -112,23 +110,14 @@ final class DeliveryDateController
             $request,
             'Shop delivery days update',
             function () use ($request): void {
-                // One form, one write: a refused cutoff hour or a failing save leaves both
-                // settings as they were. The cutoff goes first, it is the one a rule can refuse.
-                $connection = Propel::getConnection(ConfigTableMap::DATABASE_NAME);
-                $connection->beginTransaction();
-
-                try {
-                    if ($request->request->has('cutoff_time')) {
-                        $this->settings->saveShopCutoffTime((string) $request->request->get('cutoff_time'));
-                    }
-
-                    $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
-                    $connection->commit();
-                } catch (\Throwable $throwable) {
-                    $connection->rollBack();
-
-                    throw $throwable;
+                // The cutoff first: it is the one a rule can refuse, before anything is written.
+                // No transaction around the two: the configuration cache keeps what was written,
+                // so a rollback would leave it reading a value the database no longer holds.
+                if ($request->request->has('cutoff_time')) {
+                    $this->settings->saveShopCutoffTime((string) $request->request->get('cutoff_time'));
                 }
+
+                $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
             },
             $this->urls->generate(self::LIST_ROUTE),
         );
