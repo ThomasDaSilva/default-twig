@@ -298,10 +298,6 @@ final class DeliveryDateController
         );
     }
 
-    /**
-     * The one road every write takes: permission, token read from the body, the write
-     * itself, the log, and the way back to the screen — with the refusal as a flash message.
-     */
     #[Route('/carrier/{module_id}/delays/save', name: 'carrier.delays.save', methods: ['POST'], requirements: ['module_id' => '\d+'])]
     public function saveDelays(int $module_id, Request $request): Response
     {
@@ -343,9 +339,22 @@ final class DeliveryDateController
     {
         $days = trim((string) $request->request->get($field, ''));
 
-        return '' === $days ? null : (int) $days;
+        if ('' === $days) {
+            return null;
+        }
+
+        // A value typed by hand would otherwise be read as 0, a delay the merchant never set.
+        if (!ctype_digit($days)) {
+            throw new \InvalidArgumentException($this->translator->trans('A delay is a whole number of days.'));
+        }
+
+        return (int) $days;
     }
 
+    /**
+     * The one road every write takes: permission, token read from the body, the write
+     * itself, the log, and the way back to the screen — with the refusal as a flash message.
+     */
     private function write(Request $request, string $actionLabel, callable $write, string $backTo, ?int $resourceId = null): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {

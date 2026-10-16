@@ -2435,6 +2435,7 @@ return [
     'This carrier no longer accepts this kind of date: customers are offered none.' => 'Ce transporteur n\'accepte plus ce type de date : aucune date n\'est proposée au client.',
     'What customers pick' => 'Ce que choisit le client',
     'No such carrier.' => 'Transporteur introuvable.',
+    'A delay is a whole number of days.' => 'Un délai est un nombre entier de jours.',
     'No such delivery slot.' => 'Créneau introuvable.',
     'Delivery dates saved.' => 'Dates de livraison enregistrées.',
     'Shop delivery days update' => 'Mise à jour des jours de livraison de la boutique',
