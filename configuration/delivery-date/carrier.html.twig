@@ -30,7 +30,7 @@
         <div class="card mb-3" data-testid="delivery-date-estimate">
             <div class="card-header"><h2 class="h6 mb-0">{{ 'Estimated delivery'|trans }}</h2></div>
             <div class="card-body">
-                <p class="text-muted small">{{ 'Customers see between which days a parcel is expected, on the delivery step and on product pages, and the order keeps what they were told. Counted in working days; the day the order comes in, before the cutoff hour, is the first day of preparation. Leave the transit days empty to announce nothing.'|trans }}</p>
+                <p class="text-muted small">{{ 'Customers see between which days a parcel is expected, on the delivery step and on product pages, and the order keeps the interval counted when it is placed. Counted in working days; the day the order comes in, before the cutoff hour, is the first day of preparation. Leave the transit days empty to announce nothing; a carrier that lets customers pick a day shows its calendar instead.'|trans }}</p>
                 <form method="POST" action="{{ path('admin.delivery-date.carrier.delays.save', { module_id: module.id }) }}" data-testid="delivery-date-estimate-form">
                     <input type="hidden" name="_token" value="{{ assignToken() }}">
                     <input type="hidden" name="edit_language_id" value="{{ edit_language_id }}">

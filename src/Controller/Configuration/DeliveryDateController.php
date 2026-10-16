@@ -110,11 +110,13 @@ final class DeliveryDateController
             $request,
             'Shop delivery days update',
             function () use ($request): void {
-                $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
-
+                // The cutoff first: it is the one a setting can refuse, and a refusal must leave
+                // the closed days as they were too.
                 if ($request->request->has('cutoff_time')) {
                     $this->settings->saveShopCutoffTime((string) $request->request->get('cutoff_time'));
                 }
+
+                $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
             },
             $this->urls->generate(self::LIST_ROUTE),
         );
