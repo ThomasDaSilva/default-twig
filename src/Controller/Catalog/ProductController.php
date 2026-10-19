@@ -22,6 +22,7 @@ use BackOfficeDefaultTwigBundle\Repository\ProductRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Catalog\CategoryListPresenter;
+use BackOfficeDefaultTwigBundle\Service\CoreCompatibility;
 use BackOfficeDefaultTwigBundle\Service\Catalog\ProductFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\Catalog\ProductFilters;
 use BackOfficeDefaultTwigBundle\Service\Catalog\ProductPricingPresenter;
@@ -437,8 +438,7 @@ final class ProductController
             'brand_id' => $product->getBrandId(),
             'virtual_document_id' => $this->currentVirtualDocumentId($product),
             'guest_checkout_forbidden' => (bool) $product->getGuestCheckoutForbidden(),
-            'availability_delay_days' => $product->getAvailabilityDelayDays(),
-        ], [
+        ] + $this->availabilityDelayOf($product), [
             'include_id' => true,
         ]);
     }
@@ -499,8 +499,10 @@ final class ProductController
             ->setVirtualDocumentId(isset($data['virtual_document_id']) ? (int) $data['virtual_document_id'] : -1)
             ->setGuestCheckoutForbidden((bool) ($data['guest_checkout_forbidden'] ?? false));
 
-        if (\array_key_exists('availability_delay_days', $data)) {
-            $event->setAvailabilityDelayDays($this->intOrNull($data['availability_delay_days']));
+        $updateEvent = CoreCompatibility::anyObject($event);
+
+        if (\array_key_exists('availability_delay_days', $data) && method_exists($updateEvent, 'setAvailabilityDelayDays')) {
+            $updateEvent->setAvailabilityDelayDays($this->intOrNull($data['availability_delay_days']));
         }
 
         return $event;
@@ -890,6 +892,18 @@ final class ProductController
         $cast = (string) $value;
 
         return $cast === '' ? null : $cast;
+    }
+
+    /**
+     * The availability delay of the product, which only a core that estimates deliveries has.
+     *
+     * @return array<string, mixed>
+     */
+    private function availabilityDelayOf(Product $product): array
+    {
+        $estimated = CoreCompatibility::anyObject($product);
+
+        return method_exists($estimated, 'getAvailabilityDelayDays') ? ['availability_delay_days' => $estimated->getAvailabilityDelayDays()] : [];
     }
 
     private function intOrNull(mixed $value): ?int

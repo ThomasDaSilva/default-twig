@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\CoreCompatibility;
 use BackOfficeDefaultTwigBundle\Service\I18n\EditLocaleResolver;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -81,6 +82,7 @@ final class DeliveryDateController
 
         $locale = $request->getLocale();
         $carriers = [];
+        $settings = CoreCompatibility::anyObject($this->settings);
 
         foreach (ModuleQuery::create()->filterByType(BaseModule::DELIVERY_MODULE_TYPE)->orderByPosition()->find() as $module) {
             $carriers[] = [
@@ -99,7 +101,8 @@ final class DeliveryDateController
             'weekdays' => $this->weekdays($locale),
             'shop_closed_weekdays' => $this->settings->shopClosedWeekdays(),
             'shop_closures' => $this->closureRows(null),
-            'shop_cutoff_time' => $this->settings->shopCutoffTime(),
+            'shop_cutoff_time' => method_exists($settings, 'shopCutoffTime') ? $settings->shopCutoffTime() : null,
+            'estimates_supported' => $this->estimatesDeliveries(),
         ]));
     }
 
@@ -113,8 +116,10 @@ final class DeliveryDateController
                 // The cutoff first: it is the one a rule can refuse, before anything is written.
                 // No transaction around the two: the configuration cache keeps what was written,
                 // so a rollback would leave it reading a value the database no longer holds.
-                if ($request->request->has('cutoff_time')) {
-                    $this->settings->saveShopCutoffTime((string) $request->request->get('cutoff_time'));
+                $settings = CoreCompatibility::anyObject($this->settings);
+
+                if ($request->request->has('cutoff_time') && method_exists($settings, 'saveShopCutoffTime')) {
+                    $settings->saveShopCutoffTime((string) $request->request->get('cutoff_time'));
                 }
 
                 $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
@@ -307,7 +312,13 @@ final class DeliveryDateController
             $request,
             'Carrier delivery estimate update',
             function () use ($module, $request): void {
-                $this->settings->saveDeliveryDelays(
+                $settings = CoreCompatibility::anyObject($this->settings);
+
+                if (!method_exists($settings, 'saveDeliveryDelays')) {
+                    throw new \InvalidArgumentException($this->translator->trans('This version of Thelia does not estimate deliveries.'));
+                }
+
+                $settings->saveDeliveryDelays(
                     $module ?? throw new \InvalidArgumentException($this->translator->trans('No such carrier.')),
                     $this->days($request, 'preparation_days'),
                     $this->days($request, 'transit_min_days'),
@@ -320,19 +331,34 @@ final class DeliveryDateController
     }
 
     /**
-     * The delays a delivery of this carrier is estimated with.
+     * The delays a delivery of this carrier is estimated with; null on a core that does not
+     * estimate deliveries yet, whose screens keep their dates only.
      *
-     * @return array{preparation_days: ?int, transit_min_days: ?int, transit_max_days: ?int}
+     * @return array{preparation_days: ?int, transit_min_days: ?int, transit_max_days: ?int}|null
      */
-    private function estimateOf(Module $module): array
+    private function estimateOf(Module $module): ?array
     {
+        if (!$this->estimatesDeliveries()) {
+            return null;
+        }
+
         $rule = $this->settings->ruleOf($module);
+        $rule = null === $rule ? null : CoreCompatibility::anyObject($rule);
 
         return [
-            'preparation_days' => $rule?->getPreparationDays(),
-            'transit_min_days' => $rule?->getTransitMinDays(),
-            'transit_max_days' => $rule?->getTransitMaxDays(),
+            'preparation_days' => null !== $rule && method_exists($rule, 'getPreparationDays') ? $rule->getPreparationDays() : null,
+            'transit_min_days' => null !== $rule && method_exists($rule, 'getTransitMinDays') ? $rule->getTransitMinDays() : null,
+            'transit_max_days' => null !== $rule && method_exists($rule, 'getTransitMaxDays') ? $rule->getTransitMaxDays() : null,
         ];
+    }
+
+    /**
+     * Whether the core estimates deliveries: one older than that keeps the screens of the
+     * delivery dates as they were.
+     */
+    private function estimatesDeliveries(): bool
+    {
+        return method_exists(CoreCompatibility::anyObject($this->settings), 'saveDeliveryDelays');
     }
 
     private function days(Request $request, string $field): ?int

@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Order;
 
+use BackOfficeDefaultTwigBundle\Service\CoreCompatibility;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Thelia\Domain\Order\Service\OrderTrackingUrlResolver;
 use Thelia\Model\ModuleQuery;
@@ -153,6 +154,9 @@ final readonly class OrderDetailContextBuilder
             ];
         }
 
+        // The interval announced at checkout comes with a core that estimates deliveries.
+        $estimated = CoreCompatibility::anyObject($order);
+
         return [
             'gift' => [
                 'services' => $serviceLines,
@@ -197,9 +201,10 @@ final readonly class OrderDetailContextBuilder
                 'delivery_date' => $order->getDeliveryDay(),
                 'delivery_slot_start' => $order->getDeliverySlotStartsAt(),
                 'delivery_slot_end' => $order->getDeliverySlotEndsAt(),
-                // The interval announced at checkout, frozen on the order too.
-                'estimated_delivery_from' => $order->getEstimatedDeliveryFromDay(),
-                'estimated_delivery_to' => $order->getEstimatedDeliveryToDay(),
+                // The interval announced at checkout, frozen on the order too; none on a core
+                // that does not estimate deliveries yet.
+                'estimated_delivery_from' => method_exists($estimated, 'getEstimatedDeliveryFromDay') ? $estimated->getEstimatedDeliveryFromDay() : null,
+                'estimated_delivery_to' => method_exists($estimated, 'getEstimatedDeliveryToDay') ? $estimated->getEstimatedDeliveryToDay() : null,
             ],
             'coupons' => $coupons,
             'consents' => $consents,

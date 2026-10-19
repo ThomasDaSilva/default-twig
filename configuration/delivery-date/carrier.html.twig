@@ -27,6 +27,7 @@
             </div>
         </div>
 
+        {% if estimate is not null %}
         <div class="card mb-3" data-testid="delivery-date-estimate">
             <div class="card-header"><h2 class="h6 mb-0">{{ 'Estimated delivery'|trans }}</h2></div>
             <div class="card-body">
@@ -56,6 +57,7 @@
                 </form>
             </div>
         </div>
+        {% endif %}
 
         {% if accepted_modes is empty %}
             <div class="alert alert-info">{{ 'This carrier does not accept delivery dates'|trans }}</div>

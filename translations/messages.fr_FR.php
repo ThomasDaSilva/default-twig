@@ -2476,6 +2476,7 @@ return [
     'What customers pick' => 'Ce que choisit le client',
     'No such carrier.' => 'Transporteur introuvable.',
     'A delay is a whole number of days.' => 'Un délai est un nombre entier de jours.',
+    'This version of Thelia does not estimate deliveries.' => 'Cette version de Thelia n\'estime pas les délais de livraison.',
     'No such delivery slot.' => 'Créneau introuvable.',
     'Delivery dates saved.' => 'Dates de livraison enregistrées.',
     'Shop delivery days update' => 'Mise à jour des jours de livraison de la boutique',

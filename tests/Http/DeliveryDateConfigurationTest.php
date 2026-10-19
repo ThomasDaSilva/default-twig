@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
+use Thelia\Domain\Shipping\DeliveryDate\Service\DeliveryDateSettings;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\DeliveryClosureQuery;
 use Thelia\Model\DeliveryDateRuleQuery;
@@ -86,7 +87,10 @@ final class DeliveryDateConfigurationTest extends WebIntegrationTestCase
 
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
         self::assertCount(1, $crawler->filter('[data-testid="delivery-date-carrier-edit-DeliveryDateTestCarrier"]'), 'A carrier that takes dates can be configured.');
-        self::assertCount(0, $crawler->filter('[data-testid="delivery-date-carrier-edit-VirtualProductDelivery"]'), 'A carrier that does not take dates cannot.');
+        // On a core that estimates deliveries, every carrier has delays to set; on an older one,
+        // a carrier that does not take dates has no screen.
+        $estimates = method_exists(DeliveryDateSettings::class, 'saveDeliveryDelays');
+        self::assertCount($estimates ? 1 : 0, $crawler->filter('[data-testid="delivery-date-carrier-edit-VirtualProductDelivery"]'), 'A carrier that does not take dates has a screen only for its delivery estimate.');
         self::assertCount(1, $crawler->filter('[data-testid="delivery-date-carrier-VirtualProductDelivery"]'));
         self::assertCount(7, $crawler->filter('[data-testid="delivery-date-shop-weekdays"] input[type="checkbox"]'));
     }
