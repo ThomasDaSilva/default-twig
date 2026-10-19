@@ -19,6 +19,9 @@ namespace BackOfficeDefaultTwigBundle\Service;
  * method_exists() guard written on a typed object reads "always true" to the static
  * analysis of a recent core and "always false" to that of an older one; on the same object
  * seen as any object, it reads the same on both.
+ *
+ * Its guards go once the theme requires a core that estimates deliveries (thelia/core 3.3):
+ * meanwhile, a misspelt method name in one of them fails silently, unseen by the analysis.
  */
 final class CoreCompatibility
 {
