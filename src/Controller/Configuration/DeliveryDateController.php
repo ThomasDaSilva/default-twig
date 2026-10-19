@@ -432,6 +432,13 @@ final class DeliveryDateController
             $write();
             $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, $actionLabel, $resourceId);
 
+            // Saved: a refusal typed earlier and never shown is no longer what the screen should offer.
+            if ($request->hasSession()) {
+                foreach (array_keys($typedBack) as $key) {
+                    $request->getSession()->remove($key);
+                }
+            }
+
             $session = $request->getSession();
             if ($session instanceof Session) {
                 $session->getFlashBag()->add('success', $this->translator->trans('Delivery dates saved.'));
