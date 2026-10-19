@@ -159,6 +159,8 @@ final class AreaController
             'countries_in_area' => $this->collectAssignments((int) $area->getId()),
             'countries_data_url' => $this->urls->generate('admin.configuration.countries.data'),
             'unassigned_country_ids' => $this->unassignedCountryIds(),
+            // The postal code rules come with a core that knows them.
+            'zip_code_rules_supported' => class_exists(AreaZipCodeRuleQuery::class),
             'zip_code_rules' => $this->zipCodeRules((int) $area->getId()),
             'zone_countries' => $this->zoneCountries((int) $area->getId()),
         ]));
@@ -327,6 +329,10 @@ final class AreaController
     /** @return list<array{id: int, pattern: string, excluded: bool, country: string|null, outside_zone: bool}> */
     private function zipCodeRules(int $areaId): array
     {
+        if (!class_exists(AreaZipCodeRuleQuery::class)) {
+            return [];
+        }
+
         $zoneCountries = $this->zoneCountries($areaId);
         $rules = [];
 

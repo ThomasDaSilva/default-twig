@@ -15,29 +15,37 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use Psr\Container\ContainerInterface;
+use Symfony\Component\DependencyInjection\Attribute\AutowireLocator;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
+use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Domain\Shipping\ZipCode\AreaZipCodeRuleWriter;
 use Thelia\Tools\TokenProvider;
 
 /**
  * The postal code rules of a shipping zone, edited on the page of the zone.
+ *
+ * The writer comes with a core that knows postal code rules, through an optional locator:
+ * on an older core, where the class does not exist, the container still compiles and these
+ * actions answer 404.
  */
 #[Route('/admin/configuration/shipping_configuration/{area_id}/zip-code-rules', name: 'admin.configuration.shipping-configuration.zip-code-rule.', requirements: ['area_id' => '\d+'])]
 final class AreaZipCodeRuleController
 {
     private const EDIT_ROUTE = 'admin.configuration.shipping-configuration.update.view';
+    private const WRITER = 'Thelia\\Domain\\Shipping\\ZipCode\\AreaZipCodeRuleWriter';
 
     public function __construct(
         private readonly AdminAccessChecker $access,
-        private readonly AreaZipCodeRuleWriter $writer,
+        #[AutowireLocator(['writer' => '?'.self::WRITER])]
+        private readonly ContainerInterface $zipCodeRules,
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokens,
@@ -51,12 +59,13 @@ final class AreaZipCodeRuleController
             return $denied;
         }
 
+        $writer = $this->writer();
         $this->tokens->checkToken((string) $request->request->get('_token', ''));
 
         $countryId = (int) $request->request->get('country_id', 0);
 
         try {
-            $this->writer->add(
+            $writer->add(
                 $area_id,
                 (string) $request->request->get('pattern', ''),
                 '1' === $request->request->get('excluded'),
@@ -77,13 +86,23 @@ final class AreaZipCodeRuleController
             return $denied;
         }
 
+        $writer = $this->writer();
         $this->tokens->checkToken((string) $request->request->get('_token', ''));
 
-        $this->writer->remove($area_id, $rule_id)
+        $writer->remove($area_id, $rule_id)
             ? $this->flash($request, 'success', 'The postal code rule was deleted.')
             : $this->flash($request, 'danger', 'This postal code rule does not exist anymore.');
 
         return $this->backToTheZone($area_id);
+    }
+
+    private function writer(): mixed
+    {
+        if (!$this->zipCodeRules->has('writer')) {
+            throw new NotFoundHttpException('This version of Thelia has no postal code rules.');
+        }
+
+        return $this->zipCodeRules->get('writer');
     }
 
     private function flash(Request $request, string $type, string $message): void

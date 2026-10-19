@@ -106,6 +106,7 @@
         </div>
     </div>
 
+    {% if zip_code_rules_supported %}
     <div class="container-fluid mt-3" id="zip-code-rules">
         <div class="card" data-testid="shipping-configuration-zip-code-rules">
             <div class="card-header">
@@ -181,6 +182,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     {{ safe_hook('shipping-configuration-edit.bottom', { area_id: area_id }) }}
 {% endblock %}
