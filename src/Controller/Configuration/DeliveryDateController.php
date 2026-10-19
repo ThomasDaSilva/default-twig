@@ -58,6 +58,8 @@ final class DeliveryDateController
     private const CARRIER_ROUTE = 'admin.delivery-date.carrier';
     private const LIST_TEMPLATE = '@BackOfficeDefaultTwig/configuration/delivery-date/list.html.twig';
     private const CARRIER_TEMPLATE = '@BackOfficeDefaultTwig/configuration/delivery-date/carrier.html.twig';
+    private const TYPED_SHOP = 'delivery_date_typed_shop';
+    private const TYPED_DELAYS = 'delivery_date_typed_delays';
 
     public function __construct(
         private readonly AdminAccessChecker $access,
@@ -82,6 +84,7 @@ final class DeliveryDateController
 
         $locale = $request->getLocale();
         $carriers = [];
+        $typed = $this->typedBack($request, self::TYPED_SHOP);
         $settings = CoreCompatibility::anyObject($this->settings);
 
         foreach (ModuleQuery::create()->filterByType(BaseModule::DELIVERY_MODULE_TYPE)->orderByPosition()->find() as $module) {
@@ -99,9 +102,9 @@ final class DeliveryDateController
         return new Response($this->twig->render(self::LIST_TEMPLATE, [
             'carriers' => $carriers,
             'weekdays' => $this->weekdays($locale),
-            'shop_closed_weekdays' => $this->settings->shopClosedWeekdays(),
+            'shop_closed_weekdays' => $typed['closed_weekdays'] ?? $this->settings->shopClosedWeekdays(),
             'shop_closures' => $this->closureRows(null),
-            'shop_cutoff_time' => method_exists($settings, 'shopCutoffTime') ? $settings->shopCutoffTime() : null,
+            'shop_cutoff_time' => $typed['cutoff_time'] ?? (method_exists($settings, 'shopCutoffTime') ? $settings->shopCutoffTime() : null),
             'estimates_supported' => $this->estimatesDeliveries(),
         ]));
     }
@@ -125,6 +128,7 @@ final class DeliveryDateController
                 $this->settings->saveShopClosedWeekdays($this->weekdayList($request));
             },
             $this->urls->generate(self::LIST_ROUTE),
+            typedBack: [self::TYPED_SHOP => ['closed_weekdays' => $this->weekdayList($request)] + ($request->request->has('cutoff_time') ? ['cutoff_time' => (string) $request->request->get('cutoff_time')] : [])],
         );
     }
 
@@ -177,7 +181,7 @@ final class DeliveryDateController
                 'title' => $titles[(int) $slot->getId()] ?? '',
             ], $slots),
             'closures' => $this->closureRows($module),
-            'estimate' => $this->estimateOf($module),
+            'estimate' => $this->typedBack($request, self::TYPED_DELAYS) ?? $this->estimateOf($module),
             'edit_language_id' => (int) $editLang->getId(),
             'edit_locale' => $editLocale,
         ]));
@@ -327,6 +331,11 @@ final class DeliveryDateController
             },
             $this->carrierUrl($module_id, $request),
             $module_id,
+            [self::TYPED_DELAYS => [
+                'preparation_days' => (string) $request->request->get('preparation_days', ''),
+                'transit_min_days' => (string) $request->request->get('transit_min_days', ''),
+                'transit_max_days' => (string) $request->request->get('transit_max_days', ''),
+            ]],
         );
     }
 
@@ -361,6 +370,25 @@ final class DeliveryDateController
         return method_exists(CoreCompatibility::anyObject($this->settings), 'saveDeliveryDelays');
     }
 
+    /**
+     * What the merchant typed in a form that was refused, shown again once instead of what is
+     * stored, so a mistake is corrected rather than typed over.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function typedBack(Request $request, string $key): ?array
+    {
+        $session = $request->getSession();
+
+        if (!$session instanceof Session) {
+            return null;
+        }
+
+        $typed = $session->getFlashBag()->get($key);
+
+        return [] === $typed ? null : $typed;
+    }
+
     private function days(Request $request, string $field): ?int
     {
         $days = trim((string) $request->request->get($field, ''));
@@ -379,9 +407,12 @@ final class DeliveryDateController
 
     /**
      * The one road every write takes: permission, token read from the body, the write
-     * itself, the log, and the way back to the screen — with the refusal as a flash message.
+     * itself, the log, and the way back to the screen — with the refusal as a flash message,
+     * and what the form sent kept for that screen.
+     *
+     * @param array<string, array<string, mixed>> $typedBack what the form sent, by flash key
      */
-    private function write(Request $request, string $actionLabel, callable $write, string $backTo, ?int $resourceId = null): Response
+    private function write(Request $request, string $actionLabel, callable $write, string $backTo, ?int $resourceId = null, array $typedBack = []): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
             return $denied;
@@ -405,6 +436,13 @@ final class DeliveryDateController
                 : $this->translator->trans('The delivery dates could not be saved. Please try again.');
 
             $this->errorRenderer->setup($this->translator->trans($actionLabel), $shown, null, $exception);
+
+            $session = $request->getSession();
+            if ($session instanceof Session) {
+                foreach ($typedBack as $key => $typed) {
+                    $session->getFlashBag()->set($key, $typed);
+                }
+            }
         }
 
         return new RedirectResponse($backTo);
