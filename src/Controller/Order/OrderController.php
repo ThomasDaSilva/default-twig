@@ -63,7 +63,6 @@ use Thelia\Model\CustomerTitleQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderAddressQuery;
 use Thelia\Model\OrderPaymentTransactionQuery;
-use Thelia\Model\OrderQuery;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\StateQuery;
@@ -403,7 +402,7 @@ final class OrderController
             return $denied;
         }
 
-        $order = OrderQuery::create()->findPk($order_id);
+        $order = $this->reachableOrder($order_id);
         if ($order === null) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
@@ -464,6 +463,10 @@ final class OrderController
     {
         if ($denied = $this->access->check(AdminResources::ORDER_PAYMENT_CAPTURE, [], AccessManager::CREATE)) {
             return $denied;
+        }
+
+        if ($this->reachableOrder($order_id) === null) {
+            return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
 
         $detail = new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));

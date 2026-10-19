@@ -27,6 +27,7 @@ use Thelia\Model\AdminSaleUnitQuery;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderHistoryQuery;
+use Thelia\Model\OrderPaymentTransactionQuery;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductSaleElementsQuery;
@@ -149,6 +150,21 @@ final class SaleUnitAdminRestrictionTest extends WebIntegrationTestCase
         $fresh = OrderQuery::create()->findPk($southOrder->getId());
         self::assertSame($statusBefore, (int) $fresh?->getStatusId(), 'The order did not move, whatever the road.');
         self::assertSame(0, OrderHistoryQuery::create()->filterByOrderId($southOrder->getId())->filterByComment('hello')->count());
+    }
+
+    public function testThePaymentActionsOnAnOrderOfAnotherUnitAreRefused(): void
+    {
+        [, $southOrder] = $this->ordersOfTwoUnitsAndANationalOne();
+        $this->actAs($this->limitedAdmin([$this->north], [AdminResources::ORDER_PAYMENT_CAPTURE => [AccessManager::CREATE]]));
+        $token = $this->sessionToken();
+
+        $this->client->request('POST', '/admin/order/update/'.$southOrder->getId().'/payment-capture', ['amount' => '1', '_token' => $token]);
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+
+        $this->client->request('POST', '/admin/order/update/'.$southOrder->getId().'/payment-transaction/1/settle', ['outcome' => 'succeeded', '_token' => $token]);
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+
+        self::assertSame(0, OrderPaymentTransactionQuery::create()->filterByOrderId($southOrder->getId())->count(), 'Nothing was written to the journal of the order.');
     }
 
     public function testTheNumbersOfTheOrdersFollowTheReachOfTheAdministrator(): void
