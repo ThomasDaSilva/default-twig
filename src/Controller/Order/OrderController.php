@@ -566,7 +566,7 @@ final class OrderController
             return $denied;
         }
 
-        $order = OrderQuery::create()->findPk($order_id);
+        $order = $this->reachableOrder($order_id);
         if ($order === null) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
