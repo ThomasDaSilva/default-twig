@@ -155,13 +155,16 @@ final class SaleUnitAdminRestrictionTest extends WebIntegrationTestCase
     public function testThePaymentActionsOnAnOrderOfAnotherUnitAreRefused(): void
     {
         [, $southOrder] = $this->ordersOfTwoUnitsAndANationalOne();
-        $this->actAs($this->limitedAdmin([$this->north], [AdminResources::ORDER_PAYMENT_CAPTURE => [AccessManager::CREATE]]));
+        $this->actAs($this->limitedAdmin([$this->north], [AdminResources::ORDER_PAYMENT_CAPTURE => [AccessManager::CREATE], AdminResources::ORDER_PAYMENT_REFUND => [AccessManager::CREATE]]));
         $token = $this->sessionToken();
 
         $this->client->request('POST', '/admin/order/update/'.$southOrder->getId().'/payment-capture', ['amount' => '1', '_token' => $token]);
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
 
         $this->client->request('POST', '/admin/order/update/'.$southOrder->getId().'/payment-transaction/1/settle', ['outcome' => 'succeeded', '_token' => $token]);
+        self::assertSame(404, $this->client->getResponse()->getStatusCode());
+
+        $this->client->request('POST', '/admin/order/update/'.$southOrder->getId().'/payment-refund', ['reason' => 'goodwill', 'amount' => '1', '_token' => $token]);
         self::assertSame(404, $this->client->getResponse()->getStatusCode());
 
         self::assertSame(0, OrderPaymentTransactionQuery::create()->filterByOrderId($southOrder->getId())->count(), 'Nothing was written to the journal of the order.');
