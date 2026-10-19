@@ -78,13 +78,15 @@ final class DeliveryDateController
     #[Route('', name: 'list', methods: ['GET'])]
     public function list(Request $request): Response
     {
+        // Taken first, whatever happens next: what was typed is shown once or not at all.
+        $typed = $this->typedBack($request, self::TYPED_SHOP);
+
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
 
         $locale = $request->getLocale();
         $carriers = [];
-        $typed = $this->typedBack($request, self::TYPED_SHOP);
         $settings = CoreCompatibility::anyObject($this->settings);
 
         foreach (ModuleQuery::create()->filterByType(BaseModule::DELIVERY_MODULE_TYPE)->orderByPosition()->find() as $module) {
@@ -135,6 +137,8 @@ final class DeliveryDateController
     #[Route('/carrier/{module_id}', name: 'carrier', methods: ['GET'], requirements: ['module_id' => '\d+'])]
     public function carrier(int $module_id, Request $request): Response
     {
+        $typed = $this->typedBack($request, self::TYPED_DELAYS);
+
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
@@ -181,7 +185,7 @@ final class DeliveryDateController
                 'title' => $titles[(int) $slot->getId()] ?? '',
             ], $slots),
             'closures' => $this->closureRows($module),
-            'estimate' => $this->typedBack($request, self::TYPED_DELAYS) ?? $this->estimateOf($module),
+            'estimate' => $this->estimatesDeliveries() && $module_id === ($typed['module_id'] ?? null) ? $typed['delays'] : $this->estimateOf($module),
             'edit_language_id' => (int) $editLang->getId(),
             'edit_locale' => $editLocale,
         ]));
@@ -331,10 +335,13 @@ final class DeliveryDateController
             },
             $this->carrierUrl($module_id, $request),
             $module_id,
-            [self::TYPED_DELAYS => [
-                'preparation_days' => (string) $request->request->get('preparation_days', ''),
-                'transit_min_days' => (string) $request->request->get('transit_min_days', ''),
-                'transit_max_days' => (string) $request->request->get('transit_max_days', ''),
+            null === $module ? [] : [self::TYPED_DELAYS => [
+                'module_id' => $module_id,
+                'delays' => [
+                    'preparation_days' => (string) $request->request->get('preparation_days', ''),
+                    'transit_min_days' => (string) $request->request->get('transit_min_days', ''),
+                    'transit_max_days' => (string) $request->request->get('transit_max_days', ''),
+                ],
             ]],
         );
     }
@@ -372,21 +379,20 @@ final class DeliveryDateController
 
     /**
      * What the merchant typed in a form that was refused, shown again once instead of what is
-     * stored, so a mistake is corrected rather than typed over.
+     * stored, so a mistake is corrected rather than typed over. Kept in the session apart from
+     * the flash messages, which the layout prints whatever their type.
      *
      * @return array<string, mixed>|null
      */
     private function typedBack(Request $request, string $key): ?array
     {
-        $session = $request->getSession();
-
-        if (!$session instanceof Session) {
+        if (!$request->hasSession()) {
             return null;
         }
 
-        $typed = $session->getFlashBag()->get($key);
+        $typed = $request->getSession()->remove($key);
 
-        return [] === $typed ? null : $typed;
+        return \is_array($typed) ? $typed : null;
     }
 
     private function days(Request $request, string $field): ?int
@@ -408,9 +414,9 @@ final class DeliveryDateController
     /**
      * The one road every write takes: permission, token read from the body, the write
      * itself, the log, and the way back to the screen — with the refusal as a flash message,
-     * and what the form sent kept for that screen.
+     * and what the form sent kept for that screen once its token was accepted.
      *
-     * @param array<string, array<string, mixed>> $typedBack what the form sent, by flash key
+     * @param array<string, array<string, mixed>> $typedBack what the form sent, by session key
      */
     private function write(Request $request, string $actionLabel, callable $write, string $backTo, ?int $resourceId = null, array $typedBack = []): Response
     {
@@ -418,8 +424,11 @@ final class DeliveryDateController
             return $denied;
         }
 
+        $tokenAccepted = false;
+
         try {
             $this->tokens->checkToken((string) $request->request->get('_token', ''));
+            $tokenAccepted = true;
             $write();
             $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, $actionLabel, $resourceId);
 
@@ -437,10 +446,9 @@ final class DeliveryDateController
 
             $this->errorRenderer->setup($this->translator->trans($actionLabel), $shown, null, $exception);
 
-            $session = $request->getSession();
-            if ($session instanceof Session) {
+            if ($tokenAccepted && $request->hasSession()) {
                 foreach ($typedBack as $key => $typed) {
-                    $session->getFlashBag()->set($key, $typed);
+                    $request->getSession()->set($key, $typed);
                 }
             }
         }
