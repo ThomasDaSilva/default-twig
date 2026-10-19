@@ -152,6 +152,9 @@ final class AreaController
             ['include_id' => true],
         );
 
+        $zipCodeRulesSupported = class_exists(AreaZipCodeRuleQuery::class);
+        $zoneCountries = $zipCodeRulesSupported ? $this->zoneCountries((int) $area->getId()) : [];
+
         return new Response($this->twig->render(self::EDIT_TEMPLATE, [
             'area' => $area,
             'area_id' => (int) $area->getId(),
@@ -160,9 +163,9 @@ final class AreaController
             'countries_data_url' => $this->urls->generate('admin.configuration.countries.data'),
             'unassigned_country_ids' => $this->unassignedCountryIds(),
             // The postal code rules come with a core that knows them.
-            'zip_code_rules_supported' => class_exists(AreaZipCodeRuleQuery::class),
-            'zip_code_rules' => $this->zipCodeRules((int) $area->getId()),
-            'zone_countries' => $this->zoneCountries((int) $area->getId()),
+            'zip_code_rules_supported' => $zipCodeRulesSupported,
+            'zip_code_rules' => $this->zipCodeRules((int) $area->getId(), $zoneCountries),
+            'zone_countries' => $zoneCountries,
         ]));
     }
 
@@ -326,14 +329,18 @@ final class AreaController
         return $label;
     }
 
-    /** @return list<array{id: int, pattern: string, excluded: bool, country: string|null, outside_zone: bool}> */
-    private function zipCodeRules(int $areaId): array
+    /**
+     * @param array<int, string> $zoneCountries
+     *
+     * @return list<array{id: int, pattern: string, excluded: bool, country: string|null, outside_zone: bool}>
+     */
+    private function zipCodeRules(int $areaId, array $zoneCountries): array
     {
+        // Checked here too: the static analysis of an older core reads this method alone.
         if (!class_exists(AreaZipCodeRuleQuery::class)) {
             return [];
         }
 
-        $zoneCountries = $this->zoneCountries($areaId);
         $rules = [];
 
         foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->orderByExcluded()->orderByPattern()->find() as $rule) {
