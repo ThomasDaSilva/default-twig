@@ -43,7 +43,13 @@ export default class extends Controller {
             return;
         }
 
-        grid.style.width = `${wrapper.clientWidth}px`;
+        // The grid sits inside the colspan'd <td>: its padding comes on top of the
+        // pinned width, and would push the table past the scroll container.
+        const cell = grid.closest('td');
+        const cellStyle = cell ? getComputedStyle(cell) : null;
+        const padding = cellStyle ? parseFloat(cellStyle.paddingLeft) + parseFloat(cellStyle.paddingRight) : 0;
+
+        grid.style.width = `${wrapper.clientWidth - padding}px`;
     }
 
     #detailRow() {

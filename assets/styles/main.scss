@@ -822,6 +822,34 @@ td.bo-datatable__details-col {
     overflow: hidden;
 }
 
+// In the row details (below the breakpoint of the column) the merchant opened the row to
+// read it, often on a touch screen where a title tooltip never shows: the text is whole.
+.bo-datatable__details {
+    // The item sizes to its content: never wider than the grid, so a long text breaks
+    // inside it instead of running off the right edge of the screen.
+    .bo-datatable__details-item {
+        max-width: 100%;
+    }
+
+    .bo-datatable__clamp {
+        display: block;
+        -webkit-line-clamp: unset;
+        line-clamp: none;
+        overflow: visible;
+    }
+
+    .bo-datatable__wrap {
+        max-width: none;
+    }
+
+    .bo-order-customer--compact .text-truncate {
+        max-width: none;
+        white-space: normal;
+        overflow: visible;
+        overflow-wrap: anywhere;
+    }
+}
+
 // The header of such a column breaks too: a two-word title would otherwise set its width.
 .table > thead > tr > th.bo-datatable__wrap-head {
     white-space: normal;

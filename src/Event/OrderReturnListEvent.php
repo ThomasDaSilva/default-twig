@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Event;
 
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\Column;
+use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ColumnKind;
 use Symfony\Contracts\EventDispatcher\Event;
 
 /**
@@ -27,6 +28,13 @@ use Symfony\Contracts\EventDispatcher\Event;
  * actions column; this event places a column anywhere and reaches the existing
  * ones. Each row carries the return id under `id`: a listener reads what it
  * needs for the whole page at once from getReturnIds().
+ *
+ * The columns and cells of the theme are named by the constants of
+ * OrderReturnListColumns. Several modules may listen: each sees the table as
+ * the listeners before it left it. A listener that removes, replaces or moves
+ * columns of the theme listens with a positive priority, one that only adds its
+ * own columns or buttons with priority 0 or lower, so the additions find the
+ * columns they are placed after.
  *
  * A cell of an HTML column is rendered as is: the listener escapes what it
  * writes there. Labels and URLs of the header actions are escaped by the page.
@@ -63,26 +71,42 @@ final class OrderReturnListEvent extends Event
         $this->columns = array_values($columns);
     }
 
+    public function hasColumn(string $key): bool
+    {
+        foreach ($this->columns as $column) {
+            if ($column->key === $key) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     public function removeColumn(string $key): void
     {
         $this->setColumns(array_filter($this->columns, static fn (Column $column): bool => $column->key !== $key));
     }
 
     /**
-     * Inserts the column right after the one holding $key, or last when there is
-     * no such column.
+     * Inserts the column right after the one holding $key. Without such a column
+     * (renamed, or removed by another module), it goes before the actions column,
+     * which stays pinned to the right edge of the table, or last when there is none.
      */
     public function insertColumnAfter(string $key, Column $column): void
     {
-        $position = \count($this->columns);
+        $position = null;
+        $beforeActions = null;
         foreach ($this->columns as $index => $existing) {
             if ($existing->key === $key) {
                 $position = $index + 1;
                 break;
             }
+            if ($beforeActions === null && $existing->kind === ColumnKind::ACTIONS) {
+                $beforeActions = $index;
+            }
         }
 
-        array_splice($this->columns, $position, 0, [$column]);
+        array_splice($this->columns, $position ?? $beforeActions ?? \count($this->columns), 0, [$column]);
     }
 
     /**

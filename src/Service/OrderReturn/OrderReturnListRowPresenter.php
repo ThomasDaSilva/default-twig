@@ -96,18 +96,18 @@ final readonly class OrderReturnListRowPresenter
         return [
             'id' => $returnId,
             'ref' => (string) $orderReturn->getRef(),
-            'ref_html' => $this->renderRef($orderReturn, $returnId),
-            'order_html' => $this->renderOrder($orderReturn),
-            'customer_html' => $this->renderCustomer($orderReturn),
-            'products_html' => $this->renderProducts($lines[$returnId] ?? []),
-            'reason' => $this->reasonTitle($orderReturn, $reasonTitles),
-            'resolution' => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
+            OrderReturnListColumns::REF => $this->renderRef($orderReturn, $returnId),
+            OrderReturnListColumns::ORDER => $this->renderOrder($orderReturn),
+            OrderReturnListColumns::CUSTOMER => $this->renderCustomer($orderReturn),
+            OrderReturnListColumns::PRODUCTS => $this->renderProducts($lines[$returnId] ?? []),
+            OrderReturnListColumns::REASON => $this->reasonTitle($orderReturn, $reasonTitles),
+            OrderReturnListColumns::RESOLUTION => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
             'status' => (string) $status->getTitle(),
-            'status_code' => $effectiveCode,
+            OrderReturnListColumns::STATUS => $effectiveCode,
             'status_color' => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
-            'refund_amount' => $this->formatAmount($orderReturn, $locale),
-            'date_html' => $this->renderDate($orderReturn),
-            '_actions' => $this->buildActions($returnId, $effectiveCode),
+            OrderReturnListColumns::REFUND_AMOUNT => $this->formatAmount($orderReturn, $locale),
+            OrderReturnListColumns::DATE => $this->renderDate($orderReturn),
+            OrderReturnListColumns::ACTIONS => $this->buildActions($returnId, $effectiveCode),
         ];
     }
 

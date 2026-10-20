@@ -257,6 +257,26 @@ columns it adds in each row (`getRows()`, `setRows()`), and puts buttons in the 
 Each row carries the return id under `id`; `getReturnIds()` gives the ids of the page, so a listener reads what it
 needs in one query. The `order-returns.table-row` hook only appends cells after the actions column.
 
+The theme's columns and cells are named by the constants of `OrderReturnListColumns`:
+
+| Constant | Key | Cell |
+|---|---|---|
+| `REF` | `ref_html` | HTML: link to the return sheet, "Opened by the merchant" underneath |
+| `ORDER` | `order_html` | HTML: link to the order, by its reference |
+| `CUSTOMER` | `customer_html` | HTML: customer name, e-mail underneath |
+| `PRODUCTS` | `products_html` | HTML: the returned lines, product title, combination values and quantity |
+| `REASON` | `reason` | text: title of the reason |
+| `RESOLUTION` | `resolution` | text: what the customer expects (refund, credit note, exchange) |
+| `STATUS` | `status_code` | badge: status, with `status` (title) and `status_color` |
+| `REFUND_AMOUNT` | `refund_amount` | text: amount recorded on the return |
+| `DATE` | `date_html` | HTML: request date in a `<time>` element |
+| `ACTIONS` | `_actions` | row actions |
+
+Every listener sees the table as the listeners before it left it. A listener that removes, replaces or moves columns
+of the theme listens with a positive priority; one that only adds its own columns or buttons listens with priority 0
+or lower, so its columns find the ones they are placed after. `insertColumnAfter()` puts a column whose anchor is
+gone before the actions column, and `hasColumn()` tells whether a key is still there.
+
 A cell of an HTML column is rendered as is: the listener escapes what it writes there. Header action labels and URLs
 are escaped by the page.
 
@@ -266,7 +286,7 @@ public function __invoke(OrderReturnListEvent $event): void
 {
     $notes = $this->notes->byReturn($event->getReturnIds());
 
-    $event->insertColumnAfter('reason', new Column('note', $this->translator->trans('Note', [], MyModule::DOMAIN_NAME)));
+    $event->insertColumnAfter(OrderReturnListColumns::REASON, new Column('note', $this->translator->trans('Note', [], MyModule::DOMAIN_NAME)));
     $event->setRows(array_map(
         static fn (array $row): array => $row + ['note' => $notes[$row['id']] ?? ''],
         $event->getRows(),

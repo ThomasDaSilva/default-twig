@@ -21,10 +21,22 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 /**
  * The columns of the return queue, built here rather than in the template so a
  * module can rework them through OrderReturnListEvent before the page renders.
- * Each key names a cell of OrderReturnListRowPresenter.
+ * Each key names a cell of OrderReturnListRowPresenter: the constants are the
+ * keys a module may rely on, the README lists what each cell holds.
  */
 final readonly class OrderReturnListColumns
 {
+    public const string REF = 'ref_html';
+    public const string ORDER = 'order_html';
+    public const string CUSTOMER = 'customer_html';
+    public const string PRODUCTS = 'products_html';
+    public const string REASON = 'reason';
+    public const string RESOLUTION = 'resolution';
+    public const string STATUS = 'status_code';
+    public const string REFUND_AMOUNT = 'refund_amount';
+    public const string DATE = 'date_html';
+    public const string ACTIONS = '_actions';
+
     public function __construct(
         private TranslatorInterface $translator,
     ) {
@@ -36,21 +48,21 @@ final readonly class OrderReturnListColumns
     public function columns(): array
     {
         return [
-            new Column('ref_html', $this->translator->trans('Return'), ColumnKind::HTML, sortKey: 'ref'),
-            new Column('order_html', $this->translator->trans('Order'), ColumnKind::HTML, visibleFrom: 'md'),
-            new Column('customer_html', $this->translator->trans('Customer'), ColumnKind::HTML, visibleFrom: 'lg'),
-            new Column('products_html', $this->translator->trans('Products'), ColumnKind::HTML, visibleFrom: 'lg'),
-            new Column('reason', $this->translator->trans('Reason'), options: ['wrap' => true], visibleFrom: 'xl'),
-            new Column('resolution', $this->translator->trans('Expected resolution'), options: ['wrap' => true], visibleFrom: 'xl'),
+            new Column(self::REF, $this->translator->trans('Return'), ColumnKind::HTML, sortKey: 'ref'),
+            new Column(self::ORDER, $this->translator->trans('Order'), ColumnKind::HTML, visibleFrom: 'md'),
+            new Column(self::CUSTOMER, $this->translator->trans('Customer'), ColumnKind::HTML, visibleFrom: 'lg'),
+            new Column(self::PRODUCTS, $this->translator->trans('Products'), ColumnKind::HTML, visibleFrom: 'lg'),
+            new Column(self::REASON, $this->translator->trans('Reason'), options: ['wrap' => true], visibleFrom: 'xl'),
+            new Column(self::RESOLUTION, $this->translator->trans('Expected resolution'), options: ['wrap' => true], visibleFrom: 'xl'),
             new Column(
-                'status_code',
+                self::STATUS,
                 $this->translator->trans('Status'),
                 ColumnKind::BADGE,
                 options: ['variants' => [], 'label_key' => 'status', 'color_key' => 'status_color'],
             ),
-            new Column('refund_amount', $this->translator->trans('Refundable'), cellAlign: 'end', sortKey: 'refund_amount'),
-            new Column('date_html', $this->translator->trans('Requested on'), ColumnKind::HTML, sortKey: 'created_at', visibleFrom: 'lg'),
-            new Column('_actions', $this->translator->trans('Actions'), ColumnKind::ACTIONS, 'end'),
+            new Column(self::REFUND_AMOUNT, $this->translator->trans('Refundable'), cellAlign: 'end', sortKey: 'refund_amount'),
+            new Column(self::DATE, $this->translator->trans('Requested on'), ColumnKind::HTML, sortKey: 'created_at', visibleFrom: 'lg'),
+            new Column(self::ACTIONS, $this->translator->trans('Actions'), ColumnKind::ACTIONS, 'end'),
         ];
     }
 }
