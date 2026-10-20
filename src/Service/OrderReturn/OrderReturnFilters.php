@@ -36,10 +36,15 @@ final readonly class OrderReturnFilters
     public const PERIOD_WEEK = 'week';
     public const ALLOWED_PERIODS = [self::PERIOD_ALL, self::PERIOD_TODAY, self::PERIOD_WEEK];
 
-    public const DEFAULT_SORT = 'created_at';
+    public const SORT_ID = 'id';
+    public const SORT_REF = 'ref';
+    public const SORT_CREATED_AT = 'created_at';
+    public const SORT_REFUND_AMOUNT = 'refund_amount';
+
+    public const DEFAULT_SORT = self::SORT_CREATED_AT;
     public const DEFAULT_DIRECTION = 'desc';
     public const ALLOWED_DIRECTIONS = ['asc', 'desc'];
-    public const ALLOWED_SORTS = ['id', 'ref', 'created_at', 'refund_amount'];
+    public const ALLOWED_SORTS = [self::SORT_ID, self::SORT_REF, self::SORT_CREATED_AT, self::SORT_REFUND_AMOUNT];
 
     public const KEY_STATUS_IDS = 'status_ids';
     public const KEY_CREATED_RANGE = 'created_range';

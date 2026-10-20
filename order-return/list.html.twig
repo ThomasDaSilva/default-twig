@@ -181,7 +181,7 @@
                 sortParam: 'order',
                 sortDirectionParam: 'direction',
                 sortKeepParams: query_params,
-                rowIdentifierKey: 'ref',
+                rowIdentifierKey: constant('BackOfficeDefaultTwigBundle\\Service\\OrderReturn\\OrderReturnListColumns::REFERENCE'),
             }) }}
 
             {{ component('BoPagination', {

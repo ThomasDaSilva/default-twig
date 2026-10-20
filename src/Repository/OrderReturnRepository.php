@@ -50,10 +50,10 @@ final class OrderReturnRepository
      * @var array<string, string>
      */
     public const SORT_FIELDS = [
-        'id' => OrderReturnTableMap::COL_ID,
-        'ref' => OrderReturnTableMap::COL_REF,
-        'created_at' => OrderReturnTableMap::COL_CREATED_AT,
-        'refund_amount' => OrderReturnTableMap::COL_REFUND_AMOUNT,
+        OrderReturnFilters::SORT_ID => OrderReturnTableMap::COL_ID,
+        OrderReturnFilters::SORT_REF => OrderReturnTableMap::COL_REF,
+        OrderReturnFilters::SORT_CREATED_AT => OrderReturnTableMap::COL_CREATED_AT,
+        OrderReturnFilters::SORT_REFUND_AMOUNT => OrderReturnTableMap::COL_REFUND_AMOUNT,
     ];
 
     private const FALLBACK_STATUS_COLOR = '#6c757d';

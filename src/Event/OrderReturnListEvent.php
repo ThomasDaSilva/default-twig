@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Event;
 
+use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnListColumns;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\Column;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ColumnKind;
 use Symfony\Contracts\EventDispatcher\Event;
@@ -26,15 +27,17 @@ use Symfony\Contracts\EventDispatcher\Event;
  *
  * The `<entities>.table-row` hooks of BoDataTable only append cells after the
  * actions column; this event places a column anywhere and reaches the existing
- * ones. Each row carries the return id under `id`: a listener reads what it
- * needs for the whole page at once from getReturnIds().
+ * ones. Each row carries the return id under OrderReturnListColumns::ID: a
+ * listener reads what it needs for the whole page at once from getReturnIds().
  *
  * The columns and cells of the theme are named by the constants of
  * OrderReturnListColumns. Several modules may listen: each sees the table as
  * the listeners before it left it. A listener that removes, replaces or moves
  * columns of the theme listens with a positive priority, one that only adds its
  * own columns or buttons with priority 0 or lower, so the additions find the
- * columns they are placed after.
+ * columns they are placed after. Between two listeners of the same priority the
+ * order is the order they were registered in: not something to rely on, a
+ * listener that must run before or after another takes a distinct priority.
  *
  * A cell of an HTML column is rendered as is: the listener escapes what it
  * writes there. Labels and URLs of the header actions are escaped by the page.
@@ -130,7 +133,7 @@ final class OrderReturnListEvent extends Event
      */
     public function getReturnIds(): array
     {
-        return array_map(static fn (array $row): int => (int) $row['id'], $this->rows);
+        return array_map(static fn (array $row): int => (int) $row[OrderReturnListColumns::ID], $this->rows);
     }
 
     public function getLocale(): string

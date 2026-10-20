@@ -37,6 +37,12 @@ final readonly class OrderReturnListColumns
     public const string DATE = 'date_html';
     public const string ACTIONS = '_actions';
 
+    /** Cells no column shows: the return id, its reference, and the title and color the status badge reads. */
+    public const string ID = 'id';
+    public const string REFERENCE = 'ref';
+    public const string STATUS_TITLE = 'status';
+    public const string STATUS_COLOR = 'status_color';
+
     public function __construct(
         private TranslatorInterface $translator,
     ) {
@@ -48,7 +54,7 @@ final readonly class OrderReturnListColumns
     public function columns(): array
     {
         return [
-            new Column(self::REF, $this->translator->trans('Return'), ColumnKind::HTML, sortKey: 'ref'),
+            new Column(self::REF, $this->translator->trans('Return'), ColumnKind::HTML, sortKey: OrderReturnFilters::SORT_REF),
             new Column(self::ORDER, $this->translator->trans('Order'), ColumnKind::HTML, visibleFrom: 'md'),
             new Column(self::CUSTOMER, $this->translator->trans('Customer'), ColumnKind::HTML, visibleFrom: 'lg'),
             new Column(self::PRODUCTS, $this->translator->trans('Products'), ColumnKind::HTML, visibleFrom: 'lg'),
@@ -58,10 +64,10 @@ final readonly class OrderReturnListColumns
                 self::STATUS,
                 $this->translator->trans('Status'),
                 ColumnKind::BADGE,
-                options: ['variants' => [], 'label_key' => 'status', 'color_key' => 'status_color'],
+                options: ['variants' => [], 'label_key' => self::STATUS_TITLE, 'color_key' => self::STATUS_COLOR],
             ),
-            new Column(self::REFUND_AMOUNT, $this->translator->trans('Refundable'), cellAlign: 'end', sortKey: 'refund_amount'),
-            new Column(self::DATE, $this->translator->trans('Requested on'), ColumnKind::HTML, sortKey: 'created_at', visibleFrom: 'lg'),
+            new Column(self::REFUND_AMOUNT, $this->translator->trans('Refundable'), cellAlign: 'end', sortKey: OrderReturnFilters::SORT_REFUND_AMOUNT),
+            new Column(self::DATE, $this->translator->trans('Requested on'), ColumnKind::HTML, sortKey: OrderReturnFilters::SORT_CREATED_AT, visibleFrom: 'lg'),
             new Column(self::ACTIONS, $this->translator->trans('Actions'), ColumnKind::ACTIONS, 'end'),
         ];
     }

@@ -257,7 +257,8 @@ columns it adds in each row (`getRows()`, `setRows()`), and puts buttons in the 
 Each row carries the return id under `id`; `getReturnIds()` gives the ids of the page, so a listener reads what it
 needs in one query. The `order-returns.table-row` hook only appends cells after the actions column.
 
-The theme's columns and cells are named by the constants of `OrderReturnListColumns`:
+The theme's columns and the cells of the queue rows are named by the constants of `OrderReturnListColumns` (the return
+sheet has its own variables):
 
 | Constant | Key | Cell |
 |---|---|---|
@@ -271,10 +272,18 @@ The theme's columns and cells are named by the constants of `OrderReturnListColu
 | `REFUND_AMOUNT` | `refund_amount` | text: amount recorded on the return |
 | `DATE` | `date_html` | HTML: request date in a `<time>` element |
 | `ACTIONS` | `_actions` | row actions |
+| `ID` | `id` | return id, no column |
+| `REFERENCE` | `ref` | return reference, no column |
+| `STATUS_TITLE` | `status` | title of the status, read by the status badge |
+| `STATUS_COLOR` | `status_color` | color of the status, read by the status badge |
+
+The sort keys a column may carry are the `SORT_*` constants of `OrderReturnFilters`.
 
 Every listener sees the table as the listeners before it left it. A listener that removes, replaces or moves columns
 of the theme listens with a positive priority; one that only adds its own columns or buttons listens with priority 0
-or lower, so its columns find the ones they are placed after. `insertColumnAfter()` puts a column whose anchor is
+or lower, so its columns find the ones they are placed after. Between two listeners of the same priority the order is
+the order they were registered in, which a listener should not rely on: one that needs to run before or after another
+takes a distinct priority. `insertColumnAfter()` puts a column whose anchor is
 gone before the actions column, and `hasColumn()` tells whether a key is still there.
 
 A cell of an HTML column is rendered as is: the listener escapes what it writes there. Header action labels and URLs

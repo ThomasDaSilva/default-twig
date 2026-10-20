@@ -94,17 +94,17 @@ final readonly class OrderReturnListRowPresenter
         $effectiveCode = $status->getEffectiveCode();
 
         return [
-            'id' => $returnId,
-            'ref' => (string) $orderReturn->getRef(),
+            OrderReturnListColumns::ID => $returnId,
+            OrderReturnListColumns::REFERENCE => (string) $orderReturn->getRef(),
             OrderReturnListColumns::REF => $this->renderRef($orderReturn, $returnId),
             OrderReturnListColumns::ORDER => $this->renderOrder($orderReturn),
             OrderReturnListColumns::CUSTOMER => $this->renderCustomer($orderReturn),
             OrderReturnListColumns::PRODUCTS => $this->renderProducts($lines[$returnId] ?? []),
             OrderReturnListColumns::REASON => $this->reasonTitle($orderReturn, $reasonTitles),
             OrderReturnListColumns::RESOLUTION => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
-            'status' => (string) $status->getTitle(),
+            OrderReturnListColumns::STATUS_TITLE => (string) $status->getTitle(),
             OrderReturnListColumns::STATUS => $effectiveCode,
-            'status_color' => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
+            OrderReturnListColumns::STATUS_COLOR => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
             OrderReturnListColumns::REFUND_AMOUNT => $this->formatAmount($orderReturn, $locale),
             OrderReturnListColumns::DATE => $this->renderDate($orderReturn),
             OrderReturnListColumns::ACTIONS => $this->buildActions($returnId, $effectiveCode),

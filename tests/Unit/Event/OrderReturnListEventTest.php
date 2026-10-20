@@ -54,6 +54,29 @@ final class OrderReturnListEventTest extends TestCase
         self::assertSame(['order', 'status', 'note'], $this->keys($event));
     }
 
+    public function testAColumnPlacedAfterAColumnBehindTheActionsFollowsIt(): void
+    {
+        $event = new OrderReturnListEvent(
+            [new Column('order', 'Order'), new Column('_actions', 'Actions', ColumnKind::ACTIONS, 'end'), new Column('extra', 'Extra')],
+            [],
+            'en_US',
+        );
+
+        $event->insertColumnAfter('extra', new Column('note', 'Note'));
+
+        self::assertSame(['order', '_actions', 'extra', 'note'], $this->keys($event), 'An anchor that is there wins over the actions column.');
+    }
+
+    public function testTwoColumnsWhoseAnchorIsGoneKeepTheOrderTheyWereAddedIn(): void
+    {
+        $event = $this->event();
+
+        $event->insertColumnAfter('gone', new Column('first', 'First'));
+        $event->insertColumnAfter('gone', new Column('second', 'Second'));
+
+        self::assertSame(['order', 'reason', 'status', 'first', 'second', '_actions'], $this->keys($event));
+    }
+
     public function testAListenerTellsWhetherAColumnIsStillThere(): void
     {
         $event = $this->event();

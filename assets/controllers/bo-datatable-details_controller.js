@@ -47,7 +47,7 @@ export default class extends Controller {
         // pinned width, and would push the table past the scroll container.
         const cell = grid.closest('td');
         const cellStyle = cell ? getComputedStyle(cell) : null;
-        const padding = cellStyle ? parseFloat(cellStyle.paddingLeft) + parseFloat(cellStyle.paddingRight) : 0;
+        const padding = cellStyle ? (parseFloat(cellStyle.paddingLeft) || 0) + (parseFloat(cellStyle.paddingRight) || 0) : 0;
 
         grid.style.width = `${wrapper.clientWidth - padding}px`;
     }
