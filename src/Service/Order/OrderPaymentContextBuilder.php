@@ -23,6 +23,7 @@ use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\Payment\Service\CurrencyMinorUnit;
 use Thelia\Domain\Payment\Service\PaymentAmount;
+use Thelia\Domain\Payment\Enum\PaymentTransactionType;
 use Thelia\Domain\Payment\Enum\RefundReason;
 use Thelia\Domain\Payment\Service\PaymentCaptureService;
 use Thelia\Domain\Payment\Service\PaymentRefundService;
@@ -68,7 +69,7 @@ final readonly class OrderPaymentContextBuilder
                 'payment_supports_capture' => false,
                 'payment_can_capture' => false,
                 'payment_captures_once' => false,
-                'payment_can_settle' => false,
+                'payment_can_settle' => [],
                 'payment_can_refund' => false,
                 'payment_refund_mode' => 'offline',
                 'payment_refund_reasons' => [],
@@ -131,8 +132,11 @@ final readonly class OrderPaymentContextBuilder
             'payment_captures_once' => $supportsCapture && $this->captureService->capturesOnce($order),
             'payment_can_capture' => $supportsCapture && $mayCapture && PaymentAmount::isPositive(CurrencyMinorUnit::floor($leftToCapture, $currencyCode)),
             // Recording by hand the outcome of a line the provider never confirmed is a
-            // decision on the money too: the same right.
-            'payment_can_settle' => $mayCapture,
+            // decision on the money too: the right that made the movement, by type of line.
+            'payment_can_settle' => $this->settleableTypes([
+                AdminResources::ORDER_PAYMENT_CAPTURE => $mayCapture,
+                AdminResources::ORDER_PAYMENT_REFUND => $mayRefund,
+            ]),
             'payment_decimals' => $decimals,
             'payment_step' => $decimals === 0 ? '1' : '0.'.str_repeat('0', $decimals - 1).'1',
             // Giving money back is a right of its own; the module decides whether it goes
@@ -144,5 +148,21 @@ final readonly class OrderPaymentContextBuilder
                 RefundReason::cases(),
             ),
         ];
+    }
+
+    /**
+     * @param array<string, bool> $granted whether the administrator holds each payment right
+     *
+     * @return array<string, bool> per type of journal line
+     */
+    private function settleableTypes(array $granted): array
+    {
+        $settleable = [];
+
+        foreach (PaymentTransactionType::cases() as $type) {
+            $settleable[$type->value] = $granted[PaymentSettlementRight::of($type->value)] ?? false;
+        }
+
+        return $settleable;
     }
 }

@@ -9,7 +9,7 @@
       - payment_hold_notice:      whether the authorization still holds an amount on an order not paid
       - payment_supports_capture: whether the payment module separates the authorization from the capture
       - payment_can_capture:      whether this administrator may capture now (right held, something left)
-      - payment_can_settle:       whether this administrator may record by hand the outcome of a pending line
+      - payment_can_settle:       per type of line, whether this administrator may record by hand the outcome of a pending one
       - payment_can_refund:       whether this administrator may give money back now (right held, something collected left)
       - payment_refund_mode:      online (through the payment module) or offline (recorded as made outside the provider)
       - order_id:                 the order the journal belongs to
@@ -90,7 +90,7 @@
                 {% if line.note %}
                     <div class="text-muted text-break" data-testid="order-payment-line-note">{{ line.note }}</div>
                 {% endif %}
-                {% if payment_can_settle and line.state == 'pending' %}
+                {% if payment_can_settle[line.type]|default(false) and line.state == 'pending' %}
                     {# The provider never confirmed: the merchant reads the outcome in the
                        provider's back office and records it here. #}
                     <form method="post" action="{{ path('admin.order.update.paymentSettle', { order_id: order_id, transaction_id: line.id }) }}" class="mt-2" data-testid="order-payment-settle-form">
