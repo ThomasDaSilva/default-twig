@@ -1,0 +1,9 @@
+{{ component('BoConfirmDialog', {
+    id: 'webhook-delete-modal',
+    title: 'Delete webhook subscription',
+    formAction: path('admin.configuration.webhooks.delete'),
+    message: 'Do you really want to delete this subscription? Its delivery log is deleted with it.',
+    testid: 'webhook-delete',
+    prefillTrigger: 'data-webhook-id',
+    prefillInput: 'webhook_id',
+}) }}

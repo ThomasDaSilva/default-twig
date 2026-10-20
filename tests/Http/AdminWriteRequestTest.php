@@ -48,7 +48,7 @@ final class AdminWriteRequestTest extends WebIntegrationTestCase
      * Paths of the write actions of the theme. Every route whose path matches
      * must accept POST only.
      */
-    private const WRITE_PATH = '#(delete|remove|toggle|position|/move$|flush|update-rates|set-default|set_default|set-visible|/domain/|/add$|/build$|duplicate|recompute|convert-sale|reset-status|check-activation|cancel|/status$|delivery-ref|/\{order_id\}/address$|set-product-template|visibility|add-to-all|rem-from-all|product_sale_elements/\{pseId\}|personal-data|saveResourceAccess|saveModuleAccess|two-factor-reset|/two-factor/disable$|/backup-codes$)#';
+    private const WRITE_PATH = '#(delete|remove|toggle|position|/move$|flush|update-rates|set-default|set_default|set-visible|/domain/|/add$|/build$|duplicate|recompute|convert-sale|reset-status|check-activation|cancel|/status$|delivery-ref|/\{order_id\}/address$|set-product-template|visibility|add-to-all|rem-from-all|product_sale_elements/\{pseId\}|personal-data|saveResourceAccess|saveModuleAccess|two-factor-reset|/two-factor/disable$|/backup-codes$|/webhooks/(create|save|rotate-secret|test)$|/deliveries/replay$)#';
 
     /**
      * Routes whose path looks like a write but which only read, or which show

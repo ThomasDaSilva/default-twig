@@ -1,0 +1,114 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Edit webhook subscription'|trans }} - {{ subscription.title }}{% endblock %}
+{% block body_testid %}webhook-edit{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.webhooks.default') }}">{{ 'Webhooks'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ subscription.title }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="webhook-edit-page">
+        <h1 class="h3 mb-3">{{ 'Webhook subscription'|trans }} <small class="text-muted">#{{ subscription.id }}</small></h1>
+
+        {% if subscription.status == 'error' %}
+            <div class="alert alert-danger" role="alert" data-testid="webhook-error-banner">
+                <strong>{{ 'This subscription is in error and receives nothing.'|trans }}</strong>
+                {{ subscription.failureReason }}
+                {{ 'Enable it again once the receiver works.'|trans }}
+            </div>
+        {% endif %}
+
+        {% if issued_secret %}
+            <div class="alert alert-warning" role="alert" data-testid="webhook-issued-secret">
+                <p class="mb-2"><strong>{{ 'Copy this secret now: it is shown only once.'|trans }}</strong> {{ 'It signs every request. Only a new secret can replace it.'|trans }}</p>
+                <input type="text" class="form-control font-monospace" readonly value="{{ issued_secret }}" aria-label="{{ 'Signing secret'|trans }}" data-testid="webhook-secret-value" onfocus="this.select()">
+            </div>
+        {% endif %}
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        {% form_theme form with bo_form_themes only %}
+                        {{ form_start(form, { action: path('admin.configuration.webhooks.save'), method: 'post' }) }}
+                            <input type="hidden" name="webhook_id" value="{{ subscription.id }}">
+                            {% include '@BackOfficeDefaultTwig/configuration/webhook/_fields.html.twig' with { form: form } only %}
+                            {{ form_widget(form.id) }}
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <a href="{{ path('admin.configuration.webhooks.default') }}" class="btn btn-outline-secondary">{{ 'Cancel'|trans }}</a>
+                                {% if is_granted('UPDATE', 'admin.configuration.webhook') %}
+                                    <button type="submit" class="btn btn-primary" data-testid="webhook-save"><i class="bi bi-check2"></i> {{ 'Save'|trans }}</button>
+                                {% endif %}
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h2 class="h6">{{ 'Signing secret'|trans }}</h2>
+                        <p class="text-body-secondary small">{{ 'The secret is never shown again. If it is lost, generate a new one: the old one stops working at once.'|trans }}</p>
+                        {% if is_granted('UPDATE', 'admin.configuration.webhook') %}
+                            <button type="button" class="btn btn-outline-warning btn-sm" data-bs-toggle="modal" data-bs-target="#webhook-rotate-modal" data-testid="webhook-rotate-button">
+                                <i class="bi bi-arrow-repeat" aria-hidden="true"></i> {{ 'Generate a new secret'|trans }}
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h2 class="h6">{{ 'Test the configuration'|trans }}</h2>
+                        <p class="text-body-secondary small">{{ 'Sends a signed test request to the address. It appears in the delivery log.'|trans }}</p>
+                        {% if is_granted('UPDATE', 'admin.configuration.webhook') %}
+                            <form method="post" action="{{ path('admin.configuration.webhooks.test') }}">
+                                <input type="hidden" name="webhook_id" value="{{ subscription.id }}">
+                                <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="webhook-test-button">
+                                    <i class="bi bi-send" aria-hidden="true"></i> {{ 'Send a test request'|trans }}
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="h6">{{ 'Delivery log'|trans }}</h2>
+                        {% if failed_deliveries > 0 %}
+                            <p class="text-danger small mb-2">{{ '%count% failed deliveries'|trans({'%count%': failed_deliveries}) }}</p>
+                        {% endif %}
+                        <a href="{{ journal_url }}" class="btn btn-outline-secondary btn-sm" data-testid="webhook-journal-link">
+                            <i class="bi bi-list-ul" aria-hidden="true"></i> {{ 'See the deliveries'|trans }}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% component 'BoConfirmDialog' with {
+        id: 'webhook-rotate-modal',
+        title: 'Generate a new secret',
+        formAction: path('admin.configuration.webhooks.rotate_secret'),
+        variant: 'warning',
+        confirmLabel: 'Generate',
+        confirmIcon: 'bi-arrow-repeat',
+        testid: 'webhook-rotate',
+    } %}
+        {% block body %}
+            <p class="mb-0">{{ 'The current secret stops working at once: the receiver must be given the new one. Continue?'|trans }}</p>
+            <input type="hidden" name="webhook_id" value="{{ subscription.id }}">
+        {% endblock %}
+    {% endcomponent %}
+{% endblock %}

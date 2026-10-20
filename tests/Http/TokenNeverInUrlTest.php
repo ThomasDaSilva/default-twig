@@ -198,6 +198,8 @@ final class TokenNeverInUrlTest extends WebIntegrationTestCase
             '/admin/configuration/product-association-type',
             '/admin/configuration/profiles/update/'.$profile->getId(),
             '/admin/configuration/states',
+            '/admin/configuration/webhooks',
+            '/admin/configuration/webhooks/deliveries',
             '/admin/configuration/tags',
             '/admin/configuration/taxes_rules',
             '/admin/configuration/templates',

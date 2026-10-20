@@ -17,3 +17,15 @@ framework:
             policy: 'sliding_window'
             limit: 30
             interval: '15 minutes'
+        # A test request reaches an address an administrator typed, on a button that can be held
+        # down: it must not turn the back office into a way to hammer a third party. Per administrator.
+        webhook_test:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '5 minutes'
+        # A replay sends the stored request again, to the address of the subscription. Held to a
+        # window of its own so that a screen cannot be used to send the same request in a loop.
+        webhook_replay:
+            policy: 'sliding_window'
+            limit: 20
+            interval: '5 minutes'

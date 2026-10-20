@@ -1,0 +1,84 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Webhook delivery log'|trans }}{% endblock %}
+{% block body_testid %}webhook-deliveries{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.webhooks.default') }}">{{ 'Webhooks'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Delivery log'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="webhook-deliveries-page">
+        <h1 class="h3 mb-3">{{ 'Webhook delivery log'|trans }}</h1>
+
+        <form method="get" action="{{ path('admin.configuration.webhooks.deliveries') }}" class="row g-2 mb-3" data-testid="webhook-deliveries-filters">
+            <div class="col-md-4">
+                <label class="form-label" for="delivery-subscription-filter">{{ 'Subscription'|trans }}</label>
+                <select name="subscription_id" id="delivery-subscription-filter" class="form-select">
+                    <option value="">{{ 'All'|trans }}</option>
+                    {% for id, title in subscriptions %}
+                        <option value="{{ id }}"{% if id == current_subscription %} selected{% endif %}>{{ title }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="delivery-event-filter">{{ 'Event'|trans }}</label>
+                <select name="event" id="delivery-event-filter" class="form-select">
+                    <option value="">{{ 'All'|trans }}</option>
+                    {% for name in events %}
+                        <option value="{{ name }}"{% if name == current_event %} selected{% endif %}>{{ name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label" for="delivery-status-filter">{{ 'Status'|trans }}</label>
+                <select name="status" id="delivery-status-filter" class="form-select">
+                    <option value="">{{ 'All'|trans }}</option>
+                    {% for status in statuses %}
+                        <option value="{{ status }}"{% if status == current_status %} selected{% endif %}>{{ { pending: 'Pending'|trans, succeeded: 'Succeeded'|trans, failed: 'Failed'|trans }[status] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary w-100">{{ 'Filter'|trans }}</button>
+            </div>
+        </form>
+
+        <p class="text-body-secondary small" data-testid="webhook-deliveries-total">{{ '%count% deliveries'|trans({'%count%': total}) }}</p>
+
+        {{ component('BoDataTable', {
+            id: 'webhook-deliveries',
+            columns: [
+                column('id', 'ID'|trans, 'start', hideBelow: 'md'),
+                column('created_at', 'Date'|trans, 'start'),
+                column('subscription', 'Subscription'|trans, 'start', hideBelow: 'md'),
+                column('event', 'Event'|trans, 'start'),
+                column_badge('status', 'Status'|trans, { succeeded: 'success', failed: 'danger', pending: 'warning' }, 'start', 'status_label'),
+                column('response_code', 'HTTP code'|trans, 'center', hideBelow: 'lg'),
+                column('attempts', 'Attempts'|trans, 'center', hideBelow: 'xl'),
+                column('duration', 'Duration'|trans, 'end', hideBelow: 'xl'),
+                column_actions('_actions', 'Actions'|trans),
+            ],
+            rows: rows,
+            emptyMessage: 'No delivery matches.'|trans,
+        }) }}
+
+        {% if last_page > 1 %}
+            {{ component('BoPagination', {
+                route: 'admin.configuration.webhooks.deliveries',
+                currentPage: current_page,
+                lastPage: last_page,
+                routeParams: { subscription_id: current_subscription ?: null, event: current_event ?: null, status: current_status ?: null },
+                ariaLabel: 'Webhook deliveries pagination'|trans,
+                testid: 'webhook-deliveries-pagination',
+            }) }}
+        {% endif %}
+    </div>
+{% endblock %}

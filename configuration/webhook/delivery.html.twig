@@ -1,0 +1,80 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Webhook delivery'|trans }} #{{ delivery.id }}{% endblock %}
+{% block body_testid %}webhook-delivery{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ subscriptions_url }}">{{ 'Webhooks'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ list_url }}">{{ 'Delivery log'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">#{{ delivery.id }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="webhook-delivery-page">
+        <h1 class="h3 mb-3">{{ 'Webhook delivery'|trans }} <small class="text-muted">#{{ delivery.id }}</small></h1>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">{{ 'Subscription'|trans }}</dt>
+                    <dd class="col-sm-9">{% if subscription %}<a href="{{ path('admin.configuration.webhooks.update', { webhook_id: subscription.id }) }}">{{ subscription.title }}</a>{% endif %}</dd>
+                    <dt class="col-sm-3">{{ 'Event'|trans }}</dt>
+                    <dd class="col-sm-9">{{ delivery.event }}</dd>
+                    <dt class="col-sm-3">{{ 'Status'|trans }}</dt>
+                    <dd class="col-sm-9" data-testid="webhook-delivery-status">{{ { pending: 'Pending'|trans, succeeded: 'Succeeded'|trans, failed: 'Failed'|trans }[delivery.status] ?? delivery.status }}</dd>
+                    <dt class="col-sm-3">{{ 'Attempts'|trans }}</dt>
+                    <dd class="col-sm-9">{{ delivery.attempts }}</dd>
+                    <dt class="col-sm-3">{{ 'HTTP code'|trans }}</dt>
+                    <dd class="col-sm-9">{{ delivery.responseCode ?? '-' }}</dd>
+                    <dt class="col-sm-3">{{ 'Duration'|trans }}</dt>
+                    <dd class="col-sm-9">{{ delivery.durationMs is null ? '-' : delivery.durationMs ~ ' ms' }}</dd>
+                    <dt class="col-sm-3">{{ 'Identifier'|trans }}</dt>
+                    <dd class="col-sm-9"><code>{{ delivery.deliveryUuid }}</code></dd>
+                    <dt class="col-sm-3">{{ 'Created'|trans }}</dt>
+                    <dd class="col-sm-9">{{ delivery.createdAt|date('Y-m-d H:i:s') }}</dd>
+                    <dt class="col-sm-3">{{ 'Delivered'|trans }}</dt>
+                    <dd class="col-sm-9">{{ delivery.deliveredAt ? delivery.deliveredAt|date('Y-m-d H:i:s') : '-' }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        {% if delivery.status == 'failed' and is_granted('UPDATE', 'admin.configuration.webhook') %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    {% if replayable %}
+                        <form method="post" action="{{ path('admin.configuration.webhooks.deliveries.replay') }}" class="d-flex align-items-center gap-3">
+                            <input type="hidden" name="delivery_id" value="{{ delivery.id }}">
+                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                            <button type="submit" class="btn btn-primary" data-testid="webhook-replay-button">
+                                <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> {{ 'Replay this delivery'|trans }}
+                            </button>
+                            <span class="text-body-secondary small">{{ 'The same request, with the same identifier, is sent again.'|trans }}</span>
+                        </form>
+                    {% else %}
+                        <p class="mb-0 text-body-secondary" data-testid="webhook-replay-refused">{{ 'The subscription is not active: enable it before replaying this delivery.'|trans }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6">{{ 'Answer of the receiver'|trans }}</h2>
+                <pre class="mb-0 text-break overflow-auto" data-testid="webhook-delivery-answer">{{ delivery.responseBody }}</pre>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6">{{ 'Request body'|trans }}</h2>
+                <pre class="mb-0 text-break overflow-auto" data-testid="webhook-delivery-payload">{{ payload }}</pre>
+            </div>
+        </div>
+    </div>
+{% endblock %}
