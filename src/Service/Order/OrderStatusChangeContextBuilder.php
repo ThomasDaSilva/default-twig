@@ -20,7 +20,9 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
+use Thelia\Domain\Payment\Service\PaymentTransactionTotalsReader;
 use Thelia\Model\Order;
 use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusQuery;
@@ -30,6 +32,10 @@ use Thelia\Model\OrderStatusQuery;
  * reach and, for an administrator entitled to it, the other statuses a forced
  * change may pick, plus the forced changes the order has already received. Also
  * words the refusal of a change the graph does not allow.
+ *
+ * Cancelling an order whose authorization still holds an amount releases it at the
+ * provider, which the core leaves to the capture right: without it, no cancelled status
+ * is offered.
  */
 final readonly class OrderStatusChangeContextBuilder
 {
@@ -39,6 +45,8 @@ final readonly class OrderStatusChangeContextBuilder
         private OrderStatusRepository $statusRepository,
         private AdminLogRepository $adminLogRepository,
         private TranslatorInterface $translator,
+        private SecurityContext $securityContext,
+        private PaymentTransactionTotalsReader $totalsReader,
     ) {
     }
 
@@ -51,11 +59,12 @@ final readonly class OrderStatusChangeContextBuilder
         $allowed = [];
         $forcedOnly = [];
         $allowedIds = array_map(static fn (OrderStatus $status): int => (int) $status->getId(), $this->transitionGuard->allowedTargets($currentId));
+        $mayCancel = $this->mayCancel($order);
 
         // The one memoised read of the statuses: the forced changes below and the
         // refusal message share it.
         foreach ($this->statusRepository->findLocalized($locale) as $statusId => $status) {
-            if ($statusId === $currentId) {
+            if ($statusId === $currentId || (!$mayCancel && $status->isCancelled(false))) {
                 continue;
             }
 
@@ -75,10 +84,20 @@ final readonly class OrderStatusChangeContextBuilder
             'forced_only_statuses' => $canForce ? $forcedOnly : [],
             'status_is_free' => $this->transitionGuard->isFree($currentId),
             'can_force_status' => $canForce,
-            'can_cancel' => $cancelStatusId > 0 && $this->transitionGuard->isAllowed($currentId, $cancelStatusId),
+            'can_cancel' => $mayCancel && $cancelStatusId > 0 && $this->transitionGuard->isAllowed($currentId, $cancelStatusId),
             'forced_status_changes' => $forced['changes'],
             'forced_status_changes_hidden' => $forced['hidden'],
         ];
+    }
+
+    /**
+     * Whether this administrator may cancel the order as far as its payment goes: the core
+     * refuses it without the capture right while the authorization holds an amount.
+     */
+    private function mayCancel(Order $order): bool
+    {
+        return !$this->totalsReader->forOrder((int) $order->getId())->hasSomethingLeftToCapture()
+            || $this->securityContext->isGranted(['ADMIN'], [AdminResources::ORDER_PAYMENT_CAPTURE], [], [AccessManager::CREATE]);
     }
 
     /**

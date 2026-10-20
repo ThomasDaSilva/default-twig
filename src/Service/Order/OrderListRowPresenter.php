@@ -14,6 +14,9 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Order;
 
+use Thelia\Model\OrderStatus;
+use Thelia\Core\Security\SecurityContext;
+use Thelia\Core\Security\Resource\AdminResources;
 use BackOfficeDefaultTwigBundle\Repository\ModuleRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Service\I18n\MoneyFormatter;
@@ -50,6 +53,7 @@ final readonly class OrderListRowPresenter
         private OrderStatusTransitionGuard $transitionGuard,
         private OrderSaleUnits $saleUnits,
         private MoneyFormatter $money,
+        private SecurityContext $securityContext,
     ) {
     }
 
@@ -123,7 +127,12 @@ final readonly class OrderListRowPresenter
         $cancelStatusId = $cancelStatus !== null ? (int) $cancelStatus->getId() : 0;
         $isCanceled = $cancelStatusId > 0 && (int) $order->getStatusId() === $cancelStatusId;
         // The graph decides whether canceling is offered at all; it is memoized for the request.
-        $canCancel = $cancelStatusId > 0 && !$isCanceled && $this->transitionGuard->isAllowed((int) $order->getStatusId(), $cancelStatusId);
+        // An order on hold for capture is cancelled only with the capture right, which the core
+        // asks to release its authorization; the status stands for the journal here, read once
+        // per order on the sheet rather than once per row.
+        $canCancel = $cancelStatusId > 0 && !$isCanceled && $this->transitionGuard->isAllowed((int) $order->getStatusId(), $cancelStatusId)
+            && (OrderStatus::CODE_AWAITING_CAPTURE !== $status?->getCode()
+                || $this->securityContext->isGranted(['ADMIN'], [AdminResources::ORDER_PAYMENT_CAPTURE], [], [AccessManager::CREATE]));
 
         return [
             'id' => $orderId,
