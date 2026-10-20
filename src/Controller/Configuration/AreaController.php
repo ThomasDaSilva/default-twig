@@ -154,6 +154,7 @@ final class AreaController
 
         $zipCodeRulesSupported = class_exists(AreaZipCodeRuleQuery::class);
         $zoneCountries = $zipCodeRulesSupported ? $this->zoneCountries((int) $area->getId()) : [];
+        $zipCodeRules = $this->zipCodeRules((int) $area->getId(), $zoneCountries);
 
         return new Response($this->twig->render(self::EDIT_TEMPLATE, [
             'area' => $area,
@@ -164,7 +165,8 @@ final class AreaController
             'unassigned_country_ids' => $this->unassignedCountryIds(),
             // The postal code rules come with a core that knows them.
             'zip_code_rules_supported' => $zipCodeRulesSupported,
-            'zip_code_rules' => $this->zipCodeRules((int) $area->getId(), $zoneCountries),
+            'zip_code_rules' => $zipCodeRules,
+            'zip_code_rules_unformatted_countries' => $this->countriesWithoutZipCodeFormat($zipCodeRules, $zoneCountries),
             'zone_countries' => $zoneCountries,
         ]));
     }
@@ -332,7 +334,7 @@ final class AreaController
     /**
      * @param array<int, string> $zoneCountries
      *
-     * @return list<array{id: int, pattern: string, excluded: bool, country: string|null, outside_zone: bool}>
+     * @return list<array{id: int, pattern: string, excluded: bool, country_id: int|null, country: string|null, outside_zone: bool}>
      */
     private function zipCodeRules(int $areaId, array $zoneCountries): array
     {
@@ -349,6 +351,7 @@ final class AreaController
                 'id' => (int) $rule->getId(),
                 'pattern' => (string) $rule->getPattern(),
                 'excluded' => (bool) $rule->getExcluded(),
+                'country_id' => null === $countryId ? null : (int) $countryId,
                 'country' => null === $countryId ? null : ($zoneCountries[$countryId] ?? null),
                 // A rule written for a country the zone no longer holds applies to no one
                 // until the country comes back: it must not read "every country".
@@ -357,6 +360,45 @@ final class AreaController
         }
 
         return $rules;
+    }
+
+    /**
+     * The countries of the zone a rule applies to where the address forms check no postal
+     * code format (none set, or the postal code not required): a customer types any code
+     * there, or none. An unknown code is accepted by every rule and a mistyped one matches
+     * no exclusion, which the merchant has to know before relying on one.
+     *
+     * @param list<array{id: int, pattern: string, excluded: bool, country_id: int|null, country: string|null, outside_zone: bool}> $rules
+     * @param array<int, string>                                                                                               $zoneCountries
+     *
+     * @return list<string>
+     */
+    private function countriesWithoutZipCodeFormat(array $rules, array $zoneCountries): array
+    {
+        $countryIds = [];
+
+        foreach ($rules as $rule) {
+            if (null === $rule['country_id']) {
+                $countryIds += array_fill_keys(array_keys($zoneCountries), true);
+            } elseif (isset($zoneCountries[$rule['country_id']])) {
+                $countryIds[$rule['country_id']] = true;
+            }
+        }
+
+        if ([] === $countryIds) {
+            return [];
+        }
+
+        $titles = [];
+
+        foreach (CountryQuery::create()->filterById(array_keys($countryIds))->find() as $country) {
+            if ('' === trim((string) $country->getZipCodeFormat()) || 0 === (int) $country->getNeedZipCode()) {
+                $titles[] = $zoneCountries[(int) $country->getId()];
+            }
+        }
+        sort($titles);
+
+        return $titles;
     }
 
     /**
