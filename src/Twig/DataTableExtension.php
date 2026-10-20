@@ -45,10 +45,16 @@ final class DataTableExtension extends AbstractExtension
      * $leftToRight marks a value that reads left to right in every language - an amount,
      * a quantity with its unit: in a right-to-left page the browser would otherwise split
      * "1 076,40 €" at its spaces and paint the groups in reverse order.
+     *
+     * $wrap lets a free text written by a person - a reason, a note - break over several
+     * lines: the cells of a grid stay on one line otherwise, and one long sentence would
+     * push every other column out of sight.
      */
-    public function textColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always', bool $leftToRight = false): Column
+    public function textColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always', bool $leftToRight = false, bool $wrap = false): Column
     {
-        return new Column($key, $label, ColumnKind::TEXT, $cellAlign, $leftToRight ? ['left_to_right' => true] : [], sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
+        $options = array_filter(['left_to_right' => $leftToRight, 'wrap' => $wrap]);
+
+        return new Column($key, $label, ColumnKind::TEXT, $cellAlign, $options, sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
     }
 
     public function htmlColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always'): Column

@@ -21,6 +21,7 @@ use Propel\Runtime\Collection\ObjectCollection;
 use Thelia\Model\Map\OrderReturnTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
+use Thelia\Model\OrderProductAttributeCombinationQuery;
 use Thelia\Model\OrderProductQuery;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\OrderReturn;
@@ -31,12 +32,14 @@ use Thelia\Model\OrderReturnReason;
 use Thelia\Model\OrderReturnReasonQuery;
 use Thelia\Model\OrderReturnStatus;
 use Thelia\Model\OrderReturnStatusQuery;
+use Thelia\Model\ProductQuery;
 
 /**
  * Centralised Propel queries for the return back-office screens.
  *
  * Not readonly: the reads every screen pays for - the statuses with their
- * titles and the return count they carry - are memoised for the request.
+ * titles and the return count they carry, the titles of the reasons - are
+ * memoised for the request.
  */
 final class OrderReturnRepository
 {
@@ -60,6 +63,9 @@ final class OrderReturnRepository
 
     /** @var array<string, list<array{id: int, code: string, effective_code: string, title: string, color: string}>> */
     private array $statusesLocalized = [];
+
+    /** @var array<string, array<int, string>> */
+    private array $reasonTitles = [];
 
     public function __construct(
         private readonly OrderAccess $access,
@@ -162,32 +168,87 @@ final class OrderReturnRepository
     }
 
     /**
-     * How many lines each of these returns holds, in one grouped query. A return
-     * with no line is absent from the result, as a count of zero.
+     * What each of these returns sends back, for a whole page of the queue in three
+     * queries whatever its size: the lines with the product as it was ordered, the
+     * catalogue product each one still points to, and the attribute values of the
+     * ordered combination. A return with no line is absent from the result.
+     *
+     * The title and the attribute values are those frozen on the order, in the
+     * language it was placed in: the product may have been renamed or deleted since.
      *
      * @param list<int> $returnIds
      *
-     * @return array<int, int>
+     * @return array<int, list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>>
      */
-    public function countLinesByReturn(array $returnIds): array
+    public function findLinesByReturns(array $returnIds): array
     {
         if ($returnIds === []) {
             return [];
         }
 
-        $counts = [];
-        $rows = OrderReturnLineQuery::create()
+        $lines = OrderReturnLineQuery::create()
             ->filterByOrderReturnId($returnIds, Criteria::IN)
-            ->withColumn('COUNT(*)', 'line_count')
-            ->groupByOrderReturnId()
-            ->select(['OrderReturnId', 'line_count'])
+            ->joinWithOrderProduct()
+            ->orderByOrderReturnId()
+            ->orderById()
             ->find();
 
-        foreach ($rows as $row) {
-            $counts[(int) $row['OrderReturnId']] = (int) $row['line_count'];
+        if ($lines->isEmpty()) {
+            return [];
         }
 
-        return $counts;
+        $orderProductIds = [];
+        $productRefs = [];
+        foreach ($lines as $line) {
+            $orderProduct = $line->getOrderProduct();
+            $orderProductIds[] = (int) $orderProduct->getId();
+            $productRefs[(string) $orderProduct->getProductRef()] = true;
+        }
+
+        $productIds = [];
+        $products = ProductQuery::create()
+            ->filterByRef(array_keys($productRefs), Criteria::IN)
+            ->select(['Id', 'Ref'])
+            ->find();
+        foreach ($products as $product) {
+            $productIds[(string) $product['Ref']] = (int) $product['Id'];
+        }
+
+        $attributes = [];
+        $combinations = OrderProductAttributeCombinationQuery::create()
+            ->filterByOrderProductId($orderProductIds, Criteria::IN)
+            ->orderById()
+            ->find();
+        foreach ($combinations as $combination) {
+            $attributes[(int) $combination->getOrderProductId()][] = [
+                'attribute' => (string) $combination->getAttributeTitle(),
+                'value' => (string) $combination->getAttributeAvTitle(),
+            ];
+        }
+
+        $byReturn = [];
+        foreach ($lines as $line) {
+            $orderProduct = $line->getOrderProduct();
+            $byReturn[(int) $line->getOrderReturnId()][] = [
+                'title' => (string) $orderProduct->getTitle(),
+                'quantity' => (float) $line->getQuantity(),
+                'product_id' => $productIds[(string) $orderProduct->getProductRef()] ?? null,
+                'attributes' => $attributes[(int) $orderProduct->getId()] ?? [],
+            ];
+        }
+
+        return $byReturn;
+    }
+
+    /**
+     * The current title of every reason, by id, in one query memoised for the
+     * request: the queue names the reason of each row without a read per row.
+     *
+     * @return array<int, string>
+     */
+    public function findReasonTitles(string $locale): array
+    {
+        return $this->reasonTitles[$locale] ??= $this->readReasonTitles($locale);
     }
 
     public function countAll(): int
@@ -310,6 +371,23 @@ final class OrderReturnRepository
         }
 
         return $items;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function readReasonTitles(string $locale): array
+    {
+        $titles = [];
+        $reasons = OrderReturnReasonQuery::create()
+            ->joinWithI18n($locale, Criteria::LEFT_JOIN)
+            ->find();
+        foreach ($reasons as $reason) {
+            $reason->setLocale($locale);
+            $titles[(int) $reason->getId()] = (string) $reason->getTitle();
+        }
+
+        return $titles;
     }
 
     /**

@@ -17,15 +17,17 @@ namespace BackOfficeDefaultTwigBundle\Service\OrderReturn;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Symfony\Component\HttpFoundation\Request;
 use Thelia\Model\Map\OrderReturnTableMap;
+use Thelia\Model\OrderReturn;
 use Thelia\Model\OrderReturnQuery;
 
 /**
  * Single source of truth for the return list filters: parsing, URL
  * serialisation and SQL application live here so the controller stays thin.
  *
- * The merchant sorts returns by state, by period, by customer and by order,
- * which is the whole filter surface the return screen needs; the free search
- * covers the return reference and the order reference at once.
+ * The merchant sorts returns by state, by period, by customer, by order and by
+ * what the customer expects in return, which is the whole filter surface the
+ * return screen needs; the free search covers the return reference and the
+ * order reference at once.
  */
 final readonly class OrderReturnFilters
 {
@@ -44,6 +46,7 @@ final readonly class OrderReturnFilters
     public const KEY_PERIOD = 'period';
     public const KEY_CUSTOMER_ID = 'customer_id';
     public const KEY_ORDER_ID = 'order_id';
+    public const KEY_RESOLUTION = 'resolution';
     public const KEY_SEARCH = 'search';
 
     /** @var list<array{code: string, label: string, icon: string}> */
@@ -62,6 +65,7 @@ final readonly class OrderReturnFilters
         public ?\DateTimeImmutable $createdTo = null,
         public ?int $customerId = null,
         public ?int $orderId = null,
+        public ?string $resolution = null,
         public string $search = '',
         public string $sort = self::DEFAULT_SORT,
         public string $direction = self::DEFAULT_DIRECTION,
@@ -101,6 +105,11 @@ final readonly class OrderReturnFilters
             [$createdFrom, $createdTo] = [$createdTo->setTime(0, 0, 0), $createdFrom->setTime(23, 59, 59)];
         }
 
+        $resolution = (string) $query->get('resolution', '');
+        if (!\in_array($resolution, OrderReturn::RESOLUTIONS, true)) {
+            $resolution = null;
+        }
+
         $sort = (string) $query->get('order', self::DEFAULT_SORT);
         if (!\in_array($sort, self::ALLOWED_SORTS, true)) {
             $sort = self::DEFAULT_SORT;
@@ -117,6 +126,7 @@ final readonly class OrderReturnFilters
             createdTo: $createdTo,
             customerId: self::parsePositiveInt((string) $query->get('customer_id', '')),
             orderId: self::parsePositiveInt((string) $query->get('order_id', '')),
+            resolution: $resolution,
             search: trim((string) $query->get('q', '')),
             sort: $sort,
             direction: $direction,
@@ -130,7 +140,8 @@ final readonly class OrderReturnFilters
             && $this->createdFrom === null
             && $this->createdTo === null
             && $this->customerId === null
-            && $this->orderId === null;
+            && $this->orderId === null
+            && $this->resolution === null;
     }
 
     /**
@@ -156,6 +167,9 @@ final readonly class OrderReturnFilters
         }
         if ($this->orderId !== null) {
             $params['order_id'] = $this->orderId;
+        }
+        if ($this->resolution !== null) {
+            $params['resolution'] = $this->resolution;
         }
         if ($this->search !== '') {
             $params['q'] = $this->search;
@@ -199,6 +213,7 @@ final readonly class OrderReturnFilters
             ],
             self::KEY_CUSTOMER_ID => ['customerId' => null],
             self::KEY_ORDER_ID => ['orderId' => null],
+            self::KEY_RESOLUTION => ['resolution' => null],
             self::KEY_SEARCH => ['search' => ''],
             default => [],
         };
@@ -225,6 +240,10 @@ final readonly class OrderReturnFilters
 
         if ($this->orderId !== null) {
             $query->filterByOrderId($this->orderId);
+        }
+
+        if ($this->resolution !== null) {
+            $query->filterByExpectedResolution($this->resolution);
         }
 
         $this->applySearch($query);
@@ -291,6 +310,7 @@ final readonly class OrderReturnFilters
             createdTo: \array_key_exists('createdTo', $overrides) ? $overrides['createdTo'] : $this->createdTo,
             customerId: \array_key_exists('customerId', $overrides) ? $overrides['customerId'] : $this->customerId,
             orderId: \array_key_exists('orderId', $overrides) ? $overrides['orderId'] : $this->orderId,
+            resolution: \array_key_exists('resolution', $overrides) ? $overrides['resolution'] : $this->resolution,
             search: \array_key_exists('search', $overrides) ? $overrides['search'] : $this->search,
             sort: \array_key_exists('sort', $overrides) ? $overrides['sort'] : $this->sort,
             direction: \array_key_exists('direction', $overrides) ? $overrides['direction'] : $this->direction,

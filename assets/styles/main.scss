@@ -800,6 +800,39 @@ td.bo-datatable__details-col {
     }
 }
 
+// A free text in a data grid cell (a reason typed by a customer, a product title):
+// the grid keeps its cells on one line, and one long sentence would widen the table
+// until every other column scrolls out of sight. This text breaks over several lines;
+// the minimum width keeps a few words per line when the table shrinks to its card.
+.bo-datatable__wrap {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    min-width: 7rem;
+    max-width: 24rem;
+}
+
+// A text written by a person stops after four lines, so one long message does not make
+// its row a screen high; the cell carries the whole text in its title, and the record's
+// own sheet shows it in full.
+.bo-datatable__clamp {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
+}
+
+// The header of such a column breaks too: a two-word title would otherwise set its width.
+.table > thead > tr > th.bo-datatable__wrap-head {
+    white-space: normal;
+}
+
+// The e-mail under the customer name in the return queue gives way first when the table
+// is short of room; the full address stays in its title.
+.bo-order-customer--compact .text-truncate {
+    max-width: 11rem;
+}
+
 // Key/value and form tables. The `white-space: nowrap` above targets data grids,
 // which scroll horizontally inside `.table-responsive`; a definition-style table
 // has nowhere to scroll to, so it is clipped by the card instead. These wrap.

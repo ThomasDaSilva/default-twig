@@ -31,6 +31,7 @@ final readonly class OrderReturnFilterPresenter
         private UrlGeneratorInterface $urls,
         private TranslatorInterface $translator,
         private OrderReturnFilterCatalog $catalog,
+        private OrderReturnResolutionLabels $resolutionLabels,
     ) {
     }
 
@@ -57,6 +58,8 @@ final readonly class OrderReturnFilterPresenter
             'created_to_input' => $filters->createdTo?->format('Y-m-d') ?? '',
             'customer_id_input' => $filters->customerId !== null ? (string) $filters->customerId : '',
             'order_id_input' => $filters->orderId !== null ? (string) $filters->orderId : '',
+            'resolution_options' => $this->resolutionLabels->options(),
+            'selected_resolution' => $filters->resolution ?? '',
             'search_input' => $filters->search,
 
             'sort_field' => $filters->sort,
@@ -110,6 +113,15 @@ final readonly class OrderReturnFilterPresenter
                 OrderReturnFilters::KEY_ORDER_ID,
                 $this->translator->trans('Order'),
                 $this->orderLabel($filters->orderId),
+            );
+        }
+
+        if ($filters->resolution !== null) {
+            $chips[] = $this->chip(
+                $filters,
+                OrderReturnFilters::KEY_RESOLUTION,
+                $this->translator->trans('Expected resolution'),
+                $this->resolutionLabels->label($filters->resolution),
             );
         }
 
@@ -220,6 +232,9 @@ final readonly class OrderReturnFilterPresenter
             ++$count;
         }
         if ($filters->orderId !== null) {
+            ++$count;
+        }
+        if ($filters->resolution !== null) {
             ++$count;
         }
 

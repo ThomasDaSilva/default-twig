@@ -1,3 +1,4 @@
 {#- An amount keeps its left-to-right order in a right-to-left page: dir="ltr" on an
     inline element isolates the figure without moving the cell's own alignment. -#}
-{% if column.options.left_to_right|default(false) %}<span dir="ltr">{{ value }}</span>{% else %}{{ value }}{% endif %}
+{#- A free text (a reason, a note) breaks over several lines instead of widening the grid. -#}
+{% if column.options.left_to_right|default(false) %}<span dir="ltr">{{ value }}</span>{% elseif column.options.wrap|default(false) %}<div class="bo-datatable__wrap bo-datatable__clamp" title="{{ value }}">{{ value }}</div>{% else %}{{ value }}{% endif %}

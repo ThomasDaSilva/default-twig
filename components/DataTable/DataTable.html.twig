@@ -65,7 +65,7 @@
                         </th>
                     {% endif %}
                     {% for column in columns %}
-                        <th scope="col" class="text-{{ column.cellAlign }}{{ column.kind.value == 'actions' ? ' datatable-sticky-actions' : '' }}{{ column.responsiveClass() }}{{ column.visibleFrom != 'always' ? ' d-none d-' ~ column.visibleFrom ~ '-table-cell' : '' }}">
+                        <th scope="col" class="text-{{ column.cellAlign }}{{ column.kind.value == 'actions' ? ' datatable-sticky-actions' : '' }}{{ column.options.wrap|default(false) ? ' bo-datatable__wrap-head' : '' }}{{ column.responsiveClass() }}{{ column.visibleFrom != 'always' ? ' d-none d-' ~ column.visibleFrom ~ '-table-cell' : '' }}">
                             {%- if column.kind.value == 'select' -%}
                                 <input type="checkbox" class="form-check-input"
                                        data-bo-bulk-select-target="all"

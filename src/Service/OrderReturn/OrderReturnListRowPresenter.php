@@ -33,6 +33,7 @@ final readonly class OrderReturnListRowPresenter
     private const DETAIL_ROUTE = 'admin.order-return.detail';
     private const RECEPTION_ROUTE = 'admin.order-return.reception.view';
     private const ORDER_ROUTE = 'admin.order.update.view';
+    private const PRODUCT_ROUTE = 'admin.products.update';
     private const FALLBACK_STATUS_COLOR = '#6c757d';
 
     public function __construct(
@@ -40,13 +41,14 @@ final readonly class OrderReturnListRowPresenter
         private TranslatorInterface $translator,
         private OrderReturnRepository $returns,
         private MoneyFormatter $money,
+        private OrderReturnResolutionLabels $resolutionLabels,
     ) {
     }
 
     /**
      * A whole page of rows, reading the per-page figures once instead of once per
-     * row: the number of lines of every return of the page comes back in a single
-     * grouped query.
+     * row: the returned lines of every return of the page come back in a fixed
+     * number of queries, and the reason titles in one.
      *
      * @param iterable<OrderReturn> $returns
      *
@@ -65,22 +67,24 @@ final readonly class OrderReturnListRowPresenter
             return [];
         }
 
-        $lineCounts = $this->returns->countLinesByReturn($returnIds);
+        $lines = $this->returns->findLinesByReturns($returnIds);
+        $reasonTitles = $this->returns->findReasonTitles($locale);
 
         $rows = [];
         foreach ($page as $orderReturn) {
-            $rows[] = $this->present($orderReturn, $locale, $lineCounts);
+            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles);
         }
 
         return $rows;
     }
 
     /**
-     * @param array<int, int> $lineCounts number of lines per return id, when the caller has them
+     * @param array<int, list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>> $lines        returned lines per return id, when the caller has them
+     * @param array<int, string>                                                                                                                  $reasonTitles current title of each reason, when the caller has them
      *
      * @return array<string, mixed>
      */
-    public function present(OrderReturn $orderReturn, string $locale, array $lineCounts = []): array
+    public function present(OrderReturn $orderReturn, string $locale, array $lines = [], array $reasonTitles = []): array
     {
         $returnId = (int) $orderReturn->getId();
         // status_id is a required column behind a RESTRICT foreign key: a return
@@ -95,7 +99,9 @@ final readonly class OrderReturnListRowPresenter
             'ref_html' => $this->renderRef($orderReturn, $returnId),
             'order_html' => $this->renderOrder($orderReturn),
             'customer_html' => $this->renderCustomer($orderReturn),
-            'lines_html' => $this->renderLines($returnId, $lineCounts),
+            'products_html' => $this->renderProducts($lines[$returnId] ?? []),
+            'reason' => $this->reasonTitle($orderReturn, $reasonTitles),
+            'resolution' => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
             'status' => (string) $status->getTitle(),
             'status_code' => $effectiveCode,
             'status_color' => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
@@ -144,28 +150,70 @@ final readonly class OrderReturnListRowPresenter
         $customer = $orderReturn->getCustomer();
 
         return \sprintf(
-            '<div class="bo-order-customer"><div class="fw-semibold">%s %s</div><div class="text-muted small text-truncate">%s</div></div>',
+            '<div class="bo-order-customer bo-order-customer--compact"><div class="fw-semibold">%s %s</div><div class="text-muted small text-truncate" title="%s">%s</div></div>',
             htmlspecialchars((string) $customer->getFirstname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getLastname(), \ENT_QUOTES | \ENT_HTML5),
+            htmlspecialchars((string) $customer->getEmail(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getEmail(), \ENT_QUOTES | \ENT_HTML5),
         );
     }
 
     /**
-     * @param array<int, int> $lineCounts
+     * The product of each returned line as it was ordered, with the values of its
+     * combination underneath, and the quantity when more than one unit goes back.
+     *
+     * @param list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}> $lines
      */
-    private function renderLines(int $returnId, array $lineCounts): string
+    private function renderProducts(array $lines): string
     {
-        $count = $lineCounts[$returnId] ?? 0;
-        $label = $this->translator->trans(
-            $count === 1 ? '%count% line' : '%count% lines',
-            ['%count%' => $count],
-        );
+        if ($lines === []) {
+            return '<span class="text-muted">-</span>';
+        }
 
-        return \sprintf(
-            '<span class="badge text-bg-light"><i class="bi bi-box-seam me-1" aria-hidden="true"></i>%s</span>',
-            htmlspecialchars($label, \ENT_QUOTES | \ENT_HTML5),
-        );
+        $items = [];
+        foreach ($lines as $line) {
+            $title = htmlspecialchars($line['title'], \ENT_QUOTES | \ENT_HTML5);
+
+            if ($line['product_id'] !== null) {
+                $title = \sprintf(
+                    '<a href="%s" class="text-decoration-none">%s</a>',
+                    htmlspecialchars($this->urls->generate(self::PRODUCT_ROUTE, ['product_id' => $line['product_id']]), \ENT_QUOTES | \ENT_HTML5),
+                    $title,
+                );
+            }
+
+            if ($line['quantity'] !== 1.0) {
+                $title .= \sprintf(' <span class="text-muted">&times;&nbsp;%s</span>', rtrim(rtrim(number_format($line['quantity'], 2, ',', ' '), '0'), ','));
+            }
+
+            $values = array_map(
+                fn (array $attribute): string => htmlspecialchars(
+                    $this->translator->trans('%attribute%: %value%', ['%attribute%' => $attribute['attribute'], '%value%' => $attribute['value']]),
+                    \ENT_QUOTES | \ENT_HTML5,
+                ),
+                $line['attributes'],
+            );
+
+            $items[] = \sprintf(
+                '<li>%s%s</li>',
+                $title,
+                $values === [] ? '' : '<div class="text-muted small">'.implode(', ', $values).'</div>',
+            );
+        }
+
+        return '<ul class="list-unstyled mb-0 d-flex flex-column gap-1 bo-datatable__wrap" data-testid="bo-order-return-products">'.implode('', $items).'</ul>';
+    }
+
+    /**
+     * @param array<int, string> $reasonTitles
+     */
+    private function reasonTitle(OrderReturn $orderReturn, array $reasonTitles): string
+    {
+        $title = $reasonTitles[(int) $orderReturn->getReasonId()] ?? '';
+
+        // The reason may have been deleted since: the return keeps the label it
+        // was opened with.
+        return $title !== '' ? $title : (string) $orderReturn->getReasonTitle();
     }
 
     private function renderDate(OrderReturn $orderReturn): string

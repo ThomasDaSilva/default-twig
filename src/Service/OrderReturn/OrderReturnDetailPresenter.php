@@ -59,6 +59,7 @@ final readonly class OrderReturnDetailPresenter
         private OrderReturnStateMachine $stateMachine,
         private RefundAmountCalculator $refundCalculator,
         private TranslatorInterface $translator,
+        private OrderReturnResolutionLabels $resolutionLabels,
     ) {
     }
 
@@ -84,7 +85,7 @@ final readonly class OrderReturnDetailPresenter
             'actions' => $this->buildActions($currentCode, $locale),
             'computed_refund' => $this->refundCalculator->compute($orderReturn),
             'received_refund' => $this->refundCalculator->compute($orderReturn, true),
-            'resolution_label' => $this->resolutionLabel((string) $orderReturn->getExpectedResolution()),
+            'resolution_label' => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
         ];
     }
 
@@ -200,15 +201,5 @@ final readonly class OrderReturnDetailPresenter
         // The reason may have been deleted since: the return keeps the label it
         // was opened with.
         return (string) $orderReturn->getReasonTitle();
-    }
-
-    private function resolutionLabel(string $resolution): string
-    {
-        return match ($resolution) {
-            OrderReturn::RESOLUTION_REFUND => $this->translator->trans('Refund'),
-            OrderReturn::RESOLUTION_CREDIT => $this->translator->trans('Credit note'),
-            OrderReturn::RESOLUTION_EXCHANGE => $this->translator->trans('Exchange'),
-            default => '',
-        };
     }
 }

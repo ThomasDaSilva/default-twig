@@ -248,6 +248,33 @@ public function onCustomerTab(HookRenderBlockEvent $event): void
 }
 ```
 
+#### Reworking the return queue
+
+The columns of the return queue (`/admin/returns`) are built in PHP and handed to modules before the page renders,
+through `BackOfficeDefaultTwigBundle\Event\OrderReturnListEvent`, dispatched once per page. A listener removes,
+replaces or inserts columns (`removeColumn()`, `insertColumnAfter()`, `setColumns()`), fills the cells of the
+columns it adds in each row (`getRows()`, `setRows()`), and puts buttons in the page header (`addHeaderAction()`).
+Each row carries the return id under `id`; `getReturnIds()` gives the ids of the page, so a listener reads what it
+needs in one query. The `order-returns.table-row` hook only appends cells after the actions column.
+
+A cell of an HTML column is rendered as is: the listener escapes what it writes there. Header action labels and URLs
+are escaped by the page.
+
+```php
+#[AsEventListener]
+public function __invoke(OrderReturnListEvent $event): void
+{
+    $notes = $this->notes->byReturn($event->getReturnIds());
+
+    $event->insertColumnAfter('reason', new Column('note', $this->translator->trans('Note', [], MyModule::DOMAIN_NAME)));
+    $event->setRows(array_map(
+        static fn (array $row): array => $row + ['note' => $notes[$row['id']] ?? ''],
+        $event->getRows(),
+    ));
+    $event->addHeaderAction($this->translator->trans('Export', [], MyModule::DOMAIN_NAME), $this->exportUrl, 'bi-download');
+}
+```
+
 ## Tests
 
 - **PHPStan**: `ddev exec composer phpstan` (baseline 60 errors).

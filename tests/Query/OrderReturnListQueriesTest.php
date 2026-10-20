@@ -20,6 +20,7 @@ use BackOfficeDefaultTwigBundle\Tests\Support\QueryCounter;
 use Thelia\Domain\SaleUnit\Access\AdminSaleUnitScope;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
+use Thelia\Model\OrderProductAttributeCombination;
 use Thelia\Model\OrderReturn;
 use Thelia\Model\OrderReturnLine;
 use Thelia\Model\OrderReturnStatus;
@@ -31,9 +32,9 @@ use Thelia\Test\IntegrationTestCase;
 /**
  * What the return list costs.
  *
- * The line count of every row is the figure that invites one query per row: it
- * is read for the whole page at once, and this test states that budget so a
- * later change cannot quietly go back to reading it return by return.
+ * The returned lines of every row are what invites queries per row: they are
+ * read for the whole page at once, and this test states that budget so a later
+ * change cannot quietly go back to reading them return by return.
  */
 final class OrderReturnListQueriesTest extends IntegrationTestCase
 {
@@ -49,40 +50,68 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         $this->factory = $this->createFixtureFactory();
     }
 
-    public function testAWholePageOfLineCountsCostsOneQuery(): void
+    public function testAWholePageOfReturnedLinesCostsThreeQueries(): void
     {
-        $twoLines = $this->returnWith(2);
+        $product = $this->factory->product(
+            $this->factory->category(),
+            $this->factory->taxRule(),
+            $this->factory->currency(),
+        );
+        $twoLines = $this->returnWith(2, (string) $product->getRef());
         $oneLine = $this->returnWith(1);
         $noLine = $this->returnWith(0);
 
-        $counts = [];
-        $queries = QueryCounter::count(function () use ($twoLines, $oneLine, $noLine, &$counts): void {
-            $counts = $this->returns->countLinesByReturn([
+        $lines = [];
+        $queries = QueryCounter::count(function () use ($twoLines, $oneLine, $noLine, &$lines): void {
+            $lines = $this->returns->findLinesByReturns([
                 (int) $twoLines->getId(),
                 (int) $oneLine->getId(),
                 (int) $noLine->getId(),
             ]);
         });
 
-        self::assertSame(1, $queries, 'One query for the page, not one per return.');
-        self::assertSame(2, $counts[(int) $twoLines->getId()]);
-        self::assertSame(1, $counts[(int) $oneLine->getId()]);
+        self::assertSame(3, $queries, 'The lines, their products and their attribute values: three queries for the page, not three per return.');
+        self::assertCount(2, $lines[(int) $twoLines->getId()]);
+        self::assertCount(1, $lines[(int) $oneLine->getId()]);
         self::assertArrayNotHasKey(
             (int) $noLine->getId(),
-            $counts,
-            'A return with no line has no row to count.',
+            $lines,
+            'A return with no line has nothing to show.',
+        );
+
+        $line = $lines[(int) $twoLines->getId()][0];
+        self::assertSame('A returnable product', $line['title']);
+        self::assertSame(1.0, $line['quantity']);
+        self::assertSame((int) $product->getId(), $line['product_id'], 'A line points to the catalogue product of its reference.');
+        self::assertSame([['attribute' => 'Size', 'value' => 'XL']], $line['attributes']);
+        self::assertNull(
+            $lines[(int) $oneLine->getId()][0]['product_id'],
+            'A product gone from the catalogue keeps its line, without a link.',
         );
     }
 
     public function testAnEmptyPageAsksNothing(): void
     {
-        $counts = [];
-        $queries = QueryCounter::count(function () use (&$counts): void {
-            $counts = $this->returns->countLinesByReturn([]);
+        $lines = [];
+        $queries = QueryCounter::count(function () use (&$lines): void {
+            $lines = $this->returns->findLinesByReturns([]);
         });
 
         self::assertSame(0, $queries);
-        self::assertSame([], $counts);
+        self::assertSame([], $lines);
+    }
+
+    public function testTheReasonTitlesAreReadOncePerLocale(): void
+    {
+        $first = QueryCounter::count(function (): void {
+            $this->returns->findReasonTitles('en_US');
+        });
+        $second = QueryCounter::count(function (): void {
+            $this->returns->findReasonTitles('en_US');
+        });
+
+        self::assertSame(1, $first);
+        self::assertSame(0, $second, 'The titles are memoised for the request.');
     }
 
     public function testTheStatusBreakdownIsReadOncePerLocale(): void
@@ -100,7 +129,7 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         self::assertSame(0, $second, 'The breakdown is memoised for the request.');
     }
 
-    private function returnWith(int $lineCount): OrderReturn
+    private function returnWith(int $lineCount, ?string $productRef = null): OrderReturn
     {
         $connection = $this->getPropelConnection();
 
@@ -118,7 +147,7 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         for ($i = 0; $i < $lineCount; ++$i) {
             (new OrderReturnLine())
                 ->setOrderReturn($orderReturn)
-                ->setOrderProduct($this->orderProduct($order))
+                ->setOrderProduct($this->orderProduct($order, $productRef))
                 ->setQuantity(1.0)
                 ->save($connection);
         }
@@ -126,11 +155,11 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         return $orderReturn;
     }
 
-    private function orderProduct(Order $order): OrderProduct
+    private function orderProduct(Order $order, ?string $productRef = null): OrderProduct
     {
         $orderProduct = (new OrderProduct())
             ->setOrderId((int) $order->getId())
-            ->setProductRef('REF-'.uniqid())
+            ->setProductRef($productRef ?? 'REF-'.uniqid())
             ->setProductSaleElementsRef('PSE-'.uniqid())
             ->setTitle('A returnable product')
             ->setQuantity(1.0)
@@ -140,6 +169,12 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
             ->setWasInPromo(0)
             ->setVirtual(0);
         $orderProduct->save($this->getPropelConnection());
+
+        (new OrderProductAttributeCombination())
+            ->setOrderProductId((int) $orderProduct->getId())
+            ->setAttributeTitle('Size')
+            ->setAttributeAvTitle('XL')
+            ->save($this->getPropelConnection());
 
         return $orderProduct;
     }

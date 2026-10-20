@@ -14,6 +14,8 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Event\OrderReturnListEvent;
+use BackOfficeDefaultTwigBundle\UiComponents\DataTable\Column;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Action\OrderReturn as OrderReturnAction;
 use Thelia\Core\Security\AccessManager;
@@ -22,6 +24,7 @@ use Thelia\Model\ConfigQuery;
 use Thelia\Model\Map\ProductSaleElementsTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
+use Thelia\Model\OrderProductAttributeCombination;
 use Thelia\Model\OrderReturn;
 use Thelia\Model\OrderReturnLine;
 use Thelia\Model\OrderReturnQuery;
@@ -113,6 +116,127 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
             $html,
             'A return outside the filtered status must not reach the page.',
         );
+    }
+
+    public function testTheQueueShowsWhatIsReturnedAndWhy(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn();
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        self::assertCount(1, $row);
+        self::assertStringContainsString('A returnable product', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text());
+        self::assertStringContainsString('Size: XL', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'The line names the values of the ordered combination.');
+        self::assertStringContainsString("×\u{a0}2", $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'Two units go back.');
+        self::assertSame('Damaged on arrival', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()));
+        self::assertSame('Refund', trim($row->filter('[data-testid="datatable-order-returns-cell-resolution"]')->text()));
+
+        $reason = $row->filter('[data-testid="datatable-order-returns-cell-reason"] .bo-datatable__wrap');
+        self::assertCount(1, $reason, 'A reason typed by a person breaks over several lines instead of widening the grid.');
+        self::assertSame('Damaged on arrival', $reason->attr('title'), 'The whole text stays reachable once the cell is cut to four lines.');
+        $cellKeys = $row->filter('td')->each(static fn ($cell): string => (string) $cell->attr('data-testid'));
+        $reasonHeader = $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')
+            ->eq((int) array_search('datatable-order-returns-cell-reason', $cellKeys, true));
+        self::assertStringContainsString('bo-datatable__wrap-head', (string) $reasonHeader->attr('class'), 'The header of the column breaks too.');
+    }
+
+    public function testTheQueueKeepsTheReasonOfADeletedReasonAndShowsAReturnWithoutLine(): void
+    {
+        $this->loginFullAdmin();
+        [$return, , $line] = $this->requestedReturn();
+        $line->delete($this->getPropelConnection());
+        $return->setReasonId(null)->setReasonTitle('Arrived too late')->save($this->getPropelConnection());
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        self::assertSame('Arrived too late', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()), 'The return keeps the label it was opened with.');
+        self::assertSame('-', trim($row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text()));
+    }
+
+    public function testTheQueueFiltersByExpectedResolution(): void
+    {
+        $this->loginFullAdmin();
+        [$refund] = $this->requestedReturn();
+        [$exchange] = $this->requestedReturn(resolution: OrderReturn::RESOLUTION_EXCHANGE);
+
+        $this->assertPageRenders('/admin/returns?resolution='.OrderReturn::RESOLUTION_EXCHANGE);
+
+        $html = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString((string) $exchange->getRef(), $html);
+        self::assertStringNotContainsString(
+            (string) $refund->getRef(),
+            $html,
+            'A return expecting another resolution must not reach the page.',
+        );
+        self::assertStringContainsString('order-return-active-chip-resolution', $html, 'The applied filter shows as a removable chip.');
+    }
+
+    public function testAnUnknownResolutionIsIgnored(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn();
+
+        $this->assertPageRenders('/admin/returns?resolution=%27%20OR%201%3D1');
+
+        $html = (string) $this->client->getResponse()->getContent();
+        self::assertStringContainsString((string) $return->getRef(), $html);
+        self::assertStringNotContainsString('order-return-active-chip-resolution', $html);
+    }
+
+    public function testTheProductOfALineIsEscapedInTheQueue(): void
+    {
+        $this->loginFullAdmin();
+        $this->requestedReturn(productTitle: '<script>alert(1)</script>');
+
+        $this->assertPageRenders('/admin/returns');
+
+        $html = (string) $this->client->getResponse()->getContent();
+        self::assertStringNotContainsString('<script>alert(1)</script>', $html);
+        self::assertStringContainsString('&lt;script&gt;', $html);
+    }
+
+    public function testAModuleReshapesTheQueue(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn();
+
+        $this->getService(EventDispatcherInterface::class)->addListener(
+            OrderReturnListEvent::class,
+            static function (OrderReturnListEvent $event): void {
+                $event->removeColumn('ref_html');
+                $event->insertColumnAfter('resolution', new Column('wish', 'Wished product'));
+                $event->setRows(array_map(
+                    static fn (array $row): array => $row + ['wish' => 'Wish of return '.$row['id']],
+                    $event->getRows(),
+                ));
+                $event->addHeaderAction('Export the returns', '/admin/export/42', 'bi-download');
+            },
+        );
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        $cells = $row->filter('td[data-testid^="datatable-order-returns-cell-"]')->each(
+            static fn ($cell): string => substr((string) $cell->attr('data-testid'), \strlen('datatable-order-returns-cell-')),
+        );
+        self::assertNotContains('ref_html', $cells, 'A removed column leaves the table.');
+        $resolution = array_search('resolution', $cells, true);
+        self::assertIsInt($resolution);
+        self::assertSame('wish', $cells[$resolution + 1], 'The column sits where the module placed it.');
+        self::assertContains('Wished product', $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')->each(
+            static fn ($header): string => trim($header->text()),
+        ));
+        self::assertSame('Wish of return '.$return->getId(), trim($row->filter('[data-testid="datatable-order-returns-cell-wish"]')->text()));
+
+        $action = $crawler->filter('[data-testid="order-return-header-action"][href="/admin/export/42"]');
+        self::assertCount(1, $action);
+        self::assertStringContainsString('Export the returns', $action->text());
     }
 
     public function testTheSheetShowsTheRequestAndOffersTheCycleActions(): void
@@ -272,6 +396,8 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
     private function requestedReturn(
         string $statusCode = OrderReturnStatus::CODE_REQUESTED,
         string $comment = 'The parcel arrived open.',
+        string $resolution = OrderReturn::RESOLUTION_REFUND,
+        string $productTitle = 'A returnable product',
     ): array {
         $connection = $this->getPropelConnection();
 
@@ -284,7 +410,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         $pse = $this->factory->productSaleElement($product, ['quantity' => 10]);
 
         $order = $this->factory->order($customer, ['statusCode' => OrderStatus::CODE_PAID]);
-        $orderProduct = $this->orderProduct($order, $pse, 4.0);
+        $orderProduct = $this->orderProduct($order, $pse, 4.0, $productTitle);
 
         $return = (new OrderReturn())
             ->setOrder($order)
@@ -293,7 +419,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
             ->setOrderReturnReason($this->reason('Damaged on arrival'))
             ->setReasonTitle('Damaged on arrival')
             ->setCustomerComment($comment)
-            ->setExpectedResolution(OrderReturn::RESOLUTION_REFUND);
+            ->setExpectedResolution($resolution);
         $return->save($connection);
 
         $line = (new OrderReturnLine())
@@ -319,14 +445,14 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         return $reason;
     }
 
-    private function orderProduct(Order $order, ProductSaleElements $pse, float $quantity): OrderProduct
+    private function orderProduct(Order $order, ProductSaleElements $pse, float $quantity, string $title): OrderProduct
     {
         $orderProduct = (new OrderProduct())
             ->setOrderId((int) $order->getId())
             ->setProductRef('REF-'.uniqid())
             ->setProductSaleElementsRef((string) $pse->getRef())
             ->setProductSaleElementsId((int) $pse->getId())
-            ->setTitle('A returnable product')
+            ->setTitle($title)
             ->setQuantity($quantity)
             ->setPrice('10.000000')
             ->setPromoPrice('10.000000')
@@ -334,6 +460,12 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
             ->setWasInPromo(0)
             ->setVirtual(0);
         $orderProduct->save($this->getPropelConnection());
+
+        (new OrderProductAttributeCombination())
+            ->setOrderProductId((int) $orderProduct->getId())
+            ->setAttributeTitle('Size')
+            ->setAttributeAvTitle('XL')
+            ->save($this->getPropelConnection());
 
         return $orderProduct;
     }
