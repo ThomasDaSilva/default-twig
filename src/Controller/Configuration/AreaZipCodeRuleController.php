@@ -102,8 +102,11 @@ final class AreaZipCodeRuleController
         return $this->backToTheZone($area_id);
     }
 
-    #[Route('/{rule_id}/delete', name: 'delete', methods: ['POST'], requirements: ['rule_id' => '\d+'])]
-    public function delete(int $area_id, int $rule_id, Request $request): Response
+    /**
+     * The rule comes in the body, from the confirmation dialog of the card.
+     */
+    #[Route('/delete', name: 'delete', methods: ['POST'])]
+    public function delete(int $area_id, Request $request): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
             return $denied;
@@ -112,10 +115,12 @@ final class AreaZipCodeRuleController
         $writer = $this->writer();
         $this->tokens->checkToken((string) $request->request->get('_token', ''));
 
+        $ruleId = (int) $request->request->get('rule_id', 0);
+
         try {
-            $deleted = $writer->remove($area_id, $rule_id);
+            $deleted = $writer->remove($area_id, $ruleId);
         } catch (PropelError $exception) {
-            $this->logger->error('Postal code rule not deleted.', ['exception' => $exception, 'area_id' => $area_id, 'rule_id' => $rule_id]);
+            $this->logger->error('Postal code rule not deleted.', ['exception' => $exception, 'area_id' => $area_id, 'rule_id' => $ruleId]);
             $this->flash($request, 'danger', 'The postal code rule could not be deleted. Try again later.');
 
             return $this->backToTheZone($area_id);
@@ -130,7 +135,7 @@ final class AreaZipCodeRuleController
         $this->adminLogger->log(
             self::RESOURCE,
             AccessManager::UPDATE,
-            \sprintf('Postal code rule %d deleted from shipping zone %d', $rule_id, $area_id),
+            \sprintf('Postal code rule %d deleted from shipping zone %d', $ruleId, $area_id),
             $area_id,
         );
         $this->flash($request, 'success', 'The postal code rule was deleted.');

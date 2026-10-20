@@ -139,12 +139,11 @@
                                         </td>
                                         <td>{% if rule.outside_zone %}<span class="text-muted">{{ 'A country that left the zone'|trans }}</span>{% else %}{{ rule.country ?? ('Every country of the zone'|trans) }}{% endif %}</td>
                                         <td class="text-end">
-                                            <form method="POST" class="d-inline" action="{{ path('admin.configuration.shipping-configuration.zip-code-rule.delete', { area_id: area_id, rule_id: rule.id }) }}">
-                                                <input type="hidden" name="_token" value="{{ assignToken() }}">
-                                                <button type="submit" class="btn btn-outline-danger btn-sm" aria-label="{{ 'Delete'|trans }}">
-                                                    <i class="bi bi-trash" aria-hidden="true"></i>
-                                                </button>
-                                            </form>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" aria-label="{{ 'Delete'|trans }}"
+                                                    data-bs-toggle="modal" data-bs-target="#shipping-configuration-zip-code-rule-delete-modal"
+                                                    data-rule-id="{{ rule.id }}" data-testid="shipping-configuration-zip-code-rule-delete-{{ rule.id }}">
+                                                <i class="bi bi-trash" aria-hidden="true"></i>
+                                            </button>
                                         </td>
                                     </tr>
                                 {% endfor %}
@@ -182,6 +181,17 @@
             </div>
         </div>
     </div>
+
+    {{ component('BoConfirmDialog', {
+        id: 'shipping-configuration-zip-code-rule-delete-modal',
+        title: 'Delete a postal code rule',
+        formAction: path('admin.configuration.shipping-configuration.zip-code-rule.delete', { area_id: area_id }),
+        message: 'Do you really want to delete this postal code rule?',
+        testid: 'shipping-configuration-zip-code-rule-delete',
+        hook: '',
+        prefillTrigger: 'data-rule-id',
+        prefillInput: 'rule_id',
+    }) }}
     {% endif %}
 
     {{ safe_hook('shipping-configuration-edit.bottom', { area_id: area_id }) }}
