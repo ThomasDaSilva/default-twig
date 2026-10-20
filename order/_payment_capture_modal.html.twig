@@ -4,6 +4,7 @@
     Expects:
       - order:          the Order model
       - remaining:      what can be captured, rounded down to the smallest coin: prefilled and the ceiling of the input
+      - captures_once:  whether the provider takes a single capture, letting the rest go with it
       - currency:       { symbol }
       - decimals:       the decimals of the order currency
       - step:           its smallest coin, as the step of the input
@@ -28,7 +29,11 @@
                                data-testid="order-payment-capture-amount">
                         <span class="input-group-text">{{ currency.symbol }}</span>
                     </div>
-                    <div class="form-text">{{ 'A smaller amount leaves the rest to capture later. The shop refuses more than the authorization holds.'|trans }}</div>
+                    {% if captures_once|default(false) %}
+                        <div class="form-text" data-testid="order-payment-capture-once-help">{{ 'The provider takes a single capture: what is not captured now is released with it. The shop refuses more than the authorization holds.'|trans }}</div>
+                    {% else %}
+                        <div class="form-text">{{ 'A smaller amount leaves the rest to capture later. The shop refuses more than the authorization holds.'|trans }}</div>
+                    {% endif %}
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ 'Close'|trans }}</button>

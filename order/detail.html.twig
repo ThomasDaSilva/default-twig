@@ -662,6 +662,7 @@
         {% include '@BackOfficeDefaultTwig/order/_payment_capture_modal.html.twig' with {
             order: order,
             remaining: payment_totals.capturable,
+            captures_once: payment_captures_once,
             currency: currency,
             decimals: payment_decimals,
             step: payment_step,

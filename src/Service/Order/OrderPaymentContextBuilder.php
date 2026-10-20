@@ -60,6 +60,7 @@ final readonly class OrderPaymentContextBuilder
                 'payment_hold_notice' => false,
                 'payment_supports_capture' => false,
                 'payment_can_capture' => false,
+                'payment_captures_once' => false,
                 'payment_can_settle' => false,
                 'payment_decimals' => 2,
                 'payment_step' => '0.01',
@@ -105,6 +106,8 @@ final readonly class OrderPaymentContextBuilder
             // is taken by a capture, at the provider.
             'payment_hold_notice' => PaymentAmount::isPositive($leftToCapture) && !$order->isPaid(false),
             'payment_supports_capture' => $supportsCapture,
+            // A provider taking a single capture lets the rest go with it: the dialog says so.
+            'payment_captures_once' => $supportsCapture && $this->captureService->capturesOnce($order),
             'payment_can_capture' => $supportsCapture && $mayCapture && PaymentAmount::isPositive(CurrencyMinorUnit::floor($leftToCapture, $currencyCode)),
             // Recording by hand the outcome of a line the provider never confirmed is a
             // decision on the money too: the same right.

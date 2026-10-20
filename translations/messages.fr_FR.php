@@ -1570,6 +1570,7 @@ return [
     'Amount to capture' => 'Montant à capturer',
     'The payment provider will take this amount from what it holds for order %ref.' => 'Le prestataire de paiement prélèvera ce montant sur ce qu\'il réserve pour la commande %ref.',
     'A smaller amount leaves the rest to capture later. The shop refuses more than the authorization holds.' => 'Un montant inférieur laisse le reste à capturer plus tard. La boutique refuse plus que ce que l\'autorisation réserve.',
+    'The provider takes a single capture: what is not captured now is released with it. The shop refuses more than the authorization holds.' => 'Le prestataire ne prend qu\'une capture : ce qui n\'est pas capturé maintenant est libéré avec elle. La boutique refuse plus que ce que l\'autorisation réserve.',
     'The amount to capture must be a positive number.' => 'Le montant à capturer doit être un nombre positif.',
     'The amount cannot exceed %max%.' => 'Le montant ne peut pas dépasser %max%.',
     'Order payment captured' => 'Paiement de la commande capturé',
