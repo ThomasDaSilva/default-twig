@@ -1571,6 +1571,7 @@ return [
     'The payment provider will take this amount from what it holds for order %ref.' => 'Le prestataire de paiement prélèvera ce montant sur ce qu\'il réserve pour la commande %ref.',
     'A smaller amount leaves the rest to capture later. The shop refuses more than the authorization holds.' => 'Un montant inférieur laisse le reste à capturer plus tard. La boutique refuse plus que ce que l\'autorisation réserve.',
     'Not cancelled, a capture waits for the provider, which takes a single one: refund them once it is taken: %refs%' => 'Non annulées, une capture attend le prestataire, qui n\'en prend qu\'une : remboursez-les une fois la capture prise : %refs%',
+    'The provider has not remitted this payment yet: it can only cancel it, in full.' => 'Le prestataire n\'a pas encore remis ce paiement : il ne peut que l\'annuler, en totalité.',
     'The provider takes a single capture: what is not captured now is released with it. The shop refuses more than the authorization holds.' => 'Le prestataire ne prend qu\'une capture : ce qui n\'est pas capturé maintenant est libéré avec elle. La boutique refuse plus que ce que l\'autorisation réserve.',
     'The amount to capture must be a positive number.' => 'Le montant à capturer doit être un nombre positif.',
     'The amount cannot exceed %max%.' => 'Le montant ne peut pas dépasser %max%.',

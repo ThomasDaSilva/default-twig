@@ -6,6 +6,7 @@
       - totals:   { captured, refunded, refundable }
       - reasons:  list of { value, label }
       - mode:     online (through the payment module) or offline (recorded as made outside the provider)
+      - in_full:  whether the provider gives the payment back in full only, for now
       - currency: { symbol }
       - decimals: the decimals of the order currency
       - step:     its smallest coin, as the step of the input
@@ -40,9 +41,13 @@
                         <input type="number" id="order-payment-refund-amount" name="amount" class="form-control"
                                step="{{ step }}" min="{{ step }}" max="{{ totals.refundable|number_format(decimals, '.', '') }}"
                                value="{{ totals.refundable|number_format(decimals, '.', '') }}" required
+                               {% if in_full|default(false) %}readonly{% endif %}
                                data-testid="order-payment-refund-amount">
                         <span class="input-group-text">{{ currency.symbol }}</span>
                     </div>
+                    {% if in_full|default(false) %}
+                        <div class="form-text mb-3" data-testid="order-payment-refund-in-full-help">{{ 'The provider has not remitted this payment yet: it can only cancel it, in full.'|trans }}</div>
+                    {% endif %}
                     <label for="order-payment-refund-reason" class="form-label">{{ 'Reason'|trans }}</label>
                     <select id="order-payment-refund-reason" name="reason" class="form-select mb-3" required data-testid="order-payment-refund-reason">
                         {% for reason in reasons %}
