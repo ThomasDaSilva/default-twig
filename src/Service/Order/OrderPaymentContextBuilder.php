@@ -72,6 +72,7 @@ final readonly class OrderPaymentContextBuilder
                 'payment_can_settle' => [],
                 'payment_can_refund' => false,
                 'payment_refund_mode' => 'offline',
+                'payment_refund_in_full' => false,
                 'payment_refund_reasons' => [],
                 'payment_decimals' => 2,
                 'payment_step' => '0.01',
@@ -143,6 +144,8 @@ final readonly class OrderPaymentContextBuilder
             // through the provider or is recorded as made outside it.
             'payment_can_refund' => $mayRefund && PaymentAmount::isPositive($refundable),
             'payment_refund_mode' => $this->refundService->supportsRefund($order) ? 'online' : 'offline',
+            // The provider gives this payment back whole or not at all, for now: the dialog offers that.
+            'payment_refund_in_full' => $this->refundService->refundsOnlyInFull($order),
             'payment_refund_reasons' => array_map(
                 fn (RefundReason $reason): array => ['value' => $reason->value, 'label' => $this->translator->trans($reason->label(), [], null, $locale)],
                 RefundReason::cases(),
