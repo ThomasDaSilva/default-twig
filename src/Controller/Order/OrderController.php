@@ -610,14 +610,24 @@ final class OrderController
             trustedFailures: [PaymentException::class, TokenAuthenticationException::class],
             describeForLog: static fn (OrderPaymentRefundEvent $event): array => [
                 \sprintf(
-                    'Payment refund of %s asked on order %s (%s%s%s): transaction #%d is %s',
-                    (string) $event->getTransaction()->getAmount(),
+                    'Payment refund of %s %s asked on order %s (%s%s%s): transaction #%d is %s',
+                    PaymentAmount::forMessage((string) $event->getTransaction()->getAmount()),
+                    (string) $order->getCurrency()->getCode(),
                     (string) $order->getRef(),
                     $event->getReason()->value,
                     $event->isOffline() ? ', recorded outside the provider' : '',
                     $event->getComment() !== null ? ', "'.$event->getComment().'"' : '',
                     (int) $event->getTransaction()->getId(),
                     (string) $event->getTransaction()->getState(),
+                ),
+                $order_id,
+            ],
+            describeFailureForLog: static fn (OrderPaymentRefundEvent $event, string $reason): array => [
+                \sprintf(
+                    'Payment refund of %s asked on order %s failed: %s',
+                    PaymentActionAmount::forLog($amount, $order),
+                    (string) $order->getRef(),
+                    $reason,
                 ),
                 $order_id,
             ],
