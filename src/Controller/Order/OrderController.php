@@ -29,6 +29,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderHistoryContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderPaymentContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\PaymentActionAmount;
+use BackOfficeDefaultTwigBundle\Service\Order\PaymentSettlementRight;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderRoundingRule;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderSaleUnits;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderShipmentContextBuilder;
@@ -491,13 +492,15 @@ final class OrderController
 
     /**
      * Records by hand the outcome of a pending line of the payment journal the provider
-     * never confirmed, as the merchant reads it in the provider's back office. Under the
-     * capture right: a line settled as succeeded can pay the order.
+     * never confirmed, as the merchant reads it in the provider's back office. Under the right
+     * that made the movement: a capture settled as succeeded can pay the order, a refund
+     * gives money back.
      */
     #[Route('/admin/order/update/{order_id}/payment-transaction/{transaction_id}/settle', name: 'admin.order.update.paymentSettle', methods: ['POST'], requirements: ['order_id' => '\d+', 'transaction_id' => '\d+'])]
     public function settlePaymentTransaction(int $order_id, int $transaction_id, Request $request): Response
     {
-        if ($denied = $this->access->check(AdminResources::ORDER_PAYMENT_CAPTURE, [], AccessManager::CREATE)) {
+        // The right first, before the order is looked up: one of the two that settle a line.
+        if ($denied = $this->access->checkAny(PaymentSettlementRight::RESOURCES, AccessManager::CREATE)) {
             return $denied;
         }
 
@@ -515,11 +518,17 @@ final class OrderController
             return $detail;
         }
 
+        $right = PaymentSettlementRight::of((string) $transaction->getType());
+
+        if ($denied = $this->access->check($right, [], AccessManager::CREATE)) {
+            return $denied;
+        }
+
         $reference = trim((string) $request->request->get('psp_reference', ''));
         $event = new OrderPaymentSettlementEvent($transaction, $state, $reference === '' ? null : $reference);
 
         return $this->action->tokenAction(
-            resource: AdminResources::ORDER_PAYMENT_CAPTURE,
+            resource: $right,
             access: AccessManager::CREATE,
             request: $request,
             event: $event,
