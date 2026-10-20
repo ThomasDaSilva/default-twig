@@ -80,6 +80,8 @@ final readonly class OrderPaymentContextBuilder
         );
 
         $currencyCode = $order->getCurrency()->getCode();
+        // What is left as the module takes it: nothing more once a single capture was asked.
+        $leftToCapture = $this->captureService->leftToCapture($order);
         // Amounts read and typed in the smallest coin of the order currency: none for the
         // yen, three for the Kuwaiti dinar.
         $decimals = CurrencyMinorUnit::decimalsOf($currencyCode);
@@ -94,16 +96,16 @@ final readonly class OrderPaymentContextBuilder
                 'pending_capture' => PaymentAmount::toFloat($totals->pendingCapture),
                 'voided' => PaymentAmount::toFloat($totals->voided),
                 'refunded' => PaymentAmount::toFloat($totals->refunded),
-                'remaining' => PaymentAmount::toFloat($totals->remainingToCapture),
+                'remaining' => PaymentAmount::toFloat($leftToCapture),
                 // Rounded down to the smallest coin: what the dialog offers never goes past
                 // what the authorization holds, which the core would refuse.
-                'capturable' => PaymentAmount::toFloat(CurrencyMinorUnit::floor($totals->remainingToCapture, $currencyCode)),
+                'capturable' => PaymentAmount::toFloat(CurrencyMinorUnit::floor($leftToCapture, $currencyCode)),
             ],
             // Marking such an order paid by hand takes nothing from the buyer: the money
             // is taken by a capture, at the provider.
-            'payment_hold_notice' => $totals->hasSomethingLeftToCapture() && !$order->isPaid(false),
+            'payment_hold_notice' => PaymentAmount::isPositive($leftToCapture) && !$order->isPaid(false),
             'payment_supports_capture' => $supportsCapture,
-            'payment_can_capture' => $supportsCapture && $mayCapture && PaymentAmount::isPositive(CurrencyMinorUnit::floor($totals->remainingToCapture, $currencyCode)),
+            'payment_can_capture' => $supportsCapture && $mayCapture && PaymentAmount::isPositive(CurrencyMinorUnit::floor($leftToCapture, $currencyCode)),
             // Recording by hand the outcome of a line the provider never confirmed is a
             // decision on the money too: the same right.
             'payment_can_settle' => $mayCapture,
