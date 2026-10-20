@@ -368,6 +368,10 @@ final class OrderController
     #[Route('/admin/order/update/{order_id}/delivery-ref', name: 'admin.order.update.deliveryRef', methods: ['POST'], requirements: ['order_id' => '\d+'])]
     public function updateDeliveryRef(int $order_id, Request $request): Response
     {
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
         $order = $this->reachableOrder($order_id);
         if ($order === null) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
@@ -540,13 +544,13 @@ final class OrderController
     #[Route('/admin/order/update/{order_id}/address', name: 'admin.order.update.address', methods: ['POST'], requirements: ['order_id' => '\d+'])]
     public function updateAddress(int $order_id, Request $request): Response
     {
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
         $order = $this->reachableOrder($order_id);
         if ($order === null) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
-        }
-
-        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
-            return $denied;
         }
 
         try {
