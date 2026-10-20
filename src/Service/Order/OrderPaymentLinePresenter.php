@@ -106,8 +106,11 @@ final readonly class OrderPaymentLinePresenter
             && PaymentTransactionState::SUCCEEDED->value === $state
             && \defined(PaymentTransactionRecorder::class.'::REASON_REFUNDED_STATUS')
             && PaymentTransactionRecorder::REASON_REFUNDED_STATUS === $line->getErrorCode();
-        // Money given back outside the provider, recorded by hand: the merchant's note, not an error.
-        $offline = PaymentTransactionType::REFUND->value === $type && PaymentRefundService::ERROR_CODE_OFFLINE === $line->getErrorCode();
+        // Money given back outside the provider, recorded by hand: the merchant's note, not an
+        // error. Only a refund that went through, as for the lapse above.
+        $offline = PaymentTransactionType::REFUND->value === $type
+            && PaymentTransactionState::SUCCEEDED->value === $state
+            && PaymentRefundService::ERROR_CODE_OFFLINE === $line->getErrorCode();
         $noError = $expired || $deducedFromStatus || $offline;
 
         return [
