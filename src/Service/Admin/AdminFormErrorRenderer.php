@@ -43,7 +43,13 @@ readonly class AdminFormErrorRenderer
      */
     public function fail(string $actionLabel, \Throwable $exception, ?FormInterface $form = null, array $trustedFailures = []): void
     {
-        $this->refuse($actionLabel, AdminFailureMessage::of($exception, $this->translator), $form, $exception, $trustedFailures);
+        // A screen that names its trusted failures shows their own words, even when they wrap
+        // a technical failure; refuse() decides whether the message is shown at all.
+        $message = [] !== $trustedFailures && $this->isShown($exception, $trustedFailures)
+            ? $exception->getMessage()
+            : AdminFailureMessage::of($exception, $this->translator);
+
+        $this->refuse($actionLabel, $message, $form, $exception, $trustedFailures);
     }
 
     /**
@@ -71,12 +77,9 @@ readonly class AdminFormErrorRenderer
         // with its key, a file path — only goes to the log written above.
         // A screen that names its trusted failures shows exactly those, worded by their
         // rule, whatever they wrap; the others keep the technical-failure filter.
-        $hidden = $trustedFailures === []
-            ? $this->isTechnical($exception)
-            : !$this->isTrusted($exception, $trustedFailures);
-        $shownMessage = $hidden
-            ? $this->translator->trans('The action failed on an internal error. The details are in the log.')
-            : $refusal;
+        $shownMessage = $this->isShown($exception, $trustedFailures)
+            ? $refusal
+            : $this->translator->trans('The action failed on an internal error. The details are in the log.');
 
         $session = $this->requestStack->getMainRequest()?->getSession();
         if ($session instanceof Session) {
@@ -103,6 +106,20 @@ readonly class AdminFormErrorRenderer
         array $trustedFailures = [],
     ): void {
         $this->refuse($actionLabel, $errorMessage, $form, $exception, $trustedFailures);
+    }
+
+    /**
+     * Whether the administrator reads the message of the failure: a screen that names its
+     * trusted failures shows exactly those, whatever they wrap; the others keep the
+     * technical-failure filter. The administration log follows the same rule.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures
+     */
+    public function isShown(?\Throwable $exception, array $trustedFailures = []): bool
+    {
+        return $trustedFailures === []
+            ? !$this->isTechnical($exception)
+            : $this->isTrusted($exception, $trustedFailures);
     }
 
     /**
