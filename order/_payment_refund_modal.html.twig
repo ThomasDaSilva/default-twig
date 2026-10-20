@@ -46,7 +46,7 @@
                         <span class="input-group-text">{{ currency.symbol }}</span>
                     </div>
                     {% if in_full|default(false) %}
-                        <div class="form-text mb-3" data-testid="order-payment-refund-in-full-help">{{ 'The provider has not remitted this payment yet: it can only cancel it, in full.'|trans }}</div>
+                        <div class="form-text mb-3" data-testid="order-payment-refund-in-full-help">{{ 'For now the provider gives this payment back in full only.'|trans }}</div>
                     {% endif %}
                     <label for="order-payment-refund-reason" class="form-label">{{ 'Reason'|trans }}</label>
                     <select id="order-payment-refund-reason" name="reason" class="form-select mb-3" required data-testid="order-payment-refund-reason">
