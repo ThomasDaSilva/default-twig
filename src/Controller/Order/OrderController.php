@@ -72,12 +72,16 @@ use Thelia\Model\OrderPaymentTransactionQuery;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\StateQuery;
+use Thelia\Tools\TerminalText;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
 final class OrderController
 {
     private const RESOURCE = AdminResources::ORDER;
+
+    /** What the administration log keeps of the comment of a refund, as the core does. */
+    private const LOGGED_COMMENT_MAX_LENGTH = 255;
     private const LIST_ROUTE = 'admin.order.list';
     private const DETAIL_ROUTE = 'admin.order.update.view';
     private const LIST_TEMPLATE = '@BackOfficeDefaultTwig/order/list.html.twig';
@@ -575,15 +579,19 @@ final class OrderController
         }
 
         if ($rawAmount !== '') {
-            $typedAmount = str_replace([' ', ','], ['', '.'], $rawAmount);
+            $amount = PaymentActionAmount::fromTyped($rawAmount);
 
-            if (preg_match('/^\d+(\.\d+)?$/', $typedAmount) !== 1 || (float) $typedAmount <= 0) {
+            if ($amount === null) {
                 $this->flash('danger', $this->translator->trans('The amount to refund must be a positive number.'));
 
                 return $detail;
             }
 
-            $amount = (float) $typedAmount;
+            if (PaymentActionAmount::exceedsWhatTheJournalHolds($amount)) {
+                $this->flash('danger', $this->translator->trans('The amount cannot exceed %max%.', ['%max%' => number_format(PaymentActionAmount::MAX, 2, '.', '')]));
+
+                return $detail;
+            }
         }
 
         $comment = trim((string) $request->request->get('comment', ''));
@@ -616,7 +624,7 @@ final class OrderController
                     (string) $order->getRef(),
                     $event->getReason()->value,
                     $event->isOffline() ? ', recorded outside the provider' : '',
-                    $event->getComment() !== null ? ', "'.$event->getComment().'"' : '',
+                    $event->getComment() !== null ? ', "'.mb_substr(TerminalText::onOneLine($event->getComment()), 0, self::LOGGED_COMMENT_MAX_LENGTH).'"' : '',
                     (int) $event->getTransaction()->getId(),
                     (string) $event->getTransaction()->getState(),
                 ),
