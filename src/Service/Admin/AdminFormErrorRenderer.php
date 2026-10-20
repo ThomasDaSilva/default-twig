@@ -72,4 +72,16 @@ readonly class AdminFormErrorRenderer
 
         $form->addError(new \Symfony\Component\Form\FormError($refusal));
     }
+
+    /**
+     * Former name of refuse(), kept for the controllers and modules that still call it.
+     */
+    public function setup(
+        string $actionLabel,
+        string $errorMessage,
+        ?FormInterface $form = null,
+        ?\Throwable $exception = null,
+    ): void {
+        $this->refuse($actionLabel, $errorMessage, $form, $exception);
+    }
 }
