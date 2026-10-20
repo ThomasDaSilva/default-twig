@@ -28,6 +28,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderHistoryContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderPaymentContextBuilder;
+use BackOfficeDefaultTwigBundle\Service\Order\PaymentActionAmount;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderRoundingRule;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderSaleUnits;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderShipmentContextBuilder;
@@ -416,15 +417,19 @@ final class OrderController
         $amount = null;
 
         if ($rawAmount !== '') {
-            $typedAmount = str_replace([' ', ','], ['', '.'], $rawAmount);
+            $amount = PaymentActionAmount::fromTyped($rawAmount);
 
-            if (!is_numeric($typedAmount) || (float) $typedAmount <= 0) {
+            if ($amount === null) {
                 $this->flash('danger', $this->translator->trans('The amount to capture must be a positive number.'));
 
                 return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
             }
 
-            $amount = (float) $typedAmount;
+            if (PaymentActionAmount::exceedsWhatTheJournalHolds($amount)) {
+                $this->flash('danger', $this->translator->trans('The amount cannot exceed %max%.', ['%max%' => number_format(PaymentActionAmount::MAX, 2, '.', '')]));
+
+                return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+            }
         }
 
         $event = new OrderPaymentCaptureEvent($order, $amount);
@@ -456,37 +461,15 @@ final class OrderController
                     (int) $order->getId(),
                 ];
             },
-            renderError: function (\Throwable $failure) use ($order, $amount, $order_id): Response {
-                $this->logCaptureFailure($order, $amount, $failure);
-
-                return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
-            },
-        );
-    }
-
-    /**
-     * A capture that did not go through is written to the administration log too, with the
-     * words of the payment rules; a technical message stays in the application log. A request
-     * without the form token asked nothing and is not written.
-     */
-    private function logCaptureFailure(Order $order, ?float $amount, \Throwable $failure): void
-    {
-        if ($failure instanceof TokenAuthenticationException) {
-            return;
-        }
-
-        $this->adminLogger->log(
-            AdminResources::ORDER_PAYMENT_CAPTURE,
-            AccessManager::CREATE,
-            \sprintf(
-                'Payment capture of %s asked on order %s failed: %s',
-                null === $amount
-                    ? 'what the authorization holds'
-                    : PaymentAmount::forMessage($amount).' '.$order->getCurrency()->getCode(),
-                (string) $order->getRef(),
-                $failure instanceof PaymentException ? $failure->getMessage() : 'technical failure, see the application log',
-            ),
-            (int) $order->getId(),
+            describeFailureForLog: static fn (OrderPaymentCaptureEvent $event, string $reason): array => [
+                \sprintf(
+                    'Payment capture of %s asked on order %s failed: %s',
+                    PaymentActionAmount::forLog($amount, $order),
+                    (string) $order->getRef(),
+                    $reason,
+                ),
+                (int) $order->getId(),
+            ],
         );
     }
 
@@ -535,6 +518,16 @@ final class OrderController
                     (int) $event->getTransaction()->getId(),
                     $order_id,
                     $event->getState()->value,
+                ),
+                $order_id,
+            ],
+            describeFailureForLog: static fn (OrderPaymentSettlementEvent $event, string $reason): array => [
+                \sprintf(
+                    'Payment transaction #%d of order %s recorded by hand as %s failed: %s',
+                    (int) $event->getTransaction()->getId(),
+                    (string) $event->getTransaction()->getOrder()->getRef(),
+                    $event->getState()->value,
+                    $reason,
                 ),
                 $order_id,
             ],

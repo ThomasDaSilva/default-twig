@@ -59,12 +59,9 @@ readonly class AdminFormErrorRenderer
         // with its key, a file path — only goes to the log written above.
         // A screen that names its trusted failures shows exactly those, worded by their
         // rule, whatever they wrap; the others keep the technical-failure filter.
-        $hidden = $trustedFailures === []
-            ? $this->isTechnical($exception)
-            : !$this->isTrusted($exception, $trustedFailures);
-        $shownMessage = $hidden
-            ? $this->translator->trans('The action failed on an internal error. The details are in the log.')
-            : $errorMessage;
+        $shownMessage = $this->isShown($exception, $trustedFailures)
+            ? $errorMessage
+            : $this->translator->trans('The action failed on an internal error. The details are in the log.');
 
         $session = $this->requestStack->getMainRequest()?->getSession();
         if ($session instanceof Session) {
@@ -76,6 +73,20 @@ readonly class AdminFormErrorRenderer
         }
 
         $form->addError(new \Symfony\Component\Form\FormError($shownMessage));
+    }
+
+    /**
+     * Whether the administrator reads the message of the failure: a screen that names its
+     * trusted failures shows exactly those, whatever they wrap; the others keep the
+     * technical-failure filter. The administration log follows the same rule.
+     *
+     * @param list<class-string<\Throwable>> $trustedFailures
+     */
+    public function isShown(?\Throwable $exception, array $trustedFailures = []): bool
+    {
+        return $trustedFailures === []
+            ? !$this->isTechnical($exception)
+            : $this->isTrusted($exception, $trustedFailures);
     }
 
     /**
