@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Order;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\Order\Enum\OrderHistoryActorType;
+use Thelia\Domain\Payment\Enum\PaymentTransactionState;
 use Thelia\Domain\Payment\Enum\PaymentTransactionType;
 use Thelia\Domain\Payment\Service\PaymentTransactionRecorder;
 use Thelia\Model\OrderPaymentTransaction;
@@ -91,7 +92,11 @@ final readonly class OrderPaymentLinePresenter
     {
         $type = (string) $line->getType();
         $state = (string) $line->getState();
-        $expired = PaymentTransactionType::VOID->value === $type && PaymentTransactionRecorder::REASON_EXPIRED === $line->getErrorCode();
+        // Only a void that went through is a lapse: a provider may answer a refusal with
+        // the word Thelia uses for one.
+        $expired = PaymentTransactionType::VOID->value === $type
+            && PaymentTransactionState::SUCCEEDED->value === $state
+            && PaymentTransactionRecorder::REASON_EXPIRED === $line->getErrorCode();
 
         return [
             'id' => (int) $line->getId(),
