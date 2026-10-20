@@ -175,9 +175,6 @@ readonly class AdminFormAction
     }
 
     /**
-     * @param callable(object): array{0: string, 1: int|null}|null $describeForLog
-     */
-    /**
      * A failed action is written to the administration log too when the screen asks for
      * it, with the reason the administrator read: the words of a trusted failure, never
      * the inside of a technical one. A request without the form token asked nothing and
@@ -207,6 +204,8 @@ readonly class AdminFormAction
     /**
      * The administration log tells what was done; it never decides whether it was: a line
      * that cannot be written goes to the application log, and the action stays done.
+     *
+     * @param callable(object): array{0: string, 1: int|null}|null $describeForLog
      */
     private function logSuccess(string $resource, string $access, object $event, ?callable $describeForLog): void
     {
