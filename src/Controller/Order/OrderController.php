@@ -54,6 +54,7 @@ use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Domain\Payment\Enum\PaymentTransactionState;
 use Thelia\Domain\Payment\Exception\CancellationNeedsCaptureRightException;
 use Thelia\Domain\Payment\Exception\PaymentException;
+use Thelia\Domain\Payment\Service\PaymentAmount;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
 use Thelia\Log\Tlog;
@@ -441,8 +442,9 @@ final class OrderController
 
                 return [
                     \sprintf(
-                        'Payment capture of %s asked on order %s: transaction #%d is %s',
-                        (string) $transaction->getAmount(),
+                        'Payment capture of %s %s asked on order %s: transaction #%d is %s',
+                        PaymentAmount::forMessage((string) $transaction->getAmount()),
+                        (string) $order->getCurrency()->getCode(),
                         (string) $order->getRef(),
                         (int) $transaction->getId(),
                         (string) $transaction->getState(),
@@ -450,6 +452,37 @@ final class OrderController
                     (int) $order->getId(),
                 ];
             },
+            renderError: function (\Throwable $failure) use ($order, $amount, $order_id): Response {
+                $this->logCaptureFailure($order, $amount, $failure);
+
+                return new RedirectResponse($this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $order_id]));
+            },
+        );
+    }
+
+    /**
+     * A capture that did not go through is written to the administration log too, with the
+     * words of the payment rules; a technical message stays in the application log. A request
+     * without the form token asked nothing and is not written.
+     */
+    private function logCaptureFailure(Order $order, ?float $amount, \Throwable $failure): void
+    {
+        if ($failure instanceof TokenAuthenticationException) {
+            return;
+        }
+
+        $this->adminLogger->log(
+            AdminResources::ORDER_PAYMENT_CAPTURE,
+            AccessManager::CREATE,
+            \sprintf(
+                'Payment capture of %s asked on order %s failed: %s',
+                null === $amount
+                    ? 'what the authorization holds'
+                    : PaymentAmount::forMessage($amount).' '.$order->getCurrency()->getCode(),
+                (string) $order->getRef(),
+                $failure instanceof PaymentException ? $failure->getMessage() : 'technical failure, see the application log',
+            ),
+            (int) $order->getId(),
         );
     }
 
