@@ -65,7 +65,7 @@
                         </th>
                     {% endif %}
                     {% for column in columns %}
-                        <th scope="col" class="text-{{ column.cellAlign }}{{ column.kind.value == 'actions' ? ' datatable-sticky-actions' : '' }}{{ column.options.wrap|default(false) ? ' bo-datatable__wrap-head' : '' }}{{ column.responsiveClass() }}{{ column.visibleFrom != 'always' ? ' d-none d-' ~ column.visibleFrom ~ '-table-cell' : '' }}">
+                        <th scope="col" class="text-{{ column.cellAlign }}{{ column.kind.value == 'actions' ? ' datatable-sticky-actions' : '' }}{{ column.options.wrap|default(false) or column.options.wrap_head|default(false) ? ' bo-datatable__wrap-head' : '' }}{{ column.responsiveClass() }}{{ column.visibleFrom != 'always' ? ' d-none d-' ~ column.visibleFrom ~ '-table-cell' : '' }}">
                             {%- if column.kind.value == 'select' -%}
                                 <input type="checkbox" class="form-check-input"
                                        data-bo-bulk-select-target="all"
@@ -132,8 +132,11 @@
                                 <dl class="bo-datatable__details-grid mb-0">
                                     {% for column in columns %}
                                         {#- A selection checkbox is never repeated: the bulk toolbar counts the
-                                            checked boxes, and a second box per row would count every row twice. -#}
-                                        {% if column.visibleFrom != 'always' and column.kind.value != 'select' %}
+                                            checked boxes, and a second box per row would count every row twice.
+                                            An empty text or HTML cell leaves no label without a value. -#}
+                                        {% set detail_value = row[column.key]|default(null) %}
+                                        {% if column.visibleFrom != 'always' and column.kind.value != 'select'
+                                            and not (column.kind.value in ['text', 'html'] and detail_value is null) %}
                                             <div class="bo-datatable__details-item d-{{ column.visibleFrom }}-none">
                                                 <dt>{{ column.label }}</dt>
                                                 <dd>
@@ -142,7 +145,7 @@
                                                     {% include '@BackOfficeDefaultTwig/components/DataTable/cells/' ~ column.kind.value ~ '.html.twig' with {
                                                         column: column,
                                                         row: row,
-                                                        value: row[column.key]|default(null),
+                                                        value: detail_value,
                                                         idSuffix: '-detail',
                                                     } only %}
                                                 </dd>

@@ -31,6 +31,9 @@ final readonly class Column
      *                                          - SELECT: { value_key: string, label_key: string|null } row checkbox feeding a bulk toolbar
      *                                          - TEXT:   { left_to_right?: bool, wrap?: bool } left_to_right isolates the value in a left-to-right run (amounts, figures);
      *                                            wrap lets a free text written by a person (a reason, a note) break over several lines instead of widening the grid
+     *                                          - any kind: { wrap_head?: bool } the header breaks over several lines, the cells keep theirs (a short value under a long title); wrap implies it.
+     *                                            In a template, only column_text() exposes it (wrapHead); other kinds set it through $options
+     *                                          In the row details, a TEXT or HTML cell whose value is empty (null, '' or false) leaves out its label; any other value, 0 included, is shown
      *                                          - HTML / ACTIONS: empty
      * @param ?string              $sortKey     Sort field this column maps to. When set, the header becomes a sortable link.
      *                                          Use the same string the consuming controller expects in its order query param.

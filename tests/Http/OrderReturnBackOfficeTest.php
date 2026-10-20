@@ -138,8 +138,9 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertCount(1, $reason, 'A reason typed by a person breaks over several lines instead of widening the grid.');
         self::assertSame('Damaged on arrival', $reason->attr('title'), 'The whole text stays reachable once the cell is cut to four lines.');
         $cellKeys = $row->filter('td')->each(static fn ($cell): string => (string) $cell->attr('data-testid'));
-        $reasonHeader = $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')
-            ->eq((int) array_search('datatable-order-returns-cell-reason', $cellKeys, true));
+        $reasonIndex = array_search('datatable-order-returns-cell-reason', $cellKeys, true);
+        self::assertIsInt($reasonIndex);
+        $reasonHeader = $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')->eq($reasonIndex);
         self::assertStringContainsString('bo-datatable__wrap-head', (string) $reasonHeader->attr('class'), 'The header of the column breaks too.');
     }
 
@@ -156,6 +157,30 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
         self::assertSame('Arrived too late', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()), 'The return keeps the label it was opened with.');
         self::assertSame('-', trim($row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text()));
+    }
+
+    public function testTheRowDetailsLeaveOutAnEmptyCellAndOnlyTheResolutionHeaderBreaks(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn(comment: '');
+        $return->setReasonId(null)->setReasonTitle(null)->save($this->getPropelConnection());
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $labels = $crawler->filter('#datatable-order-returns-details-'.$return->getId().' dt')->each(
+            static fn ($label): string => trim($label->text()),
+        );
+        self::assertContains('Expected resolution', $labels);
+        self::assertNotContains('Reason', $labels, 'A return without a reason shows no reason label in its details.');
+
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        self::assertCount(0, $row->filter('[data-testid="datatable-order-returns-cell-resolution"] .bo-datatable__wrap'), 'A one-word resolution does not break.');
+        $cellKeys = $row->filter('td')->each(static fn ($cell): string => (string) $cell->attr('data-testid'));
+        $resolutionIndex = array_search('datatable-order-returns-cell-resolution', $cellKeys, true);
+        self::assertIsInt($resolutionIndex);
+        $resolutionHeader = $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')->eq($resolutionIndex);
+        self::assertStringContainsString('bo-datatable__wrap-head', (string) $resolutionHeader->attr('class'), 'Its two-word header breaks.');
     }
 
     public function testTheQueueFiltersByExpectedResolution(): void

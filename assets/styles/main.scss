@@ -807,14 +807,19 @@ td.bo-datatable__details-col {
 .bo-datatable__wrap {
     white-space: normal;
     overflow-wrap: anywhere;
-    min-width: 7rem;
+    min-width: 6.5rem;
     max-width: 24rem;
 }
 
 // A text written by a person stops after four lines, so one long message does not make
 // its row a screen high; the cell carries the whole text in its title, and the record's
-// own sheet shows it in full.
+// own sheet shows it in full. A long word of that text is hyphenated in the language of
+// the page (the merchant's, which may not be the customer's: a wrong hyphenation point is
+// possible, never an overflow), a product or brand name elsewhere is not.
 .bo-datatable__clamp {
+    hyphens: auto;
+    // Only a word too long for the column is hyphenated: a common word moves to the next line.
+    hyphenate-limit-chars: 12 5 5;
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 4;

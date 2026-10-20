@@ -59,7 +59,8 @@ final readonly class OrderReturnListColumns
             new Column(self::CUSTOMER, $this->translator->trans('Customer'), ColumnKind::HTML, visibleFrom: 'lg'),
             new Column(self::PRODUCTS, $this->translator->trans('Products'), ColumnKind::HTML, visibleFrom: 'lg'),
             new Column(self::REASON, $this->translator->trans('Reason'), options: ['wrap' => true], visibleFrom: 'xl'),
-            new Column(self::RESOLUTION, $this->translator->trans('Expected resolution'), options: ['wrap' => true], visibleFrom: 'xl'),
+            // A one-word value under a two-word title: only the header breaks.
+            new Column(self::RESOLUTION, $this->translator->trans('Expected resolution'), options: ['wrap_head' => true], visibleFrom: 'xl'),
             new Column(
                 self::STATUS,
                 $this->translator->trans('Status'),

@@ -48,11 +48,12 @@ final class DataTableExtension extends AbstractExtension
      *
      * $wrap lets a free text written by a person - a reason, a note - break over several
      * lines: the cells of a grid stay on one line otherwise, and one long sentence would
-     * push every other column out of sight.
+     * push every other column out of sight. $wrapHead only breaks the header, for a short
+     * value under a long title.
      */
-    public function textColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always', bool $leftToRight = false, bool $wrap = false): Column
+    public function textColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always', bool $leftToRight = false, bool $wrap = false, bool $wrapHead = false): Column
     {
-        $options = array_filter(['left_to_right' => $leftToRight, 'wrap' => $wrap]);
+        $options = array_filter(['left_to_right' => $leftToRight, 'wrap' => $wrap, 'wrap_head' => $wrapHead]);
 
         return new Column($key, $label, ColumnKind::TEXT, $cellAlign, $options, sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
     }
