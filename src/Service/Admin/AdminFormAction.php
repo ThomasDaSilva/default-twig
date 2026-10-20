@@ -15,6 +15,8 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Admin;
 
 use BackOfficeDefaultTwigBundle\Form\Legacy\LegacyFormEventBridge;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -50,6 +52,7 @@ readonly class AdminFormAction
         private TranslatorInterface $translator,
         private TokenProvider $tokens,
         private LegacyFormEventBridge $legacyFormBridge,
+        private LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -170,13 +173,21 @@ readonly class AdminFormAction
     /**
      * @param callable(object): array{0: string, 1: int|null}|null $describeForLog
      */
+    /**
+     * The administration log tells what was done; it never decides whether it was: a line
+     * that cannot be written goes to the application log, and the action stays done.
+     */
     private function logSuccess(string $resource, string $access, object $event, ?callable $describeForLog): void
     {
         if ($describeForLog === null) {
             return;
         }
 
-        [$message, $resourceId] = $describeForLog($event);
-        $this->adminLogger->log($resource, $access, $message, $resourceId);
+        try {
+            [$message, $resourceId] = $describeForLog($event);
+            $this->adminLogger->log($resource, $access, $message, $resourceId);
+        } catch (\Throwable $failure) {
+            $this->logger->error(\sprintf('The administration log line of a done action on %s could not be written: %s', $resource, $failure->getMessage()), ['exception' => $failure]);
+        }
     }
 }
