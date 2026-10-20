@@ -22,7 +22,8 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
-use Thelia\Domain\Payment\Service\PaymentTransactionTotalsReader;
+use Thelia\Domain\Payment\Service\PaymentAmount;
+use Thelia\Domain\Payment\Service\PaymentCaptureService;
 use Thelia\Model\Order;
 use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusQuery;
@@ -46,7 +47,7 @@ final readonly class OrderStatusChangeContextBuilder
         private AdminLogRepository $adminLogRepository,
         private TranslatorInterface $translator,
         private SecurityContext $securityContext,
-        private PaymentTransactionTotalsReader $totalsReader,
+        private PaymentCaptureService $captureService,
     ) {
     }
 
@@ -96,7 +97,7 @@ final readonly class OrderStatusChangeContextBuilder
      */
     private function mayCancel(Order $order): bool
     {
-        return !$this->totalsReader->forOrder((int) $order->getId())->hasSomethingLeftToCapture()
+        return !PaymentAmount::isPositive($this->captureService->leftToCapture($order))
             || $this->securityContext->isGranted(['ADMIN'], [AdminResources::ORDER_PAYMENT_CAPTURE], [], [AccessManager::CREATE]);
     }
 
