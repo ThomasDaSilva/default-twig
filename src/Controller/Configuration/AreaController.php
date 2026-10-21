@@ -364,8 +364,8 @@ final class AreaController
 
     /**
      * The countries of the zone a rule applies to where the address forms check no postal
-     * code format (none set, or the postal code not required): a customer types any code
-     * there, or none. An unknown code is accepted by every rule and a mistyped one matches
+     * code format (none set, the postal code not required, or a format holding C, which
+     * stands for any characters): a customer types any code there, or none. An unknown code is accepted by every rule and a mistyped one matches
      * no exclusion, which the merchant has to know before relying on one.
      *
      * @param list<array{id: int, pattern: string, excluded: bool, country_id: int|null, country: string|null, outside_zone: bool}> $rules
@@ -392,7 +392,11 @@ final class AreaController
         $titles = [];
 
         foreach (CountryQuery::create()->filterById(array_keys($countryIds))->find() as $country) {
-            if ('' === trim((string) $country->getZipCodeFormat()) || 0 === (int) $country->getNeedZipCode()) {
+            $format = trim((string) $country->getZipCodeFormat());
+
+            // C stands for any characters in a format (".+" in Country::getZipCodeRE()): a
+            // format that holds it lets any code through that part.
+            if ('' === $format || 0 === (int) $country->getNeedZipCode() || str_contains($format, 'C')) {
                 $titles[] = $zoneCountries[(int) $country->getId()];
             }
         }
