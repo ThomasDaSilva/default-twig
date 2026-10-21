@@ -48,6 +48,7 @@ final class AreaZipCodeRuleController
     private const RESOURCE = AdminResources::AREA;
     private const EDIT_ROUTE = 'admin.configuration.shipping-configuration.update.view';
     private const WRITER = 'Thelia\\Domain\\Shipping\\ZipCode\\AreaZipCodeRuleWriter';
+    private const INVALID_RULE = 'Thelia\\Domain\\Shipping\\ZipCode\\InvalidZipCodeRuleException';
 
     public function __construct(
         private readonly AdminAccessChecker $access,
@@ -88,7 +89,7 @@ final class AreaZipCodeRuleController
 
             return $this->backToTheZone($area_id);
         } catch (\InvalidArgumentException $exception) {
-            $this->flash($request, 'danger', $exception->getMessage());
+            $this->flash($request, 'danger', $this->refusalOf($exception, $area_id));
 
             return $this->backToTheZone($area_id);
         }
@@ -143,6 +144,23 @@ final class AreaZipCodeRuleController
         $this->flash($request, 'success', 'The postal code rule was deleted.');
 
         return $this->backToTheZone($area_id);
+    }
+
+    /**
+     * The sentence the merchant reads for a refused rule. A core that tells its refusals
+     * apart (InvalidZipCodeRuleException) has only those worded for a merchant: any other
+     * invalid argument is a fault, logged and told in a general sentence. An older core has
+     * no such class, and its refusals are shown as they come, as before.
+     */
+    private function refusalOf(\InvalidArgumentException $exception, int $areaId): string
+    {
+        if (!class_exists(self::INVALID_RULE) || is_a($exception, self::INVALID_RULE)) {
+            return $exception->getMessage();
+        }
+
+        $this->logger->error('Postal code rule refused for an unexpected reason.', ['exception' => $exception, 'area_id' => $areaId]);
+
+        return 'The postal code rule could not be saved. Try again later.';
     }
 
     private function writer(): mixed
