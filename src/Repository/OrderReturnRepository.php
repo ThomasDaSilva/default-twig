@@ -454,10 +454,7 @@ final class OrderReturnRepository
      */
     public function findReturnsExportId(): ?int
     {
-        $id = ExportQuery::create()
-            ->filterByRef(self::RETURNS_EXPORT_REF)
-            ->select(['Id'])
-            ->findOne();
+        $id = ExportQuery::create()->findOneByRef(self::RETURNS_EXPORT_REF)?->getId();
 
         return null === $id ? null : (int) $id;
     }
