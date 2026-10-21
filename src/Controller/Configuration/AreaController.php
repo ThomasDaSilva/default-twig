@@ -56,6 +56,7 @@ final class AreaController
     private const EDIT_ROUTE = 'admin.configuration.shipping-configuration.update.view';
     private const LIST_TEMPLATE = '@BackOfficeDefaultTwig/configuration/area/list.html.twig';
     private const EDIT_TEMPLATE = '@BackOfficeDefaultTwig/configuration/area/edit.html.twig';
+    private const ZIP_CODE_PATTERN = 'Thelia\\Domain\\Shipping\\ZipCode\\ZipCodePattern';
 
     public function __construct(
         private readonly AdminFormAction $action,
@@ -252,8 +253,19 @@ final class AreaController
         $stateId = ($stateRaw === null || $stateRaw === '' || (int) $stateRaw === 0) ? null : (int) $stateRaw;
         $countryId = (int) $request->request->get('country_id', 0);
         $event = new AreaRemoveCountryEvent($area, [$countryId], $stateId);
-        // Read before the removal: the core deletes the rules of a country that leaves.
-        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, $countryId);
+
+        // Checked here as well as by tokenAction(): nothing of the zone is read for an
+        // administrator who may not change it.
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        // Read before the removal: the core deletes the rules of a country that leaves. A
+        // country the zone does not hold is removed from nothing, and not logged.
+        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, [$countryId])[$countryId] ?? [];
+        $describeForLog = $this->zoneHolds($areaId, $countryId, $stateId)
+            ? fn (): array => [$this->countryRemovalMessage($area, $countryId, $stateId, $rulesBefore, [] === $rulesBefore ? [] : $this->zipCodeRulePatternsOf($areaId, [$countryId])), $areaId]
+            : null;
 
         return $this->action->tokenAction(
             resource: self::RESOURCE,
@@ -264,7 +276,7 @@ final class AreaController
             actionLabel: 'Remove country from shipping zone',
             successRoute: self::EDIT_ROUTE,
             successParameters: ['area_id' => $areaId],
-            describeForLog: fn (): array => [$this->countryRemovalMessage($area, $countryId, $stateId, $rulesBefore), $areaId],
+            describeForLog: $describeForLog,
         );
     }
 
@@ -283,41 +295,76 @@ final class AreaController
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
 
-        $countryIds = (array) $request->request->all('country_id');
-        foreach ($countryIds as $countryId) {
+        $removals = [];
+        foreach ((array) $request->request->all('country_id') as $countryId) {
             $parts = explode('-', (string) $countryId);
-            $countryPk = (int) $parts[0];
-            $statePk = isset($parts[1]) && (int) $parts[1] !== 0 ? (int) $parts[1] : null;
+            $removals[] = [(int) $parts[0], isset($parts[1]) && (int) $parts[1] !== 0 ? (int) $parts[1] : null];
+        }
 
-            $rulesBefore = $this->zipCodeRulePatternsOf($areaId, $countryPk);
+        // Read once before the removals: the core deletes the rules of a country that leaves.
+        $countryPks = array_values(array_unique(array_column($removals, 0)));
+        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, $countryPks);
+        $assignments = [];
+        foreach (CountryAreaQuery::create()->filterByAreaId($areaId)->find() as $countryArea) {
+            $assignments[$countryArea->getCountryId().'-'.(int) $countryArea->getStateId()] = true;
+        }
+
+        foreach ($removals as [$countryPk, $statePk]) {
             $event = new AreaRemoveCountryEvent($area, [$countryPk], $statePk);
             $this->events->dispatch($event, TheliaEvents::AREA_REMOVE_COUNTRY);
-            $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, $this->countryRemovalMessage($area, $countryPk, $statePk, $rulesBefore), $areaId);
+        }
+
+        // Read again only for the countries that had rules.
+        $rulesAfter = $this->zipCodeRulePatternsOf($areaId, array_keys($rulesBefore));
+
+        foreach ($removals as [$countryPk, $statePk]) {
+            // A country the zone did not hold was removed from nothing.
+            if (!isset($assignments[$countryPk.'-'.(int) $statePk])) {
+                continue;
+            }
+
+            $this->adminLogger->log(
+                self::RESOURCE,
+                AccessManager::UPDATE,
+                $this->countryRemovalMessage($area, $countryPk, $statePk, $rulesBefore[$countryPk] ?? [], $rulesAfter),
+                $areaId,
+            );
         }
 
         return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['area_id' => $areaId]));
     }
 
     /**
-     * The postal code rules written for one country of the zone, as the administration log
-     * names them ("excluded 20*"), control characters escaped.
+     * The postal code rules written for some countries of the zone, by country, as the
+     * administration log names them ("excluded 20*"), escaped for the log.
      *
-     * @return list<string>
+     * @param list<int> $countryIds
+     *
+     * @return array<int, list<string>> only the countries that have rules
      */
-    private function zipCodeRulePatternsOf(int $areaId, int $countryId): array
+    private function zipCodeRulePatternsOf(int $areaId, array $countryIds): array
     {
         // Checked here too: the static analysis of an older core reads this method alone.
-        if (!class_exists(AreaZipCodeRuleQuery::class)) {
+        if (!class_exists(AreaZipCodeRuleQuery::class) || [] === $countryIds) {
             return [];
         }
 
         $patterns = [];
 
-        foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->filterByCountryId($countryId)->orderByPattern()->find() as $rule) {
-            $patterns[] = ($rule->getExcluded() ? 'excluded ' : 'included ').addcslashes((string) $rule->getPattern(), "\0..\37\177");
+        foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->filterByCountryId($countryIds)->orderByPattern()->find() as $rule) {
+            $patterns[(int) $rule->getCountryId()][] = ($rule->getExcluded() ? 'excluded ' : 'included ').self::forLog((string) $rule->getPattern());
         }
 
         return $patterns;
+    }
+
+    private function zoneHolds(int $areaId, int $countryId, ?int $stateId): bool
+    {
+        return CountryAreaQuery::create()
+            ->filterByAreaId($areaId)
+            ->filterByCountryId($countryId)
+            ->filterByStateId($stateId)
+            ->exists();
     }
 
     /**
@@ -325,23 +372,53 @@ final class AreaController
      * rules written for it go with it once the zone no longer holds it, and the merchant
      * reads which.
      *
-     * @param list<string> $rulesBefore the rules of the country before the removal
+     * @param list<string>              $rulesBefore the rules of the country before the removal
+     * @param array<int, list<string>>  $rulesAfter  the rules left after it, by country
      */
-    private function countryRemovalMessage(Area $area, int $countryId, ?int $stateId, array $rulesBefore): string
+    private function countryRemovalMessage(Area $area, int $countryId, ?int $stateId, array $rulesBefore, array $rulesAfter): string
     {
         $message = \sprintf(
             'Country %d%s removed from shipping zone "%s" (ID %d)',
             $countryId,
             null === $stateId ? '' : \sprintf(' (state %d)', $stateId),
-            (string) $area->getName(),
+            self::forLog((string) $area->getName()),
             (int) $area->getId(),
         );
 
-        if ([] === $rulesBefore || [] !== $this->zipCodeRulePatternsOf((int) $area->getId(), $countryId)) {
+        if ([] === $rulesBefore || isset($rulesAfter[$countryId])) {
             return $message;
         }
 
         return $message.\sprintf(', with its %d postal code rule(s): %s', \count($rulesBefore), implode(', ', $rulesBefore));
+    }
+
+    /**
+     * Text of the merchant's as the administration log carries it, escaped as the core
+     * escapes a postal code pattern for its own log when it knows how
+     * (ZipCodePattern::forLog()), control characters escaped otherwise.
+     */
+    private static function forLog(string $text): string
+    {
+        $zipCodePattern = self::zipCodePatternClass();
+
+        if (method_exists($zipCodePattern, 'forLog')) {
+            $escaped = \call_user_func([$zipCodePattern, 'forLog'], $text);
+
+            if (\is_string($escaped)) {
+                return $escaped;
+            }
+        }
+
+        return addcslashes($text, "\0..\37\177\\");
+    }
+
+    /**
+     * The class of the core that escapes a pattern for the log, by a name the static analysis
+     * does not narrow: a core older than ZipCodePattern::forLog() has the class without it.
+     */
+    private static function zipCodePatternClass(): string
+    {
+        return self::ZIP_CODE_PATTERN;
     }
 
     /** @return array<int, array{country_id: int, state_id: int|null, label: string}> */
