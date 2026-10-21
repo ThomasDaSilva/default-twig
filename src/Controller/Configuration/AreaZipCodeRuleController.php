@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeLog;
 use Propel\Runtime\Exception\ExceptionInterface as PropelError;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -97,7 +98,7 @@ final class AreaZipCodeRuleController
         $this->adminLogger->log(
             self::RESOURCE,
             AccessManager::UPDATE,
-            \sprintf('Postal code rule "%s" (ID %d) added to shipping zone %d', (string) $rule->getPattern(), (int) $rule->getId(), $area_id),
+            \sprintf('Postal code rule "%s" (ID %d) added to shipping zone %d', ZipCodeLog::escape((string) $rule->getPattern()), (int) $rule->getId(), $area_id),
             $area_id,
         );
         $this->flash($request, 'success', 'The postal code rule was added.');
