@@ -260,14 +260,11 @@ final class AreaController
         $countryId = (int) $request->request->get('country_id', 0);
         $event = new AreaRemoveCountryEvent($area, [$countryId], $stateId);
 
-        // Read before the removal: the core deletes the rules of a country that leaves. A
-        // country the zone does not hold is removed from nothing, and not logged.
-        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, [$countryId])[$countryId] ?? [];
-        $describeForLog = $this->zoneHolds($areaId, $countryId, $stateId)
-            ? fn (): array => [$this->countryRemovalMessage($area, $countryId, $stateId, $rulesBefore, [] === $rulesBefore ? [] : $this->zipCodeRulePatternsOf($areaId, [$countryId])), $areaId]
-            : null;
+        // Read before the removal: the core deletes the rules of a country that leaves.
+        $assignmentsBefore = $this->assignmentKeys($areaId);
+        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, [$countryId]);
 
-        return $this->action->tokenAction(
+        $response = $this->action->tokenAction(
             resource: self::RESOURCE,
             access: AccessManager::UPDATE,
             request: $request,
@@ -276,8 +273,12 @@ final class AreaController
             actionLabel: 'Remove country from shipping zone',
             successRoute: self::EDIT_ROUTE,
             successParameters: ['area_id' => $areaId],
-            describeForLog: $describeForLog,
         );
+
+        // Logged from what changed: a refused token or a failure changes nothing, and logs nothing.
+        $this->logRemovals($area, [[$countryId, $stateId]], $assignmentsBefore, $rulesBefore);
+
+        return $response;
     }
 
     #[Route('/countries/remove', name: 'countries.remove', methods: ['POST'])]
@@ -295,43 +296,104 @@ final class AreaController
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
         }
 
+        // Each pair (country, state) once, in the order the merchant ticked them.
         $removals = [];
         foreach ((array) $request->request->all('country_id') as $countryId) {
             $parts = explode('-', (string) $countryId);
-            $removals[] = [(int) $parts[0], isset($parts[1]) && (int) $parts[1] !== 0 ? (int) $parts[1] : null];
+            $countryPk = (int) $parts[0];
+            $statePk = isset($parts[1]) && (int) $parts[1] !== 0 ? (int) $parts[1] : null;
+            $removals[$countryPk.'-'.(int) $statePk] = [$countryPk, $statePk];
         }
+        $removals = array_values($removals);
 
         // Read once before the removals: the core deletes the rules of a country that leaves.
-        $countryPks = array_values(array_unique(array_column($removals, 0)));
-        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, $countryPks);
-        $assignments = [];
-        foreach (CountryAreaQuery::create()->filterByAreaId($areaId)->find() as $countryArea) {
-            $assignments[$countryArea->getCountryId().'-'.(int) $countryArea->getStateId()] = true;
-        }
+        $assignmentsBefore = $this->assignmentKeys($areaId);
+        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, array_values(array_unique(array_column($removals, 0))));
 
         foreach ($removals as [$countryPk, $statePk]) {
             $event = new AreaRemoveCountryEvent($area, [$countryPk], $statePk);
             $this->events->dispatch($event, TheliaEvents::AREA_REMOVE_COUNTRY);
         }
 
+        $this->logRemovals($area, $removals, $assignmentsBefore, $rulesBefore);
+
+        return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['area_id' => $areaId]));
+    }
+
+    /**
+     * Writes to the administration log what left the zone: each pair (country, state) it held
+     * and no longer holds, and the postal code rules of a country, named on the last of its
+     * pairs that left, the one that took them away. Rules that left with a country the zone
+     * did not hold through the pairs asked for are logged on their own.
+     *
+     * @param list<array{0: int, 1: int|null}> $removals
+     * @param array<string, true>              $assignmentsBefore the pairs "country-state" the zone held
+     * @param array<int, list<string>>         $rulesBefore       the rules by country, before
+     */
+    private function logRemovals(Area $area, array $removals, array $assignmentsBefore, array $rulesBefore): void
+    {
+        $areaId = (int) $area->getId();
+        $assignmentsAfter = $this->assignmentKeys($areaId);
         // Read again only for the countries that had rules.
         $rulesAfter = $this->zipCodeRulePatternsOf($areaId, array_keys($rulesBefore));
 
-        foreach ($removals as [$countryPk, $statePk]) {
-            // A country the zone did not hold was removed from nothing.
-            if (!isset($assignments[$countryPk.'-'.(int) $statePk])) {
+        $removed = [];
+        $lastRemovedOfCountry = [];
+        foreach ($removals as $index => [$countryId, $stateId]) {
+            $key = $countryId.'-'.(int) $stateId;
+
+            if (isset($assignmentsBefore[$key]) && !isset($assignmentsAfter[$key])) {
+                $removed[$index] = true;
+                $lastRemovedOfCountry[$countryId] = $index;
+            }
+        }
+
+        foreach ($removals as $index => [$countryId, $stateId]) {
+            if (!isset($removed[$index])) {
+                continue;
+            }
+
+            $rulesThatLeft = $lastRemovedOfCountry[$countryId] === $index && !isset($rulesAfter[$countryId])
+                ? $rulesBefore[$countryId] ?? []
+                : [];
+
+            $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, $this->countryRemovalMessage($area, $countryId, $stateId, $rulesThatLeft), $areaId);
+        }
+
+        foreach ($rulesBefore as $countryId => $patterns) {
+            if (isset($rulesAfter[$countryId]) || isset($lastRemovedOfCountry[$countryId])) {
                 continue;
             }
 
             $this->adminLogger->log(
                 self::RESOURCE,
                 AccessManager::UPDATE,
-                $this->countryRemovalMessage($area, $countryPk, $statePk, $rulesBefore[$countryPk] ?? [], $rulesAfter),
+                \sprintf(
+                    'Postal code rule(s) of country %d deleted from shipping zone "%s" (ID %d): %s',
+                    $countryId,
+                    ZipCodeLog::escape((string) $area->getName()),
+                    $areaId,
+                    implode(', ', $patterns),
+                ),
                 $areaId,
             );
         }
+    }
 
-        return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['area_id' => $areaId]));
+    /**
+     * The pairs "country-state" the zone holds, the state 0 for a whole country.
+     *
+     * @return array<string, true>
+     */
+    private function assignmentKeys(int $areaId): array
+    {
+        $keys = [];
+
+        foreach (CountryAreaQuery::create()->filterByAreaId($areaId)->find() as $countryArea) {
+            $keys[$countryArea->getCountryId().'-'.(int) $countryArea->getStateId()] = true;
+        }
+
+        return $keys;
     }
 
     /**
@@ -358,24 +420,13 @@ final class AreaController
         return $patterns;
     }
 
-    private function zoneHolds(int $areaId, int $countryId, ?int $stateId): bool
-    {
-        return CountryAreaQuery::create()
-            ->filterByAreaId($areaId)
-            ->filterByCountryId($countryId)
-            ->filterByStateId($stateId)
-            ->exists();
-    }
-
     /**
-     * What the administration log says of a country removed from a zone: the postal code
-     * rules written for it go with it once the zone no longer holds it, and the merchant
-     * reads which.
+     * What the administration log says of a country removed from a zone, with the postal
+     * code rules that left with it, when any did.
      *
-     * @param list<string>              $rulesBefore the rules of the country before the removal
-     * @param array<int, list<string>>  $rulesAfter  the rules left after it, by country
+     * @param list<string> $rulesThatLeft the rules of the country, as zipCodeRulePatternsOf() names them
      */
-    private function countryRemovalMessage(Area $area, int $countryId, ?int $stateId, array $rulesBefore, array $rulesAfter): string
+    private function countryRemovalMessage(Area $area, int $countryId, ?int $stateId, array $rulesThatLeft): string
     {
         $message = \sprintf(
             'Country %d%s removed from shipping zone "%s" (ID %d)',
@@ -385,11 +436,11 @@ final class AreaController
             (int) $area->getId(),
         );
 
-        if ([] === $rulesBefore || isset($rulesAfter[$countryId])) {
+        if ([] === $rulesThatLeft) {
             return $message;
         }
 
-        return $message.\sprintf(', with its %d postal code rule(s): %s', \count($rulesBefore), implode(', ', $rulesBefore));
+        return $message.\sprintf(', with its %d postal code rule(s): %s', \count($rulesThatLeft), implode(', ', $rulesThatLeft));
     }
 
     /** @return array<int, array{country_id: int, state_id: int|null, label: string}> */
