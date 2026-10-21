@@ -1112,6 +1112,7 @@ return [
     'Refresh the active status of every sale according to its dates.' => 'Den Aktivstatus jeder Aktion entsprechend ihrer Daten aktualisieren.',
     'Registered' => 'Registriert',
     'Refund' => 'Erstattung',
+    'Refundable' => 'Erstattbar',
     'Registered between' => 'Registriert zwischen',
     'Registered on' => 'Registriert am',
     'Registered on %date' => 'Registriert am %date',

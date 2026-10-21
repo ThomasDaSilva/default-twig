@@ -168,8 +168,7 @@ final readonly class OrderReturnListRowPresenter
             return '<span class="text-muted">-</span>';
         }
 
-        $quantities = new \NumberFormatter($locale, \NumberFormatter::DECIMAL);
-        $quantities->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 2);
+        $quantities = self::quantityFormatter($locale);
 
         $items = [];
         foreach ($lines as $line) {
@@ -203,6 +202,23 @@ final readonly class OrderReturnListRowPresenter
         }
 
         return '<ul class="list-unstyled mb-0 d-flex flex-column gap-1 bo-datatable__wrap" data-testid="bo-order-return-products">'.implode('', $items).'</ul>';
+    }
+
+    /**
+     * The quantities in the language of the back office, built once per language for
+     * the request rather than once per row.
+     */
+    private static function quantityFormatter(string $locale): \NumberFormatter
+    {
+        /** @var array<string, \NumberFormatter> $formatters */
+        static $formatters = [];
+
+        if (!isset($formatters[$locale])) {
+            $formatters[$locale] = new \NumberFormatter($locale, \NumberFormatter::DECIMAL);
+            $formatters[$locale]->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 2);
+        }
+
+        return $formatters[$locale];
     }
 
     /**

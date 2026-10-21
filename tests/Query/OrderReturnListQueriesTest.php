@@ -159,7 +159,21 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         self::assertSame($cost($one), $cost($three), 'Three returns on the page ask what one asks: nothing is read row by row.');
     }
 
-    private function returnWith(int $lineCount, ?string $productRef = null, ?Customer $customer = null): OrderReturn
+    public function testAQuantityIsWrittenInTheLanguageOfTheBackOffice(): void
+    {
+        $presenter = $this->getService(OrderReturnListRowPresenter::class);
+        self::assertInstanceOf(OrderReturnListRowPresenter::class, $presenter);
+        $customer = $this->factory->customer($this->factory->customerTitle());
+        $this->returnWith(1, null, $customer, 1.5);
+
+        $page = $this->returns->findPaginated(new OrderReturnFilters(customerId: (int) $customer->getId()), 1, 25);
+        $rows = $presenter->presentAll($page['rows'], 'fr_FR');
+
+        self::assertStringContainsString("&times;&nbsp;1,5", (string) $rows[0]['products_html'], 'A decimal comma in French.');
+        self::assertStringContainsString("&times;&nbsp;1.5", (string) $presenter->presentAll($page['rows'], 'en_US')[0]['products_html']);
+    }
+
+    private function returnWith(int $lineCount, ?string $productRef = null, ?Customer $customer = null, float $quantity = 1.0): OrderReturn
     {
         $connection = $this->getPropelConnection();
 
@@ -178,7 +192,7 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
             (new OrderReturnLine())
                 ->setOrderReturn($orderReturn)
                 ->setOrderProduct($this->orderProduct($order, $productRef))
-                ->setQuantity(1.0)
+                ->setQuantity($quantity)
                 ->save($connection);
         }
 
