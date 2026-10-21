@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnFilters;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
+use Thelia\Model\ExportQuery;
 use Thelia\Model\Map\OrderReturnTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
@@ -57,6 +58,9 @@ final class OrderReturnRepository
     ];
 
     private const FALLBACK_STATUS_COLOR = '#6c757d';
+
+    /** The returns export of the core, from thelia/thelia#4218 on. */
+    private const RETURNS_EXPORT_REF = 'thelia.export.order_returns';
 
     /** @var array<string, list<array{id: int, code: string, effective_code: string, title: string, color: string, count: int}>> */
     private array $statusesWithCounts = [];
@@ -442,5 +446,19 @@ final class OrderReturnRepository
         }
 
         return $items;
+    }
+
+    /**
+     * The export the queue's button opens, or null on a core without it: the button then
+     * opens the list of the exports.
+     */
+    public function findReturnsExportId(): ?int
+    {
+        $id = ExportQuery::create()
+            ->filterByRef(self::RETURNS_EXPORT_REF)
+            ->select(['Id'])
+            ->findOne();
+
+        return null === $id ? null : (int) $id;
     }
 }

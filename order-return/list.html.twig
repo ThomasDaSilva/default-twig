@@ -27,7 +27,7 @@
                         </a>
                     {% endfor %}
                     {% if is_granted('VIEW', 'admin.export') %}
-                        <a class="btn btn-sm btn-outline-primary" href="{{ path('export.list') }}"
+                        <a class="btn btn-sm btn-outline-primary" href="{{ returns_export_id ? path('export.view', {id: returns_export_id}) : path('export.list') }}"
                            data-testid="order-return-export">
                             <i class="bi bi-download me-1" aria-hidden="true"></i>{{ 'Export'|trans }}
                         </a>

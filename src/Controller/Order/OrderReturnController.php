@@ -99,6 +99,7 @@ final class OrderReturnController
             'filters' => $this->filterPresenter->present($filters, $locale),
             'query_params' => $filters->toQueryParams(),
             'status_counts' => $this->returns->findStatusesWithCounts($locale),
+            'returns_export_id' => $this->returns->findReturnsExportId(),
         ]));
     }
 

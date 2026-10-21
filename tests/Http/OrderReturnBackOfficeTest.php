@@ -19,6 +19,7 @@ use Thelia\Action\OrderReturn as OrderReturnAction;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Model\ConfigQuery;
+use Thelia\Model\ExportQuery;
 use Thelia\Model\Map\ProductSaleElementsTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
@@ -238,7 +239,15 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
 
         $button = $crawler->filter('[data-testid="order-return-export"]');
         self::assertCount(1, $button);
-        self::assertStringEndsWith('/admin/export', (string) $button->attr('href'), 'The button opens the exports, the returns one among them.');
+
+        $export = ExportQuery::create()->findOneByRef('thelia.export.order_returns');
+
+        if (null === $export) {
+            self::assertStringEndsWith('/admin/export', (string) $button->attr('href'), 'A core without the returns export: the button opens the exports.');
+            self::markTestSkipped('The core has no returns export yet (thelia/thelia#4218).');
+        }
+
+        self::assertStringEndsWith('/admin/export/'.$export->getId(), (string) $button->attr('href'), 'The button opens the returns export itself, as the shop had it.');
     }
 
     public function testNoExportButtonWithoutTheExportPermission(): void
