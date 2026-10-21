@@ -80,13 +80,15 @@ final class AreaZipCodeRuleController
                 '1' === $request->request->get('excluded'),
                 0 === $countryId ? null : $countryId,
             );
-        } catch (\InvalidArgumentException $exception) {
-            $this->flash($request, 'danger', $exception->getMessage());
-
-            return $this->backToTheZone($area_id);
         } catch (PropelError $exception) {
+            // First: Propel's own InvalidArgumentException is a native one too, and its
+            // message is the database layer's, not a sentence for the merchant.
             $this->logger->error('Postal code rule not saved.', ['exception' => $exception, 'area_id' => $area_id]);
             $this->flash($request, 'danger', 'The postal code rule could not be saved. Try again later.');
+
+            return $this->backToTheZone($area_id);
+        } catch (\InvalidArgumentException $exception) {
+            $this->flash($request, 'danger', $exception->getMessage());
 
             return $this->backToTheZone($area_id);
         }
