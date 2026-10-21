@@ -117,7 +117,7 @@
 
                 {% if zip_code_rules_unformatted_countries is not empty %}
                     <div class="alert alert-warning" role="alert" data-testid="shipping-configuration-zip-code-rules-unformatted">
-                        {{ 'No postal code format is checked for %countries: a customer can type any postal code there, or none. A missing code passes every rule, and a mistyped one escapes the exclusions.'|trans({ '%countries': zip_code_rules_unformatted_countries|join(', ') }) }}
+                        {{ 'The postal codes typed for %countries are not checked against a format (none is set, the postal code is not required, or the format holds C, which stands for any characters): a customer can type any code there, or none. A missing code passes every rule, and a mistyped one escapes the exclusions.'|trans({ '%countries': zip_code_rules_unformatted_countries|join(', ') }) }}
                     </div>
                 {% endif %}
 
