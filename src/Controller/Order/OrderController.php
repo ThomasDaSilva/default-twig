@@ -54,6 +54,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Exception\TokenAuthenticationException;
 use Thelia\Domain\Payment\Enum\PaymentTransactionState;
 use Thelia\Domain\Payment\Exception\CancellationNeedsCaptureRightException;
+use Thelia\Domain\Payment\Exception\CancellationWaitsForCaptureException;
 use Thelia\Domain\Payment\Exception\PaymentException;
 use Thelia\Domain\Payment\Service\PaymentAmount;
 use Thelia\Core\Security\Resource\AdminResources;
@@ -220,6 +221,7 @@ final class OrderController
         $updated = 0;
         $failed = [];
         $holdingAnAuthorization = [];
+        $waitingForCapture = [];
 
         foreach ($this->orderRepository->findByIds($plan['allowed_ids']) as $order) {
             try {
@@ -229,6 +231,8 @@ final class OrderController
                 ++$updated;
             } catch (CancellationNeedsCaptureRightException) {
                 $holdingAnAuthorization[] = (string) $order->getRef();
+            } catch (CancellationWaitsForCaptureException) {
+                $waitingForCapture[] = (string) $order->getRef();
             } catch (\Throwable $throwable) {
                 Tlog::getInstance()->error(\sprintf('Bulk status change of order %s failed: %s', (string) $order->getRef(), $throwable->getMessage()));
                 $failed[] = (string) $order->getRef();
@@ -255,6 +259,10 @@ final class OrderController
 
         if ([] !== $holdingAnAuthorization) {
             $this->flash('warning', $this->translator->trans('Not cancelled, their authorized payment would be released, which needs the right to capture payments: %refs%', ['%refs%' => implode(', ', $holdingAnAuthorization)]));
+        }
+
+        if ([] !== $waitingForCapture) {
+            $this->flash('warning', $this->translator->trans('Not cancelled, a capture waits for the provider, which takes a single one: refund them once it is taken: %refs%', ['%refs%' => implode(', ', $waitingForCapture)]));
         }
 
         if ([] !== $failed) {
