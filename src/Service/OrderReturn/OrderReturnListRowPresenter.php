@@ -200,15 +200,14 @@ final readonly class OrderReturnListRowPresenter
 
     /**
      * What the customer expects in return, with what they wish to receive underneath
-     * when they asked for an exchange. A wish kept on a return switched to a refund
-     * since is not something the shop sends: it is left out.
+     * when they asked for an exchange.
      */
     private function renderResolution(OrderReturn $orderReturn): string
     {
         $html = \sprintf('<div>%s</div>', htmlspecialchars($this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()), \ENT_QUOTES | \ENT_HTML5));
-        $wish = trim((string) $orderReturn->getExpectedExchange());
+        $wish = $this->resolutionLabels->wishedExchange($orderReturn);
 
-        if ($wish === '' || $orderReturn->getExpectedResolution() !== OrderReturn::RESOLUTION_EXCHANGE) {
+        if ($wish === null) {
             return $html;
         }
 

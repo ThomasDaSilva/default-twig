@@ -136,9 +136,9 @@
                                 <dd class="col-sm-9" data-testid="order-return-resolution">{{ resolution_label }}</dd>
                             {% endif %}
 
-                            {% if return.expectedResolution == 'exchange' and return.expectedExchange|trim is not empty %}
+                            {% if wished_exchange is not null %}
                                 <dt class="col-sm-3">{{ 'Expected exchange'|trans }}</dt>
-                                <dd class="col-sm-9 text-break" data-testid="order-return-expected-exchange">{{ return.expectedExchange|nl2br }}</dd>
+                                <dd class="col-sm-9 text-break" data-testid="order-return-expected-exchange">{{ wished_exchange|nl2br }}</dd>
                             {% endif %}
 
                             <dt class="col-sm-3">{{ 'Comment'|trans }}</dt>

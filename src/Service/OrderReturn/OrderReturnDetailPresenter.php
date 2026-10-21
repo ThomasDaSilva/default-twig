@@ -86,6 +86,7 @@ final readonly class OrderReturnDetailPresenter
             'computed_refund' => $this->refundCalculator->compute($orderReturn),
             'received_refund' => $this->refundCalculator->compute($orderReturn, true),
             'resolution_label' => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
+            'wished_exchange' => $this->resolutionLabels->wishedExchange($orderReturn),
         ];
     }
 

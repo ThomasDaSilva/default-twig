@@ -18,8 +18,8 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Model\OrderReturn;
 
 /**
- * What the customer expects in return for the goods sent back, as the merchant
- * reads it on the sheet, in the queue and in its filter.
+ * What the customer expects in return for the goods sent back, and the exchange they
+ * wish for, as the merchant reads them on the sheet, in the queue and in its filter.
  */
 final readonly class OrderReturnResolutionLabels
 {
@@ -36,6 +36,22 @@ final readonly class OrderReturnResolutionLabels
             OrderReturn::RESOLUTION_EXCHANGE => $this->translator->trans('Exchange'),
             default => '',
         };
+    }
+
+    /**
+     * What the customer wishes to receive, shown under an exchange only: a wish kept on a
+     * return switched to a refund since is not something the shop sends. Null on a core
+     * without the field yet (thelia/thelia#4218).
+     */
+    public function wishedExchange(OrderReturn $orderReturn): ?string
+    {
+        if (!method_exists($orderReturn, 'getExpectedExchange') || $orderReturn->getExpectedResolution() !== OrderReturn::RESOLUTION_EXCHANGE) {
+            return null;
+        }
+
+        $wish = trim((string) $orderReturn->getExpectedExchange());
+
+        return $wish !== '' ? $wish : null;
     }
 
     /**

@@ -459,6 +459,16 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
     }
 
     /**
+     * The wished exchange has its own field from thelia/thelia#4218 on.
+     */
+    private static function requireTheWishedExchangeField(): void
+    {
+        if (!method_exists(OrderReturn::class, 'setExpectedExchange')) {
+            self::markTestSkipped('The core has no field for the wished exchange yet (thelia/thelia#4218).');
+        }
+    }
+
+    /**
      * A return of two units of one returnable product, in the given status.
      *
      * @return array{OrderReturn, ProductSaleElements, OrderReturnLine}
@@ -490,8 +500,13 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
             ->setOrderReturnReason($this->reason('Damaged on arrival'))
             ->setReasonTitle('Damaged on arrival')
             ->setCustomerComment($comment)
-            ->setExpectedExchange($expectedExchange)
             ->setExpectedResolution($resolution);
+
+        if ($expectedExchange !== null) {
+            self::requireTheWishedExchangeField();
+            $return->setExpectedExchange($expectedExchange);
+        }
+
         $return->save($connection);
 
         $line = (new OrderReturnLine())
