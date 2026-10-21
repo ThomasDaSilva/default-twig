@@ -7,7 +7,7 @@
       - reasons:  list of { value, label }
       - mode:     online (through the payment module) or offline (recorded as made outside the provider)
       - in_full:  whether the provider gives the payment back in full only, for now
-      - currency: { symbol }
+      - currency: { symbol, code }
       - decimals: the decimals of the order currency
       - step:     its smallest coin, as the step of the input
       - token:    CSRF token
@@ -30,11 +30,11 @@
                     {% endif %}
                     <dl class="row small mb-3">
                         <dt class="col-7">{{ 'Collected'|trans }}</dt>
-                        <dd class="col-5 text-end mb-0" dir="ltr">{{ totals.captured|number_format(decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+                        <dd class="col-5 text-end mb-0" dir="ltr">{{ totals.captured|format_currency(currency.code) }}</dd>
                         <dt class="col-7">{{ 'Refunded'|trans }}</dt>
-                        <dd class="col-5 text-end mb-0" dir="ltr">{{ totals.refunded|number_format(decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+                        <dd class="col-5 text-end mb-0" dir="ltr">{{ totals.refunded|format_currency(currency.code) }}</dd>
                         <dt class="col-7 fw-semibold">{{ 'Left to refund'|trans }}</dt>
-                        <dd class="col-5 text-end mb-0 fw-semibold" dir="ltr">{{ totals.refundable|number_format(decimals, '.', ' ') }} {{ currency.symbol }}</dd>
+                        <dd class="col-5 text-end mb-0 fw-semibold" dir="ltr">{{ totals.refundable|format_currency(currency.code) }}</dd>
                     </dl>
                     <label for="order-payment-refund-amount" class="form-label">{{ 'Amount to refund'|trans }}</label>
                     <div class="input-group mb-3">
