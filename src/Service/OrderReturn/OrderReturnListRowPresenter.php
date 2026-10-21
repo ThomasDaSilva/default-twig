@@ -69,10 +69,12 @@ final readonly class OrderReturnListRowPresenter
 
         $lines = $this->returns->findLinesByReturns($returnIds);
         $reasonTitles = $this->returns->findReasonTitles($locale);
+        $statusTitles = array_column($this->returns->findStatusesLocalized($locale), 'title', 'id');
+        $currencyCodes = $this->returns->findCurrencyCodes();
 
         $rows = [];
         foreach ($page as $orderReturn) {
-            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles);
+            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles, $statusTitles, $currencyCodes);
         }
 
         return $rows;
@@ -80,11 +82,13 @@ final readonly class OrderReturnListRowPresenter
 
     /**
      * @param array<int, list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>> $lines        returned lines per return id, when the caller has them
-     * @param array<int, string>                                                                                                                  $reasonTitles current title of each reason, when the caller has them
+     * @param array<int, string>                                                                                                                  $reasonTitles  current title of each reason, when the caller has them
+     * @param array<int, string>                                                                                                                  $statusTitles  title of each status in $locale, when the caller has them
+     * @param array<int, string>                                                                                                                  $currencyCodes code of each currency, when the caller has them
      *
      * @return array<string, mixed>
      */
-    public function present(OrderReturn $orderReturn, string $locale, array $lines = [], array $reasonTitles = []): array
+    public function present(OrderReturn $orderReturn, string $locale, array $lines = [], array $reasonTitles = [], array $statusTitles = [], array $currencyCodes = []): array
     {
         $returnId = (int) $orderReturn->getId();
         // status_id is a required column behind a RESTRICT foreign key: a return
@@ -98,13 +102,13 @@ final readonly class OrderReturnListRowPresenter
             'ref' => (string) $orderReturn->getRef(),
             'order_html' => $this->renderOrder($orderReturn, $returnId),
             'customer_html' => $this->renderCustomer($orderReturn),
-            'products_html' => $this->renderProducts($lines[$returnId] ?? []),
+            'products_html' => $this->renderProducts($lines[$returnId] ?? [], $locale),
             'reason' => $this->reason($orderReturn, $reasonTitles),
             'resolution_html' => $this->renderResolution($orderReturn),
-            'status' => (string) $status->getTitle(),
+            'status' => $statusTitles[(int) $status->getId()] ?? (string) $status->getTitle(),
             'status_code' => $effectiveCode,
             'status_color' => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
-            'refund_amount' => $this->formatAmount($orderReturn, $locale),
+            'refund_amount' => $this->formatAmount($orderReturn, $locale, $currencyCodes),
             '_actions' => $this->buildActions($returnId, $effectiveCode),
         ];
     }
@@ -158,11 +162,14 @@ final readonly class OrderReturnListRowPresenter
      *
      * @param list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}> $lines
      */
-    private function renderProducts(array $lines): string
+    private function renderProducts(array $lines, string $locale): string
     {
         if ($lines === []) {
             return '<span class="text-muted">-</span>';
         }
+
+        $quantities = new \NumberFormatter($locale, \NumberFormatter::DECIMAL);
+        $quantities->setAttribute(\NumberFormatter::MAX_FRACTION_DIGITS, 2);
 
         $items = [];
         foreach ($lines as $line) {
@@ -177,7 +184,7 @@ final readonly class OrderReturnListRowPresenter
             }
 
             if ($line['quantity'] !== 1.0) {
-                $title .= \sprintf(' <span class="text-muted">&times;&nbsp;%s</span>', rtrim(rtrim(number_format($line['quantity'], 2, ',', ' '), '0'), ','));
+                $title .= \sprintf(' <span class="text-muted">&times;&nbsp;%s</span>', htmlspecialchars((string) $quantities->format($line['quantity']), \ENT_QUOTES | \ENT_HTML5));
             }
 
             $values = array_map(
@@ -255,12 +262,17 @@ final readonly class OrderReturnListRowPresenter
         );
     }
 
-    private function formatAmount(OrderReturn $orderReturn, string $locale): string
+    /**
+     * @param array<int, string> $currencyCodes
+     */
+    private function formatAmount(OrderReturn $orderReturn, string $locale, array $currencyCodes): string
     {
+        $order = $orderReturn->getOrder();
+
         return $this->money->format(
             (float) $orderReturn->getRefundAmount(),
             $locale,
-            $orderReturn->getOrder()->getCurrency()->getCode(),
+            $currencyCodes[(int) $order->getCurrencyId()] ?? $order->getCurrency()->getCode(),
         );
     }
 

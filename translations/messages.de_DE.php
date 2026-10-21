@@ -1131,7 +1131,6 @@ return [
     'Replace current document by this file' => 'Aktuelles Dokument durch diese Datei ersetzen',
     'Replace current image by this file' => 'Aktuelles Bild durch diese Datei ersetzen',
     'Request a new link' => 'Neuen Link anfordern',
-    'Requested on' => 'Angefragt am',
     'Required modules' => 'Erforderliche Module',
     'Reset' => 'Zurücksetzen',
     'Reset default values' => 'Standardwerte zurücksetzen',

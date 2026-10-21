@@ -16,8 +16,11 @@ namespace BackOfficeDefaultTwigBundle\Tests\Query;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
+use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnFilters;
+use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnListRowPresenter;
 use BackOfficeDefaultTwigBundle\Tests\Support\QueryCounter;
 use Thelia\Domain\SaleUnit\Access\AdminSaleUnitScope;
+use Thelia\Model\Customer;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderProductAttributeCombination;
@@ -129,11 +132,38 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         self::assertSame(0, $second, 'The breakdown is memoised for the request.');
     }
 
-    private function returnWith(int $lineCount, ?string $productRef = null): OrderReturn
+    public function testAPageCostsTheSameWhateverTheNumberOfReturns(): void
+    {
+        $presenter = $this->getService(OrderReturnListRowPresenter::class);
+        self::assertInstanceOf(OrderReturnListRowPresenter::class, $presenter);
+
+        $one = $this->factory->customer($this->factory->customerTitle());
+        $this->returnWith(2, null, $one);
+        $three = $this->factory->customer($this->factory->customerTitle());
+        for ($i = 0; $i < 3; ++$i) {
+            $this->returnWith(2, null, $three);
+        }
+
+        $cost = function (Customer $customer) use ($presenter): int {
+            $rows = [];
+            $queries = QueryCounter::count(function () use ($customer, $presenter, &$rows): void {
+                $page = $this->returns->findPaginated(new OrderReturnFilters(customerId: (int) $customer->getId()), 1, 25);
+                $rows = $presenter->presentAll($page['rows'], 'en_US');
+            });
+            self::assertNotSame([], $rows);
+
+            return $queries;
+        };
+
+        $cost($one);
+        self::assertSame($cost($one), $cost($three), 'Three returns on the page ask what one asks: nothing is read row by row.');
+    }
+
+    private function returnWith(int $lineCount, ?string $productRef = null, ?Customer $customer = null): OrderReturn
     {
         $connection = $this->getPropelConnection();
 
-        $customer = $this->factory->customer($this->factory->customerTitle());
+        $customer ??= $this->factory->customer($this->factory->customerTitle());
         $order = $this->factory->order($customer, ['statusCode' => OrderStatus::CODE_PAID]);
 
         $orderReturn = (new OrderReturn())

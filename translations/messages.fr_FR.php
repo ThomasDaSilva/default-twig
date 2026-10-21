@@ -387,7 +387,6 @@ return [
     'Reports' => 'Rapports',
     'Renaming it leaves the orders already placed with the wording they were invoiced under.' => 'Le renommer laisse aux commandes déjà passées le libellé sous lequel elles ont été facturées.',
     'Requested' => 'Demandé',
-    'Requested on' => 'Demandé le',
     'Require two-step verification for every administrator' => 'Exiger la vérification en deux étapes pour tous les administrateurs',
     'Required as soon as a company name is given. Country code followed by the national number.' => 'Obligatoire dès qu\'une raison sociale est renseignée. Code pays suivi du numéro national.',
     'Required as soon as a company name is given. In France, the 14 digits of the SIRET.' => 'Obligatoire dès qu\'une raison sociale est renseignée. En France, les 14 chiffres du SIRET.',

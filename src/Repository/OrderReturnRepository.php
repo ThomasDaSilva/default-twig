@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnFilters;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
+use Thelia\Model\CurrencyQuery;
 use Thelia\Model\ExportQuery;
 use Thelia\Model\Map\OrderReturnTableMap;
 use Thelia\Model\Order;
@@ -70,6 +71,9 @@ final class OrderReturnRepository
 
     /** @var array<string, array<int, string>> */
     private array $reasonTitles = [];
+
+    /** @var array<int, string>|null */
+    private ?array $currencyCodes = null;
 
     public function __construct(
         private readonly OrderAccess $access,
@@ -253,6 +257,25 @@ final class OrderReturnRepository
     public function findReasonTitles(string $locale): array
     {
         return $this->reasonTitles[$locale] ??= $this->readReasonTitles($locale);
+    }
+
+    /**
+     * The code of every currency, by id, in one query memoised for the request: the
+     * queue formats the refundable amount of each row in the currency of its order.
+     *
+     * @return array<int, string>
+     */
+    public function findCurrencyCodes(): array
+    {
+        if (null === $this->currencyCodes) {
+            $this->currencyCodes = [];
+
+            foreach (CurrencyQuery::create()->select(['Id', 'Code'])->find() as $currency) {
+                $this->currencyCodes[(int) $currency['Id']] = (string) $currency['Code'];
+            }
+        }
+
+        return $this->currencyCodes;
     }
 
     public function countAll(): int

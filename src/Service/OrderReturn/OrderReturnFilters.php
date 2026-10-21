@@ -65,11 +65,11 @@ final readonly class OrderReturnFilters
         public ?\DateTimeImmutable $createdTo = null,
         public ?int $customerId = null,
         public ?int $orderId = null,
-        public ?string $resolution = null,
         public string $search = '',
         public string $sort = self::DEFAULT_SORT,
         public string $direction = self::DEFAULT_DIRECTION,
         public string $period = self::PERIOD_ALL,
+        public ?string $resolution = null,
     ) {
     }
 
