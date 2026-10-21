@@ -20,6 +20,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeFormat;
+use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeLog;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Propel\Runtime\ActiveQuery\Criteria;
@@ -56,7 +57,6 @@ final class AreaController
     private const EDIT_ROUTE = 'admin.configuration.shipping-configuration.update.view';
     private const LIST_TEMPLATE = '@BackOfficeDefaultTwig/configuration/area/list.html.twig';
     private const EDIT_TEMPLATE = '@BackOfficeDefaultTwig/configuration/area/edit.html.twig';
-    private const ZIP_CODE_PATTERN = 'Thelia\\Domain\\Shipping\\ZipCode\\ZipCodePattern';
 
     public function __construct(
         private readonly AdminFormAction $action,
@@ -130,7 +130,7 @@ final class AreaController
                 \assert($area instanceof Area);
 
                 return [
-                    \sprintf('Shipping zone "%s" (ID %d) created', (string) $area->getName(), (int) $area->getId()),
+                    \sprintf('Shipping zone "%s" (ID %d) created', ZipCodeLog::escape((string) $area->getName()), (int) $area->getId()),
                     (int) $area->getId(),
                 ];
             },
@@ -352,7 +352,7 @@ final class AreaController
         $patterns = [];
 
         foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->filterByCountryId($countryIds)->orderByPattern()->find() as $rule) {
-            $patterns[(int) $rule->getCountryId()][] = ($rule->getExcluded() ? 'excluded ' : 'included ').self::forLog((string) $rule->getPattern());
+            $patterns[(int) $rule->getCountryId()][] = ($rule->getExcluded() ? 'excluded ' : 'included ').ZipCodeLog::escape((string) $rule->getPattern());
         }
 
         return $patterns;
@@ -381,7 +381,7 @@ final class AreaController
             'Country %d%s removed from shipping zone "%s" (ID %d)',
             $countryId,
             null === $stateId ? '' : \sprintf(' (state %d)', $stateId),
-            self::forLog((string) $area->getName()),
+            ZipCodeLog::escape((string) $area->getName()),
             (int) $area->getId(),
         );
 
@@ -390,35 +390,6 @@ final class AreaController
         }
 
         return $message.\sprintf(', with its %d postal code rule(s): %s', \count($rulesBefore), implode(', ', $rulesBefore));
-    }
-
-    /**
-     * Text of the merchant's as the administration log carries it, escaped as the core
-     * escapes a postal code pattern for its own log when it knows how
-     * (ZipCodePattern::forLog()), control characters escaped otherwise.
-     */
-    private static function forLog(string $text): string
-    {
-        $zipCodePattern = self::zipCodePatternClass();
-
-        if (method_exists($zipCodePattern, 'forLog')) {
-            $escaped = \call_user_func([$zipCodePattern, 'forLog'], $text);
-
-            if (\is_string($escaped)) {
-                return $escaped;
-            }
-        }
-
-        return addcslashes($text, "\0..\37\177\\");
-    }
-
-    /**
-     * The class of the core that escapes a pattern for the log, by a name the static analysis
-     * does not narrow: a core older than ZipCodePattern::forLog() has the class without it.
-     */
-    private static function zipCodePatternClass(): string
-    {
-        return self::ZIP_CODE_PATTERN;
     }
 
     /** @return array<int, array{country_id: int, state_id: int|null, label: string}> */
