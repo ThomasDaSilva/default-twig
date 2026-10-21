@@ -28,13 +28,19 @@ final class ZipCodeFormat
     /**
      * The characters a regular expression reads as more than themselves.
      */
-    public const string FREE_TEXT_CHARACTERS = '.*?+|[](){}\\';
+    private const FREE_TEXT_CHARACTERS = '.*?+|[](){}\\';
 
     public static function leavesCodesUnchecked(?string $format, bool $required): bool
     {
-        $format = trim((string) $format);
+        // As Country::getZipCodeRE() reads it: empty() (so "0" is no format), and the forms
+        // check nothing when the postal code is not required.
+        if (empty($format) || !$required) {
+            return true;
+        }
 
-        if ('' === $format || !$required) {
+        // Spaces alone: the expression takes nothing but spaces, a blank code that every
+        // rule accepts as unknown.
+        if ('' === trim($format)) {
             return true;
         }
 
