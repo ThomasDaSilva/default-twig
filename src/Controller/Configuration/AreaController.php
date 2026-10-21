@@ -243,6 +243,12 @@ final class AreaController
     #[Route('/country/remove', name: 'country.remove', methods: ['POST'])]
     public function removeCountry(Request $request): Response
     {
+        // Before anything of the zone is read: an administrator who may not change it reads
+        // nothing of it either. tokenAction() checks again, and checks the token.
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
         $areaId = (int) $request->request->get('area_id', 0);
         $area = AreaQuery::create()->findPk($areaId);
         if ($area === null) {
@@ -253,12 +259,6 @@ final class AreaController
         $stateId = ($stateRaw === null || $stateRaw === '' || (int) $stateRaw === 0) ? null : (int) $stateRaw;
         $countryId = (int) $request->request->get('country_id', 0);
         $event = new AreaRemoveCountryEvent($area, [$countryId], $stateId);
-
-        // Checked here as well as by tokenAction(): nothing of the zone is read for an
-        // administrator who may not change it.
-        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
-            return $denied;
-        }
 
         // Read before the removal: the core deletes the rules of a country that leaves. A
         // country the zone does not hold is removed from nothing, and not logged.
