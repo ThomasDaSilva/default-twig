@@ -46,6 +46,8 @@ final class ZipCodeRulesOnAnOlderCoreTest extends WebIntegrationTestCase
 {
     private const string RULE_QUERY = 'Thelia\\Model\\AreaZipCodeRuleQuery';
 
+    private const string INVALID_RULE = 'Thelia\\Domain\\Shipping\\ZipCode\\InvalidZipCodeRuleException';
+
     private AdminSessionInjector $injector;
 
     /**
@@ -123,6 +125,57 @@ final class ZipCodeRulesOnAnOlderCoreTest extends WebIntegrationTestCase
         $this->client->followRedirect();
         $flash = $this->client->getCrawler()->filter('[data-testid="bo-flash-danger"]')->text();
         self::assertStringContainsString('The postal code rule could not be saved. Try again later.', $flash);
+        self::assertStringNotContainsString('Internal detail', $flash);
+    }
+
+    /**
+     * A core that tells its refusals apart: a refused rule is told as the core words it.
+     */
+    public function testARefusedRuleIsToldInTheWordsOfTheCore(): void
+    {
+        $this->skipUnlessTheCoreTellsItsRefusalsApart();
+
+        $this->assertTheAddingFlashes($this->area(), new (self::INVALID_RULE)('A rule can only name a country of its zone.'), 'A rule can only name a country of its zone.');
+    }
+
+    /**
+     * Any other invalid argument is a fault: a general sentence, not its message.
+     */
+    public function testAnotherInvalidArgumentIsToldInAGeneralSentence(): void
+    {
+        $this->skipUnlessTheCoreTellsItsRefusalsApart();
+
+        $this->assertTheAddingFlashes($this->area(), new \InvalidArgumentException('Internal detail of a fault'), 'The postal code rule could not be saved. Try again later.');
+    }
+
+    private function skipUnlessTheCoreTellsItsRefusalsApart(): void
+    {
+        if (!class_exists(self::INVALID_RULE)) {
+            self::markTestSkipped('The core predates the refusal of its own for a postal code rule.');
+        }
+    }
+
+    private function assertTheAddingFlashes(Area $area, \InvalidArgumentException $refusal, string $expected): void
+    {
+        $writer = new class($refusal) {
+            public function __construct(private readonly \InvalidArgumentException $refusal)
+            {
+            }
+
+            public function add(int $areaId, string $pattern, bool $excluded, ?int $countryId): never
+            {
+                throw $this->refusal;
+            }
+        };
+        $this->controllerWith(new ServiceLocator(['writer' => static fn (): object => $writer]));
+        $token = $this->token($area);
+
+        $this->client->request('POST', '/admin/configuration/shipping_configuration/'.$area->getId().'/zip-code-rules', ['pattern' => '20*', 'excluded' => '1', '_token' => $token]);
+
+        self::assertTrue($this->client->getResponse()->isRedirect());
+        $this->client->followRedirect();
+        $flash = $this->client->getCrawler()->filter('[data-testid="bo-flash-danger"]')->text();
+        self::assertStringContainsString($expected, $flash);
         self::assertStringNotContainsString('Internal detail', $flash);
     }
 
