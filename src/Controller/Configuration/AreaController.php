@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Form\Configuration\AreaType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
+use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeFormat;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Propel\Runtime\ActiveQuery\Criteria;
@@ -363,10 +364,12 @@ final class AreaController
     }
 
     /**
-     * The countries of the zone a rule applies to where the address forms check no postal
-     * code format (none set, the postal code not required, or a format holding C, which
-     * stands for any characters): a customer types any code there, or none. An unknown code is accepted by every rule and a mistyped one matches
-     * no exclusion, which the merchant has to know before relying on one.
+     * The countries of the zone a rule applies to whose postal code format leaves codes
+     * unchecked (ZipCodeFormat): none is set, the postal code is not required, or the format
+     * leaves free text (C, or a regular expression character). A code the format does not
+     * describe reaches the rules there: an unknown one is accepted by every rule and a
+     * mistyped one matches no exclusion, which the merchant has to know before relying on
+     * one.
      *
      * @param list<array{id: int, pattern: string, excluded: bool, country_id: int|null, country: string|null, outside_zone: bool}> $rules
      * @param array<int, string>                                                                                               $zoneCountries
@@ -392,11 +395,7 @@ final class AreaController
         $titles = [];
 
         foreach (CountryQuery::create()->filterById(array_keys($countryIds))->find() as $country) {
-            $format = trim((string) $country->getZipCodeFormat());
-
-            // C stands for any characters in a format (".+" in Country::getZipCodeRE()): a
-            // format that holds it lets any code through that part.
-            if ('' === $format || 0 === (int) $country->getNeedZipCode() || str_contains($format, 'C')) {
+            if (ZipCodeFormat::leavesCodesUnchecked($country->getZipCodeFormat(), 0 !== (int) $country->getNeedZipCode())) {
                 $titles[] = $zoneCountries[(int) $country->getId()];
             }
         }
