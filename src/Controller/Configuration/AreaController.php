@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Form\Configuration\AreaType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeFormat;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
@@ -66,6 +67,7 @@ final class AreaController
         private readonly EventDispatcherInterface $events,
         private readonly CountryStateProvider $countryStates,
         private readonly TokenProvider $tokens,
+        private readonly AdminLogger $adminLogger,
     ) {
     }
 
@@ -248,11 +250,10 @@ final class AreaController
 
         $stateRaw = $request->request->get('state_id');
         $stateId = ($stateRaw === null || $stateRaw === '' || (int) $stateRaw === 0) ? null : (int) $stateRaw;
-        $event = new AreaRemoveCountryEvent(
-            $area,
-            [(int) $request->request->get('country_id', 0)],
-            $stateId,
-        );
+        $countryId = (int) $request->request->get('country_id', 0);
+        $event = new AreaRemoveCountryEvent($area, [$countryId], $stateId);
+        // Read before the removal: the core deletes the rules of a country that leaves.
+        $rulesBefore = $this->zipCodeRulePatternsOf($areaId, $countryId);
 
         return $this->action->tokenAction(
             resource: self::RESOURCE,
@@ -263,6 +264,7 @@ final class AreaController
             actionLabel: 'Remove country from shipping zone',
             successRoute: self::EDIT_ROUTE,
             successParameters: ['area_id' => $areaId],
+            describeForLog: fn (): array => [$this->countryRemovalMessage($area, $countryId, $stateId, $rulesBefore), $areaId],
         );
     }
 
@@ -287,11 +289,59 @@ final class AreaController
             $countryPk = (int) $parts[0];
             $statePk = isset($parts[1]) && (int) $parts[1] !== 0 ? (int) $parts[1] : null;
 
+            $rulesBefore = $this->zipCodeRulePatternsOf($areaId, $countryPk);
             $event = new AreaRemoveCountryEvent($area, [$countryPk], $statePk);
             $this->events->dispatch($event, TheliaEvents::AREA_REMOVE_COUNTRY);
+            $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, $this->countryRemovalMessage($area, $countryPk, $statePk, $rulesBefore), $areaId);
         }
 
         return new RedirectResponse($this->urls->generate(self::EDIT_ROUTE, ['area_id' => $areaId]));
+    }
+
+    /**
+     * The postal code rules written for one country of the zone, as the administration log
+     * names them ("excluded 20*"), control characters escaped.
+     *
+     * @return list<string>
+     */
+    private function zipCodeRulePatternsOf(int $areaId, int $countryId): array
+    {
+        // Checked here too: the static analysis of an older core reads this method alone.
+        if (!class_exists(AreaZipCodeRuleQuery::class)) {
+            return [];
+        }
+
+        $patterns = [];
+
+        foreach (AreaZipCodeRuleQuery::create()->filterByAreaId($areaId)->filterByCountryId($countryId)->orderByPattern()->find() as $rule) {
+            $patterns[] = ($rule->getExcluded() ? 'excluded ' : 'included ').addcslashes((string) $rule->getPattern(), "\0..\37\177");
+        }
+
+        return $patterns;
+    }
+
+    /**
+     * What the administration log says of a country removed from a zone: the postal code
+     * rules written for it go with it once the zone no longer holds it, and the merchant
+     * reads which.
+     *
+     * @param list<string> $rulesBefore the rules of the country before the removal
+     */
+    private function countryRemovalMessage(Area $area, int $countryId, ?int $stateId, array $rulesBefore): string
+    {
+        $message = \sprintf(
+            'Country %d%s removed from shipping zone "%s" (ID %d)',
+            $countryId,
+            null === $stateId ? '' : \sprintf(' (state %d)', $stateId),
+            (string) $area->getName(),
+            (int) $area->getId(),
+        );
+
+        if ([] === $rulesBefore || [] !== $this->zipCodeRulePatternsOf((int) $area->getId(), $countryId)) {
+            return $message;
+        }
+
+        return $message.\sprintf(', with its %d postal code rule(s): %s', \count($rulesBefore), implode(', ', $rulesBefore));
     }
 
     /** @return array<int, array{country_id: int, state_id: int|null, label: string}> */
