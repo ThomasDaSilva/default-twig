@@ -46,7 +46,7 @@ final class ZipCodeRulesOnAnOlderCoreTest extends WebIntegrationTestCase
 {
     private const string RULE_QUERY = 'Thelia\\Model\\AreaZipCodeRuleQuery';
 
-    private const string INVALID_RULE = 'Thelia\\Domain\\Shipping\\ZipCode\\InvalidZipCodeRuleException';
+    private const string INVALID_RULE = 'Thelia\\Domain\\Shipping\\ZipCode\\Exception\\InvalidZipCodeRuleException';
 
     private AdminSessionInjector $injector;
 

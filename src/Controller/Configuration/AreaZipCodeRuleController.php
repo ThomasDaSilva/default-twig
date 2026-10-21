@@ -48,7 +48,7 @@ final class AreaZipCodeRuleController
     private const RESOURCE = AdminResources::AREA;
     private const EDIT_ROUTE = 'admin.configuration.shipping-configuration.update.view';
     private const WRITER = 'Thelia\\Domain\\Shipping\\ZipCode\\AreaZipCodeRuleWriter';
-    private const INVALID_RULE = 'Thelia\\Domain\\Shipping\\ZipCode\\InvalidZipCodeRuleException';
+    private const INVALID_RULE = 'Thelia\\Domain\\Shipping\\ZipCode\\Exception\\InvalidZipCodeRuleException';
 
     public function __construct(
         private readonly AdminAccessChecker $access,
