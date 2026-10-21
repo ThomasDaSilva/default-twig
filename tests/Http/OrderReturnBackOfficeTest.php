@@ -14,8 +14,6 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
-use BackOfficeDefaultTwigBundle\Event\OrderReturnListEvent;
-use BackOfficeDefaultTwigBundle\UiComponents\DataTable\Column;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Action\OrderReturn as OrderReturnAction;
 use Thelia\Core\Security\AccessManager;
@@ -132,7 +130,13 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertStringContainsString('Size: XL', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'The line names the values of the ordered combination.');
         self::assertStringContainsString("×\u{a0}2", $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'Two units go back.');
         self::assertSame('Damaged on arrival', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()));
-        self::assertSame('Refund', trim($row->filter('[data-testid="datatable-order-returns-cell-resolution"]')->text()));
+        self::assertSame('Refund', trim($row->filter('[data-testid="datatable-order-returns-cell-resolution_html"]')->text()));
+
+        $orderCell = $row->filter('[data-testid="datatable-order-returns-cell-order_html"]');
+        self::assertStringContainsString((string) $return->getOrder()->getRef(), $orderCell->text());
+        self::assertSame((string) $return->getRef(), trim($orderCell->filter('.text-muted.small [data-testid="bo-order-return-ref-link"]')->text()), 'The return reference sits under the order.');
+        self::assertCount(1, $orderCell->filter('.text-muted.small time'), 'So does the date it was asked for.');
+        self::assertCount(0, $crawler->filter('[data-testid="datatable-order-returns-cell-ref_html"], [data-testid="datatable-order-returns-cell-date_html"]'), 'No column of their own.');
 
         $reason = $row->filter('[data-testid="datatable-order-returns-cell-reason"] .bo-datatable__wrap');
         self::assertCount(1, $reason, 'A reason typed by a person breaks over several lines instead of widening the grid.');
@@ -175,12 +179,81 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertNotContains('Reason', $labels, 'A return without a reason shows no reason label in its details.');
 
         $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
-        self::assertCount(0, $row->filter('[data-testid="datatable-order-returns-cell-resolution"] .bo-datatable__wrap'), 'A one-word resolution does not break.');
+        self::assertCount(0, $row->filter('[data-testid="datatable-order-returns-cell-resolution_html"] .bo-datatable__wrap'), 'A one-word resolution does not break.');
         $cellKeys = $row->filter('td')->each(static fn ($cell): string => (string) $cell->attr('data-testid'));
-        $resolutionIndex = array_search('datatable-order-returns-cell-resolution', $cellKeys, true);
+        $resolutionIndex = array_search('datatable-order-returns-cell-resolution_html', $cellKeys, true);
         self::assertIsInt($resolutionIndex);
         $resolutionHeader = $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')->eq($resolutionIndex);
         self::assertStringContainsString('bo-datatable__wrap-head', (string) $resolutionHeader->attr('class'), 'Its two-word header breaks.');
+    }
+
+    public function testTheQueueShowsTheWishedExchange(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn(resolution: OrderReturn::RESOLUTION_EXCHANGE, expectedExchange: 'The same one in "size" <b>L</b>.');
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        $resolution = $row->filter('[data-testid="datatable-order-returns-cell-resolution_html"]');
+        self::assertSame('Exchange', trim($resolution->filter('div')->first()->text()));
+        $wish = $resolution->filter('[data-testid="bo-order-return-expected-exchange"]');
+        self::assertSame('The same one in "size" <b>L</b>.', trim($wish->text()), 'The wish sits under the resolution, escaped.');
+        self::assertCount(0, $wish->filter('b'), 'The markup a customer types is never rendered.');
+        self::assertSame('The same one in "size" <b>L</b>.', $wish->attr('title'), 'Its whole text stays reachable once cut to four lines, the quotes escaped in the attribute.');
+    }
+
+    public function testAWishLeftOnARefundIsNotShown(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn(resolution: OrderReturn::RESOLUTION_REFUND, expectedExchange: 'The same one in size L.');
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        self::assertCount(0, $row->filter('[data-testid="bo-order-return-expected-exchange"]'), 'A refund is not something the shop sends in exchange.');
+
+        $crawler = $this->client->request('GET', '/admin/return/'.$return->getId());
+        self::assertCount(0, $crawler->filter('[data-testid="order-return-expected-exchange"]'));
+    }
+
+    public function testWithoutAReasonTheQueueGivesTheCustomersOwnWords(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn(comment: 'The jacket is too tight.');
+        $return->setReasonId(null)->setReasonTitle(null)->save($this->getPropelConnection());
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+
+        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
+        self::assertSame('The jacket is too tight.', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()));
+    }
+
+    public function testTheExportButtonIsOfferedToAnAdministratorWhoMayExport(): void
+    {
+        $this->loginFullAdmin();
+        $this->requestedReturn();
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+
+        $button = $crawler->filter('[data-testid="order-return-export"]');
+        self::assertCount(1, $button);
+        self::assertStringEndsWith('/admin/export', (string) $button->attr('href'), 'The button opens the exports, the returns one among them.');
+    }
+
+    public function testNoExportButtonWithoutTheExportPermission(): void
+    {
+        $admin = $this->factory->restrictedAdmin([
+            AdminResources::ORDER_RETURN => [AccessManager::VIEW],
+        ]);
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+        $this->requestedReturn();
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertCount(0, $crawler->filter('[data-testid="order-return-export"]'));
     }
 
     public function testTheQueueFiltersByExpectedResolution(): void
@@ -225,45 +298,6 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertStringContainsString('&lt;script&gt;', $html);
     }
 
-    public function testAModuleReshapesTheQueue(): void
-    {
-        $this->loginFullAdmin();
-        [$return] = $this->requestedReturn();
-
-        $this->getService(EventDispatcherInterface::class)->addListener(
-            OrderReturnListEvent::class,
-            static function (OrderReturnListEvent $event): void {
-                $event->removeColumn('ref_html');
-                $event->insertColumnAfter('resolution', new Column('wish', 'Wished product'));
-                $event->setRows(array_map(
-                    static fn (array $row): array => $row + ['wish' => 'Wish of return '.$row['id']],
-                    $event->getRows(),
-                ));
-                $event->addHeaderAction('Export the returns', '/admin/export/42', 'bi-download');
-            },
-        );
-
-        $crawler = $this->client->request('GET', '/admin/returns');
-        self::assertSame(200, $this->client->getResponse()->getStatusCode());
-
-        $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
-        $cells = $row->filter('td[data-testid^="datatable-order-returns-cell-"]')->each(
-            static fn ($cell): string => substr((string) $cell->attr('data-testid'), \strlen('datatable-order-returns-cell-')),
-        );
-        self::assertNotContains('ref_html', $cells, 'A removed column leaves the table.');
-        $resolution = array_search('resolution', $cells, true);
-        self::assertIsInt($resolution);
-        self::assertSame('wish', $cells[$resolution + 1], 'The column sits where the module placed it.');
-        self::assertContains('Wished product', $crawler->filter('[data-testid="datatable-order-returns-table"] thead th')->each(
-            static fn ($header): string => trim($header->text()),
-        ));
-        self::assertSame('Wish of return '.$return->getId(), trim($row->filter('[data-testid="datatable-order-returns-cell-wish"]')->text()));
-
-        $action = $crawler->filter('[data-testid="order-return-header-action"][href="/admin/export/42"]');
-        self::assertCount(1, $action);
-        self::assertStringContainsString('Export the returns', $action->text());
-    }
-
     public function testTheSheetShowsTheRequestAndOffersTheCycleActions(): void
     {
         $this->loginFullAdmin();
@@ -281,6 +315,17 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
             $html,
             'A requested return cannot jump straight to settled: the actions come from the state machine.',
         );
+    }
+
+    public function testTheSheetShowsTheWishedExchange(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn(resolution: OrderReturn::RESOLUTION_EXCHANGE, expectedExchange: 'The same one in size <b>L</b>.');
+
+        $crawler = $this->client->request('GET', '/admin/return/'.$return->getId());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        self::assertSame('The same one in size <b>L</b>.', trim($crawler->filter('[data-testid="order-return-expected-exchange"]')->text()), 'Shown, escaped.');
     }
 
     public function testTheCustomerCommentIsEscapedOnTheSheet(): void
@@ -423,6 +468,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         string $comment = 'The parcel arrived open.',
         string $resolution = OrderReturn::RESOLUTION_REFUND,
         string $productTitle = 'A returnable product',
+        ?string $expectedExchange = null,
     ): array {
         $connection = $this->getPropelConnection();
 
@@ -444,6 +490,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
             ->setOrderReturnReason($this->reason('Damaged on arrival'))
             ->setReasonTitle('Damaged on arrival')
             ->setCustomerComment($comment)
+            ->setExpectedExchange($expectedExchange)
             ->setExpectedResolution($resolution);
         $return->save($connection);
 

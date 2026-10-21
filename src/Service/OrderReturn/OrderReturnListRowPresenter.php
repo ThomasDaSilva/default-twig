@@ -94,53 +94,47 @@ final readonly class OrderReturnListRowPresenter
         $effectiveCode = $status->getEffectiveCode();
 
         return [
-            OrderReturnListColumns::ID => $returnId,
-            OrderReturnListColumns::REFERENCE => (string) $orderReturn->getRef(),
-            OrderReturnListColumns::REF => $this->renderRef($orderReturn, $returnId),
-            OrderReturnListColumns::ORDER => $this->renderOrder($orderReturn),
-            OrderReturnListColumns::CUSTOMER => $this->renderCustomer($orderReturn),
-            OrderReturnListColumns::PRODUCTS => $this->renderProducts($lines[$returnId] ?? []),
-            OrderReturnListColumns::REASON => $this->reasonTitle($orderReturn, $reasonTitles),
-            OrderReturnListColumns::RESOLUTION => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
-            OrderReturnListColumns::STATUS_TITLE => (string) $status->getTitle(),
-            OrderReturnListColumns::STATUS => $effectiveCode,
-            OrderReturnListColumns::STATUS_COLOR => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
-            OrderReturnListColumns::REFUND_AMOUNT => $this->formatAmount($orderReturn, $locale),
-            OrderReturnListColumns::DATE => $this->renderDate($orderReturn),
-            OrderReturnListColumns::ACTIONS => $this->buildActions($returnId, $effectiveCode),
+            'id' => $returnId,
+            'ref' => (string) $orderReturn->getRef(),
+            'order_html' => $this->renderOrder($orderReturn, $returnId),
+            'customer_html' => $this->renderCustomer($orderReturn),
+            'products_html' => $this->renderProducts($lines[$returnId] ?? []),
+            'reason' => $this->reason($orderReturn, $reasonTitles),
+            'resolution_html' => $this->renderResolution($orderReturn),
+            'status' => (string) $status->getTitle(),
+            'status_code' => $effectiveCode,
+            'status_color' => (string) ($status->getColor() ?: self::FALLBACK_STATUS_COLOR),
+            'refund_amount' => $this->formatAmount($orderReturn, $locale),
+            '_actions' => $this->buildActions($returnId, $effectiveCode),
         ];
     }
 
-    private function renderRef(OrderReturn $orderReturn, int $returnId): string
-    {
-        $href = $this->urls->generate(self::DETAIL_ROUTE, ['order_return_id' => $returnId]);
-        $ref = (string) $orderReturn->getRef();
-
-        $link = \sprintf(
-            '<a href="%s" class="fw-semibold text-decoration-none" data-testid="bo-order-return-ref-link">%s</a>',
-            htmlspecialchars($href, \ENT_QUOTES | \ENT_HTML5),
-            htmlspecialchars($ref !== '' ? $ref : '#'.$returnId, \ENT_QUOTES | \ENT_HTML5),
-        );
-
-        if (!$orderReturn->getCreatedByAdmin()) {
-            return $link;
-        }
-
-        return $link.\sprintf(
-            '<div class="text-muted small"><i class="bi bi-shop me-1" aria-hidden="true"></i>%s</div>',
-            htmlspecialchars($this->translator->trans('Opened by the merchant'), \ENT_QUOTES | \ENT_HTML5),
-        );
-    }
-
-    private function renderOrder(OrderReturn $orderReturn): string
+    /**
+     * The order the return is about, with the reference of the return and the date
+     * it was asked for underneath, and a mark when the merchant opened it.
+     */
+    private function renderOrder(OrderReturn $orderReturn, int $returnId): string
     {
         // order_id is a required column behind a RESTRICT foreign key.
         $order = $orderReturn->getOrder();
+        $ref = (string) $orderReturn->getRef();
 
-        return \sprintf(
-            '<a href="%s" class="text-decoration-none">%s</a>',
+        $html = \sprintf(
+            '<a href="%s" class="text-decoration-none">%s</a><div class="text-muted small"><a href="%s" class="text-reset text-decoration-none" data-testid="bo-order-return-ref-link">%s</a></div><div class="text-muted small">%s</div>',
             htmlspecialchars($this->urls->generate(self::ORDER_ROUTE, ['order_id' => (int) $order->getId()]), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $order->getRef(), \ENT_QUOTES | \ENT_HTML5),
+            htmlspecialchars($this->urls->generate(self::DETAIL_ROUTE, ['order_return_id' => $returnId]), \ENT_QUOTES | \ENT_HTML5),
+            htmlspecialchars($ref !== '' ? $ref : '#'.$returnId, \ENT_QUOTES | \ENT_HTML5),
+            $this->renderDate($orderReturn),
+        );
+
+        if (!$orderReturn->getCreatedByAdmin()) {
+            return $html;
+        }
+
+        return $html.\sprintf(
+            '<div class="text-muted small"><i class="bi bi-shop me-1" aria-hidden="true"></i>%s</div>',
+            htmlspecialchars($this->translator->trans('Opened by the merchant'), \ENT_QUOTES | \ENT_HTML5),
         );
     }
 
@@ -205,15 +199,43 @@ final readonly class OrderReturnListRowPresenter
     }
 
     /**
+     * What the customer expects in return, with what they wish to receive underneath
+     * when they asked for an exchange. A wish kept on a return switched to a refund
+     * since is not something the shop sends: it is left out.
+     */
+    private function renderResolution(OrderReturn $orderReturn): string
+    {
+        $html = \sprintf('<div>%s</div>', htmlspecialchars($this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()), \ENT_QUOTES | \ENT_HTML5));
+        $wish = trim((string) $orderReturn->getExpectedExchange());
+
+        if ($wish === '' || $orderReturn->getExpectedResolution() !== OrderReturn::RESOLUTION_EXCHANGE) {
+            return $html;
+        }
+
+        $wish = htmlspecialchars($wish, \ENT_QUOTES | \ENT_HTML5);
+
+        return $html.\sprintf(
+            '<div class="text-muted small bo-datatable__wrap bo-datatable__clamp" title="%s" data-testid="bo-order-return-expected-exchange">%s</div>',
+            $wish,
+            $wish,
+        );
+    }
+
+    /**
+     * Why the customer sends the goods back: the reason picked in the shop's list,
+     * or their own words when they picked none.
+     *
      * @param array<int, string> $reasonTitles
      */
-    private function reasonTitle(OrderReturn $orderReturn, array $reasonTitles): string
+    private function reason(OrderReturn $orderReturn, array $reasonTitles): string
     {
         $title = $reasonTitles[(int) $orderReturn->getReasonId()] ?? '';
 
         // The reason may have been deleted since: the return keeps the label it
         // was opened with.
-        return $title !== '' ? $title : (string) $orderReturn->getReasonTitle();
+        $title = $title !== '' ? $title : (string) $orderReturn->getReasonTitle();
+
+        return $title !== '' ? $title : trim((string) $orderReturn->getCustomerComment());
     }
 
     private function renderDate(OrderReturn $orderReturn): string

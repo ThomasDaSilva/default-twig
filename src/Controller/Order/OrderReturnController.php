@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Controller\Order;
 
-use BackOfficeDefaultTwigBundle\Event\OrderReturnListEvent;
 use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
@@ -22,7 +21,6 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnDetailPresenter;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnFilters;
-use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnListColumns;
 use BackOfficeDefaultTwigBundle\Service\OrderReturn\OrderReturnListRowPresenter;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -30,7 +28,6 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
-use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Event\OrderReturn\OrderReturnEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
@@ -73,8 +70,6 @@ final class OrderReturnController
         private readonly OrderReturnStateMachine $stateMachine,
         private readonly OrderReturnRepository $returns,
         private readonly OrderReturnListRowPresenter $rowPresenter,
-        private readonly OrderReturnListColumns $listColumns,
-        private readonly EventDispatcherInterface $events,
         private readonly OrderReturnFilterPresenter $filterPresenter,
         private readonly OrderReturnDetailPresenter $detailPresenter,
         private readonly OrderAccess $orderAccess,
@@ -96,17 +91,8 @@ final class OrderReturnController
 
         $paginated = $this->returns->findPaginated($filters, $page, self::PAGE_SIZE);
 
-        $table = new OrderReturnListEvent(
-            $this->listColumns->columns(),
-            $this->rowPresenter->presentAll($paginated['rows'], $locale),
-            $locale,
-        );
-        $this->events->dispatch($table);
-
         return new Response($this->twig->render(self::LIST_TEMPLATE, [
-            'columns' => $table->getColumns(),
-            'rows' => $table->getRows(),
-            'header_actions' => $table->getHeaderActions(),
+            'rows' => $this->rowPresenter->presentAll($paginated['rows'], $locale),
             'total' => $paginated['total'],
             'pages' => $paginated['lastPage'],
             'current_page' => min($page, $paginated['lastPage']),

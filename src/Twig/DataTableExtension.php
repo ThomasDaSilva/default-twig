@@ -58,9 +58,12 @@ final class DataTableExtension extends AbstractExtension
         return new Column($key, $label, ColumnKind::TEXT, $cellAlign, $options, sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
     }
 
-    public function htmlColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always'): Column
+    /**
+     * $wrapHead breaks the header over several lines, for a short value under a long title.
+     */
+    public function htmlColumn(string $key, string $label, string $cellAlign = 'start', ?string $sortKey = null, ?string $hideBelow = null, string $visibleFrom = 'always', bool $wrapHead = false): Column
     {
-        return new Column($key, $label, ColumnKind::HTML, $cellAlign, sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
+        return new Column($key, $label, ColumnKind::HTML, $cellAlign, $wrapHead ? ['wrap_head' => true] : [], sortKey: $sortKey, hideBelow: $hideBelow, visibleFrom: $visibleFrom);
     }
 
     /**

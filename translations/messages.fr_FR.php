@@ -228,6 +228,7 @@ return [
     'Exchange' => 'Échange',
     'Exempt from trade register registration (RCS and RM)' => 'Dispensé d\'immatriculation au registre du commerce (RCS et RM)',
     'Expected' => 'Attendu',
+    'Expected exchange' => 'Échange souhaité',
     'Expected resolution' => 'Solution attendue',
     'Export the daily detail' => 'Exporter le détail par jour',
     'Fill in the fields above to see the rule in plain words.' => 'Renseignez les champs ci-dessus pour lire la règle en clair.',

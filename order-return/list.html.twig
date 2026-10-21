@@ -26,12 +26,12 @@
                             <i class="bi {{ chip.icon }} me-1" aria-hidden="true"></i>{{ chip.label }}
                         </a>
                     {% endfor %}
-                    {% for action in header_actions %}
-                        <a class="btn btn-sm btn-outline-primary" href="{{ action.url }}"
-                           data-testid="order-return-header-action">
-                            <i class="bi {{ action.icon }} me-1" aria-hidden="true"></i>{{ action.label }}
+                    {% if is_granted('VIEW', 'admin.export') %}
+                        <a class="btn btn-sm btn-outline-primary" href="{{ path('export.list') }}"
+                           data-testid="order-return-export">
+                            <i class="bi bi-download me-1" aria-hidden="true"></i>{{ 'Export'|trans }}
                         </a>
-                    {% endfor %}
+                    {% endif %}
                 </div>
             {% endblock %}
         {% endembed %}
@@ -173,7 +173,16 @@
         <div class="mt-3">
             {{ component('BoDataTable', {
                 id: 'order-returns',
-                columns: columns,
+                columns: [
+                    column_html('order_html', 'Order'|trans, 'start', 'created_at'),
+                    column_html('customer_html', 'Customer'|trans, visibleFrom: 'lg'),
+                    column_html('products_html', 'Products'|trans, visibleFrom: 'lg'),
+                    column_text('reason', 'Reason'|trans, visibleFrom: 'xl', wrap: true),
+                    column_html('resolution_html', 'Expected resolution'|trans, visibleFrom: 'xl', wrapHead: true),
+                    column_badge('status_code', 'Status'|trans, {}, 'start', 'status', 'status_color', visibleFrom: 'sm'),
+                    column_text('refund_amount', 'Refundable'|trans, 'end', 'refund_amount', visibleFrom: 'md'),
+                    column_actions('_actions', 'Actions'|trans),
+                ],
                 rows: rows,
                 emptyMessage: 'No return matches the current filters.'|trans,
                 sortField: filters.sort_field,
@@ -181,7 +190,7 @@
                 sortParam: 'order',
                 sortDirectionParam: 'direction',
                 sortKeepParams: query_params,
-                rowIdentifierKey: constant('BackOfficeDefaultTwigBundle\\Service\\OrderReturn\\OrderReturnListColumns::REFERENCE'),
+                rowIdentifierKey: 'ref',
             }) }}
 
             {{ component('BoPagination', {
