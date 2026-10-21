@@ -30,6 +30,8 @@ final class ZipCodeFormatTest extends TestCase
     public static function formats(): iterable
     {
         yield 'no format' => [null, true, true];
+        yield 'a format of "0", no format to the core' => ['0', true, true];
+        yield 'spaces only, which take nothing but a blank code' => ['   ', true, true];
         yield 'a blank format' => ['  ', true, true];
         yield 'a format the forms do not check' => ['NNNNN', false, true];
         yield 'any characters then digits' => ['CNNN', true, true];
@@ -45,5 +47,21 @@ final class ZipCodeFormatTest extends TestCase
     public function testAFormatLeavesCodesUncheckedWhenItLeavesFreeText(?string $format, bool $required, bool $unchecked): void
     {
         self::assertSame($unchecked, ZipCodeFormat::leavesCodesUnchecked($format, $required));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function regularExpressionCharacters(): iterable
+    {
+        foreach (str_split('.*?+|[](){}\\') as $character) {
+            yield $character => [$character];
+        }
+    }
+
+    #[DataProvider('regularExpressionCharacters')]
+    public function testEveryRegularExpressionCharacterLeavesFreeText(string $character): void
+    {
+        self::assertTrue(ZipCodeFormat::leavesCodesUnchecked('NN'.$character.'NN', true));
     }
 }
