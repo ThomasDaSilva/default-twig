@@ -369,7 +369,7 @@ final class WebhookSubscriptionController
             'id' => $id,
             'title' => (string) $subscription->getTitle(),
             'url' => \is_string($host) ? $host : '',
-            'events' => implode('', array_map(static fn (string $name): string => '<span class="d-block text-wrap text-break">'.htmlspecialchars($name, \ENT_QUOTES).'</span>', $this->eventNames($subscription))),
+            'events' => implode('', array_map(static fn (string $name): string => '<span class="d-block text-wrap">'.htmlspecialchars($name, \ENT_QUOTES).'</span>', $this->eventNames($subscription))),
             'status' => $status,
             'status_label' => match ($status) {
                 WebhookStatus::SUBSCRIPTION_ACTIVE => $this->translator->trans('Active'),
