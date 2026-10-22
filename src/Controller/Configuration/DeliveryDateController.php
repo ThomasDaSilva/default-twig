@@ -313,7 +313,7 @@ final class DeliveryDateController
                 ? $exception->getMessage()
                 : $this->translator->trans('The delivery dates could not be saved. Please try again.');
 
-            $this->errorRenderer->setup($this->translator->trans($actionLabel), $shown, null, $exception);
+            $this->errorRenderer->refuse($this->translator->trans($actionLabel), $shown, null, $exception);
         }
 
         return new RedirectResponse($backTo);
