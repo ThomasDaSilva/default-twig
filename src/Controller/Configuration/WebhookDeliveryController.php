@@ -205,6 +205,7 @@ final class WebhookDeliveryController
             'status_label' => match ($status) {
                 WebhookStatus::DELIVERY_SUCCEEDED => $this->translator->trans('Succeeded'),
                 WebhookStatus::DELIVERY_FAILED => $this->translator->trans('Failed'),
+                WebhookStatus::DELIVERY_CANCELLED => $this->translator->trans('Not sent'),
                 default => $this->translator->trans('Pending'),
             },
             'response_code' => null === $row['ResponseCode'] ? '-' : (string) $row['ResponseCode'],

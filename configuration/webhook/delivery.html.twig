@@ -27,7 +27,7 @@
                     <dt class="col-sm-3">{{ 'Event'|trans }}</dt>
                     <dd class="col-sm-9">{{ delivery.event }}</dd>
                     <dt class="col-sm-3">{{ 'Status'|trans }}</dt>
-                    <dd class="col-sm-9" data-testid="webhook-delivery-status">{{ { pending: 'Pending'|trans, succeeded: 'Succeeded'|trans, failed: 'Failed'|trans }[delivery.status] ?? delivery.status }}</dd>
+                    <dd class="col-sm-9" data-testid="webhook-delivery-status">{{ { pending: 'Pending'|trans, succeeded: 'Succeeded'|trans, failed: 'Failed'|trans, cancelled: 'Not sent'|trans }[delivery.status] ?? delivery.status }}</dd>
                     <dt class="col-sm-3">{{ 'Attempts'|trans }}</dt>
                     <dd class="col-sm-9">{{ delivery.attempts }}</dd>
                     <dt class="col-sm-3">{{ 'HTTP code'|trans }}</dt>

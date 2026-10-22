@@ -2793,6 +2793,9 @@ return [
     'Signing secret' => 'Secret de signature',
     'Subscription' => 'Abonnement',
     'Succeeded' => 'Réussi',
+    'Not sent' => 'Non envoyé',
+    'This state cannot be chosen: only an exhausted delivery puts a subscription in error.' => 'Cet état ne peut pas être choisi : seul un envoi épuisé met un abonnement en erreur.',
+    'The subscription of the form is not the one of the page.' => 'L\'abonnement du formulaire n\'est pas celui de la page.',
     'Test the configuration' => 'Tester la configuration',
     'The current secret stops working at once: the receiver must be given the new one. Continue?' => 'Le secret actuel cesse de fonctionner aussitôt : le destinataire doit recevoir le nouveau. Continuer ?',
     'The receiver answered %code%. The test request is in the delivery log.' => 'Le destinataire a répondu %code%. La requête d\'essai est dans le journal des envois.',
@@ -2817,4 +2820,6 @@ return [
     'Too many replays in a row. Try again in a few minutes.' => 'Trop de rejeux à la suite. Réessayez dans quelques minutes.',
     'The delivery could not be replayed.' => 'L\'envoi n\'a pas pu être rejoué.',
     'The delivery was queued again: its result appears in the log.' => 'L\'envoi a été remis en file : son résultat apparaît dans le journal.',
+    'No message queue is configured.' => 'Aucune file de messages n\'est configurée.',
+    'Each request is sent while the action that raised the event is being saved, a slow receiver slows that action down by up to 10 seconds, and a failed request is not sent again.' => 'Chaque requête part pendant l\'enregistrement de l\'action qui a levé l\'événement, un destinataire lent la ralentit de 10 secondes au plus, et une requête en échec n\'est pas renvoyée.',
 ];

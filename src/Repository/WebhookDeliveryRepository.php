@@ -67,6 +67,6 @@ final readonly class WebhookDeliveryRepository
      */
     public function knownStatuses(): array
     {
-        return [WebhookStatus::DELIVERY_PENDING, WebhookStatus::DELIVERY_SUCCEEDED, WebhookStatus::DELIVERY_FAILED];
+        return [WebhookStatus::DELIVERY_PENDING, WebhookStatus::DELIVERY_SUCCEEDED, WebhookStatus::DELIVERY_FAILED, WebhookStatus::DELIVERY_CANCELLED];
     }
 }

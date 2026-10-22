@@ -29,15 +29,22 @@
             </div>
         </div>
 
+        {% if runs_inline %}
+            <div class="alert alert-warning" role="alert" data-testid="webhook-inline-banner">
+                <strong>{{ 'No message queue is configured.'|trans }}</strong>
+                {{ 'Each request is sent while the action that raised the event is being saved, a slow receiver slows that action down by up to 10 seconds, and a failed request is not sent again.'|trans }}
+            </div>
+        {% endif %}
+
         {{ component('BoDataTable', {
             id: 'webhooks',
             columns: [
                 column('id', 'ID'|trans, 'start', 'id', hideBelow: 'md'),
                 column('title', 'Title'|trans, 'start', 'title'),
                 column('url', 'Receiver'|trans, 'start', hideBelow: 'md'),
-                column('events', 'Events'|trans, 'start', hideBelow: 'xl'),
+                column_html('events', 'Events'|trans, 'start', hideBelow: 'xl'),
                 column_badge('status', 'Status'|trans, { active: 'success', inactive: 'secondary', error: 'danger' }, 'start', 'status_label', sortKey: 'status'),
-                column('failure', 'Failure'|trans, 'start', hideBelow: 'lg'),
+                column_html('failure', 'Failure'|trans, 'start', hideBelow: 'lg'),
                 column('last_success', 'Last successful delivery'|trans, 'start', hideBelow: 'lg'),
                 column_actions('_actions', 'Actions'|trans),
             ],

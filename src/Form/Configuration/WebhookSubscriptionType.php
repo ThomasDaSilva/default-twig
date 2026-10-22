@@ -75,6 +75,7 @@ final class WebhookSubscriptionType extends AbstractType
             ])
             ->add('status', ChoiceType::class, [
                 'choices' => $statuses,
+                'invalid_message' => $this->translator->trans('This state cannot be chosen: only an exhausted delivery puts a subscription in error.'),
                 'constraints' => [new NotBlank()],
                 'label' => $this->translator->trans('Status'),
             ]);

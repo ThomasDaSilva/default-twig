@@ -42,7 +42,7 @@
                 <select name="status" id="delivery-status-filter" class="form-select">
                     <option value="">{{ 'All'|trans }}</option>
                     {% for status in statuses %}
-                        <option value="{{ status }}"{% if status == current_status %} selected{% endif %}>{{ { pending: 'Pending'|trans, succeeded: 'Succeeded'|trans, failed: 'Failed'|trans }[status] }}</option>
+                        <option value="{{ status }}"{% if status == current_status %} selected{% endif %}>{{ { pending: 'Pending'|trans, succeeded: 'Succeeded'|trans, failed: 'Failed'|trans, cancelled: 'Not sent'|trans }[status] }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -60,7 +60,7 @@
                 column('created_at', 'Date'|trans, 'start'),
                 column('subscription', 'Subscription'|trans, 'start', hideBelow: 'md'),
                 column('event', 'Event'|trans, 'start'),
-                column_badge('status', 'Status'|trans, { succeeded: 'success', failed: 'danger', pending: 'warning' }, 'start', 'status_label'),
+                column_badge('status', 'Status'|trans, { succeeded: 'success', failed: 'danger', pending: 'warning', cancelled: 'secondary' }, 'start', 'status_label'),
                 column('response_code', 'HTTP code'|trans, 'center', hideBelow: 'lg'),
                 column('attempts', 'Attempts'|trans, 'center', hideBelow: 'xl'),
                 column('duration', 'Duration'|trans, 'end', hideBelow: 'xl'),

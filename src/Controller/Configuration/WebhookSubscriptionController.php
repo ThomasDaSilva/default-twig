@@ -40,6 +40,7 @@ use Thelia\Core\Security\SecurityContext;
 use Thelia\Core\Security\User\UserInterface;
 use Thelia\Domain\Webhook\Event\WebhookSubscriptionEvent;
 use Thelia\Domain\Webhook\EventListener\WebhookSubscriptionListener;
+use Thelia\Domain\Webhook\WebhookDeliveryTransport;
 use Thelia\Domain\Webhook\WebhookStatus;
 use Thelia\Model\WebhookDeliveryQuery;
 use Thelia\Model\WebhookSubscription;
@@ -70,6 +71,7 @@ final class WebhookSubscriptionController
         private readonly EventDispatcherInterface $events,
         private readonly TokenProvider $tokens,
         private readonly SecurityContext $securityContext,
+        private readonly WebhookDeliveryTransport $deliveryTransport,
         #[Target('webhook_test')]
         private readonly RateLimiterFactoryInterface $testLimiter,
     ) {
@@ -107,6 +109,7 @@ final class WebhookSubscriptionController
         return new Response($this->twig->render(self::LIST_TEMPLATE, [
             'rows' => $rows,
             'create_form' => $createForm->createView(),
+            'runs_inline' => $this->deliveryTransport->runsInline(),
             'sort_field' => $sort->field,
             'sort_direction' => $sort->direction,
         ]));
@@ -169,7 +172,7 @@ final class WebhookSubscriptionController
             access: AccessManager::UPDATE,
             form: $form,
             eventName: TheliaEvents::WEBHOOK_SUBSCRIPTION_UPDATE,
-            eventFactory: fn (FormInterface $validated): WebhookSubscriptionEvent => $this->subscriptionEvent($validated, $this->findOrFail((int) ($validated->getData()['id'] ?? 0))),
+            eventFactory: fn (FormInterface $validated): WebhookSubscriptionEvent => $this->subscriptionEvent($validated, $this->findOfThePage($webhookId, (int) ($validated->getData()['id'] ?? 0))),
             actionLabel: 'Webhook subscription update',
             successRoute: self::EDIT_ROUTE,
             successParameters: ['webhook_id' => $webhookId],
@@ -289,6 +292,15 @@ final class WebhookSubscriptionController
         return null === $subscription ? $event : $event->setSubscription($subscription);
     }
 
+    private function findOfThePage(int $pageId, int $formId): WebhookSubscription
+    {
+        if ($pageId !== $formId) {
+            throw new \InvalidArgumentException($this->translator->trans('The subscription of the form is not the one of the page.'));
+        }
+
+        return $this->findOrFail($pageId);
+    }
+
     private function findOrFail(int $id): WebhookSubscription
     {
         return WebhookSubscriptionQuery::create()->findPk($id) ?? throw new \LogicException('Webhook subscription not found');
@@ -357,7 +369,7 @@ final class WebhookSubscriptionController
             'id' => $id,
             'title' => (string) $subscription->getTitle(),
             'url' => \is_string($host) ? $host : '',
-            'events' => implode(', ', $this->eventNames($subscription)),
+            'events' => implode('', array_map(static fn (string $name): string => '<span class="d-block text-wrap text-break">'.htmlspecialchars($name, \ENT_QUOTES).'</span>', $this->eventNames($subscription))),
             'status' => $status,
             'status_label' => match ($status) {
                 WebhookStatus::SUBSCRIPTION_ACTIVE => $this->translator->trans('Active'),
@@ -365,7 +377,7 @@ final class WebhookSubscriptionController
                 default => $this->translator->trans('Inactive'),
             },
             'last_success' => null === $lastSuccess ? $this->translator->trans('Never') : $lastSuccess,
-            'failure' => WebhookStatus::SUBSCRIPTION_ERROR === $status ? (string) $subscription->getFailureReason() : '',
+            'failure' => WebhookStatus::SUBSCRIPTION_ERROR === $status ? '<span class="d-block text-wrap text-break">'.htmlspecialchars((string) $subscription->getFailureReason(), \ENT_QUOTES).'</span>' : '',
             '_actions' => [
                 new RowAction(kind: 'edit', label: $this->translator->trans('Edit'), href: $this->urls->generate(self::EDIT_ROUTE, ['webhook_id' => $id]), grantedAttribute: AccessManager::UPDATE, grantedSubject: self::RESOURCE),
                 new RowAction(kind: 'view', label: $this->translator->trans('Delivery log'), href: $this->urls->generate(self::JOURNAL_ROUTE, ['subscription_id' => $id]), grantedAttribute: AccessManager::VIEW, grantedSubject: self::RESOURCE),
