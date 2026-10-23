@@ -57,6 +57,7 @@
                                     <td>
                                         <div class="fw-semibold">{{ line.title }}</div>
                                         {% if line.ref %}<div class="text-muted small"><code>{{ line.ref }}</code></div>{% endif %}
+                                        {% if line.attributes %}<div class="text-muted small" data-testid="order-return-line-attributes">{{ line.attributes|join(', ') }}</div>{% endif %}
                                     </td>
                                     <td class="text-center">{{ line.quantity|number_format(0) }}</td>
                                     <td class="text-center" style="max-width: 8rem;">

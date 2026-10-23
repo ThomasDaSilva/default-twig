@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\OrderReturn;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
+use BackOfficeDefaultTwigBundle\Service\I18n\CountryFlag;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Action\OrderReturn as OrderReturnAction;
 use Thelia\Domain\OrderReturn\OrderReturnStateMachine;
@@ -87,6 +88,7 @@ final readonly class OrderReturnDetailPresenter
             'received_refund' => $this->refundCalculator->compute($orderReturn, true),
             'resolution_label' => $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()),
             'wished_exchange' => $this->resolutionLabels->wishedExchange($orderReturn),
+            'customer_flag' => $this->customerFlag($orderReturn),
         ];
     }
 
@@ -95,6 +97,7 @@ final readonly class OrderReturnDetailPresenter
      *     id: int,
      *     title: string,
      *     ref: string,
+     *     attributes: list<string>,
      *     quantity: float,
      *     quantity_received: float,
      *     resellable: bool,
@@ -105,16 +108,28 @@ final readonly class OrderReturnDetailPresenter
      */
     public function presentLines(OrderReturn $orderReturn): array
     {
+        $returnLines = $this->returns->findLines((int) $orderReturn->getId());
+        $orderProductIds = [];
+        foreach ($returnLines as $line) {
+            $orderProductIds[] = (int) $line->getOrderProductId();
+        }
+        $attributes = $this->returns->findAttributeValues($orderProductIds);
+
         $lines = [];
 
-        foreach ($this->returns->findLines((int) $orderReturn->getId()) as $line) {
+        foreach ($returnLines as $line) {
             // order_product_id is a required column behind a RESTRICT foreign key.
             $orderProduct = $line->getOrderProduct();
 
             $lines[] = [
                 'id' => (int) $line->getId(),
                 'title' => (string) $orderProduct->getTitle(),
-                'ref' => (string) $orderProduct->getProductRef(),
+                // The reference of the ordered combination, as in the queue; the product's when it has none.
+                'ref' => (string) ($orderProduct->getProductSaleElementsRef() ?: $orderProduct->getProductRef()),
+                'attributes' => array_map(
+                    fn (array $attribute): string => $this->translator->trans('%attribute%: %value%', ['%attribute%' => $attribute['attribute'], '%value%' => $attribute['value']]),
+                    $attributes[(int) $orderProduct->getId()] ?? [],
+                ),
                 'quantity' => (float) $line->getQuantity(),
                 'quantity_received' => (float) $line->getQuantityReceived(),
                 'resellable' => (bool) $line->getResellable(),
@@ -184,6 +199,16 @@ final readonly class OrderReturnDetailPresenter
             OrderReturnAction::RESTOCK_MODE_NEVER => ['checked' => false, 'editable' => false],
             default => ['checked' => true, 'editable' => true],
         };
+    }
+
+    /**
+     * The flag of the delivery country of the order, before the customer name as in
+     * the queue.
+     */
+    private function customerFlag(OrderReturn $orderReturn): string
+    {
+        // delivery_order_address_id and country_id are required columns behind foreign keys.
+        return CountryFlag::prefix($orderReturn->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2());
     }
 
     private function reasonTitle(OrderReturn $orderReturn, string $locale): string

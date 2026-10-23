@@ -135,9 +135,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertSame('Damaged on arrival', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()));
         self::assertSame('Refund', trim($row->filter('[data-testid="datatable-order-returns-cell-resolution_html"]')->text()));
 
-        $iso = strtoupper((string) $return->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2());
-        $flag = mb_chr(\ord($iso[0]) + 0x1F1E6 - \ord('A')).mb_chr(\ord($iso[1]) + 0x1F1E6 - \ord('A'));
-        self::assertStringStartsWith($flag.' ', trim($row->filter('[data-testid="datatable-order-returns-cell-customer_html"] .fw-semibold')->text()), 'The flag of the delivery country before the name, as in the order list.');
+        self::assertStringStartsWith($this->flagOf($return).' ', trim($row->filter('[data-testid="datatable-order-returns-cell-customer_html"] .fw-semibold')->text()), 'The flag of the delivery country before the name, as in the order list.');
 
         $orderCell = $row->filter('[data-testid="datatable-order-returns-cell-order_html"]');
         self::assertStringContainsString((string) $return->getOrder()->getRef(), $orderCell->text());
@@ -319,9 +317,19 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
     public function testTheSheetShowsTheRequestAndOffersTheCycleActions(): void
     {
         $this->loginFullAdmin();
-        [$return] = $this->requestedReturn();
+        [$return, $pse, $line] = $this->requestedReturn();
 
-        $this->assertPageRenders('/admin/return/'.$return->getId());
+        $crawler = $this->client->request('GET', '/admin/return/'.$return->getId());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $row = $crawler->filter('[data-testid="order-return-line-'.$line->getId().'"]');
+        self::assertSame((string) $pse->getRef(), $row->filter('code')->text(), 'The line is named by the reference of the ordered combination, as in the queue.');
+        self::assertSame('Size: XL', $row->filter('[data-testid="order-return-line-attributes"]')->text(), 'The values of the ordered combination sit under the reference.');
+        self::assertStringStartsWith(
+            $this->flagOf($return).' ',
+            trim($crawler->filter('[data-testid="order-return-customer-name"]')->text()),
+            'The flag of the delivery country before the customer name, as in the queue.',
+        );
 
         $html = (string) $this->client->getResponse()->getContent();
         self::assertStringContainsString('A returnable product', $html, 'The sheet must list the requested line.');
@@ -410,6 +418,19 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertSame($stockBefore, $this->stockOf($pse), 'Nothing enters the stock on a refused reception.');
     }
 
+    public function testTheReceptionNamesEachLineByItsReferenceAndCombination(): void
+    {
+        $this->loginFullAdmin();
+        [$return, $pse, $line] = $this->requestedReturn(OrderReturnStatus::CODE_ACCEPTED);
+
+        $crawler = $this->client->request('GET', '/admin/return/'.$return->getId().'/reception');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        $row = $crawler->filter('[data-testid="order-return-reception-line-'.$line->getId().'"]');
+        self::assertSame((string) $pse->getRef(), $row->filter('code')->text());
+        self::assertSame('Size: XL', $row->filter('[data-testid="order-return-line-attributes"]')->text());
+    }
+
     public function testTheReasonsConfigurationScreenIsServed(): void
     {
         $this->loginFullAdmin();
@@ -467,6 +488,16 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
                 \sprintf('"%s" must not exist while the shop has not turned the returns on.', $url),
             );
         }
+    }
+
+    /**
+     * The flag emoji of the delivery country of the order of the return.
+     */
+    private function flagOf(OrderReturn $return): string
+    {
+        $iso = strtoupper((string) $return->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2());
+
+        return mb_chr(\ord($iso[0]) + 0x1F1E6 - \ord('A')).mb_chr(\ord($iso[1]) + 0x1F1E6 - \ord('A'));
     }
 
     private function loginFullAdmin(): void

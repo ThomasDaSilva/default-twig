@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\OrderReturn;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
+use BackOfficeDefaultTwigBundle\Service\I18n\CountryFlag;
 use BackOfficeDefaultTwigBundle\Service\I18n\MoneyFormatter;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -164,7 +165,7 @@ final readonly class OrderReturnListRowPresenter
 
         return \sprintf(
             '<div class="bo-order-customer bo-order-customer--compact"><div class="fw-semibold">%s%s %s</div><div class="text-muted small text-truncate" title="%s">%s</div></div>',
-            $this->countryFlag($iso),
+            CountryFlag::prefix($iso),
             htmlspecialchars((string) $customer->getFirstname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getLastname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getEmail(), \ENT_QUOTES | \ENT_HTML5),
@@ -276,26 +277,6 @@ final readonly class OrderReturnListRowPresenter
         $title = $title !== '' ? $title : (string) $orderReturn->getReasonTitle();
 
         return $title !== '' ? $title : trim((string) $orderReturn->getCustomerComment());
-    }
-
-    /**
-     * The flag emoji of a country from its ISO 3166-1 alpha-2 code, as the order list
-     * writes it.
-     */
-    private function countryFlag(?string $iso): string
-    {
-        if ($iso === null || \strlen($iso) !== 2) {
-            return '';
-        }
-
-        $upper = strtoupper($iso);
-        $offset = 0x1F1E6 - \ord('A');
-        $flag = '';
-        for ($i = 0, $len = \strlen($upper); $i < $len; ++$i) {
-            $flag .= mb_chr(\ord($upper[$i]) + $offset);
-        }
-
-        return $flag.' ';
     }
 
     private function renderDate(OrderReturn $orderReturn): string

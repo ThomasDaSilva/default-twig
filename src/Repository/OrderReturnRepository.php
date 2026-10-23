@@ -225,17 +225,7 @@ final class OrderReturnRepository
             $productIds[(string) $product['Ref']] = (int) $product['Id'];
         }
 
-        $attributes = [];
-        $combinations = OrderProductAttributeCombinationQuery::create()
-            ->filterByOrderProductId($orderProductIds, Criteria::IN)
-            ->orderById()
-            ->find();
-        foreach ($combinations as $combination) {
-            $attributes[(int) $combination->getOrderProductId()][] = [
-                'attribute' => (string) $combination->getAttributeTitle(),
-                'value' => (string) $combination->getAttributeAvTitle(),
-            ];
-        }
+        $attributes = $this->findAttributeValues($orderProductIds);
 
         $byReturn = [];
         foreach ($lines as $line) {
@@ -280,6 +270,35 @@ final class OrderReturnRepository
         }
 
         return $this->currencyCodes;
+    }
+
+    /**
+     * The attribute values of the combination each of these order lines was ordered in,
+     * as frozen on the order, in one query.
+     *
+     * @param list<int> $orderProductIds
+     *
+     * @return array<int, list<array{attribute: string, value: string}>>
+     */
+    public function findAttributeValues(array $orderProductIds): array
+    {
+        if ($orderProductIds === []) {
+            return [];
+        }
+
+        $attributes = [];
+        $combinations = OrderProductAttributeCombinationQuery::create()
+            ->filterByOrderProductId($orderProductIds, Criteria::IN)
+            ->orderById()
+            ->find();
+        foreach ($combinations as $combination) {
+            $attributes[(int) $combination->getOrderProductId()][] = [
+                'attribute' => (string) $combination->getAttributeTitle(),
+                'value' => (string) $combination->getAttributeAvTitle(),
+            ];
+        }
+
+        return $attributes;
     }
 
     /**

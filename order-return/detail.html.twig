@@ -101,6 +101,7 @@
                                         <td>
                                             <div class="fw-semibold">{{ line.title }}</div>
                                             {% if line.ref %}<div class="text-muted small"><code>{{ line.ref }}</code></div>{% endif %}
+                                            {% if line.attributes %}<div class="text-muted small" data-testid="order-return-line-attributes">{{ line.attributes|join(', ') }}</div>{% endif %}
                                         </td>
                                         <td class="text-center">{{ line.quantity|number_format(0) }}</td>
                                         <td class="text-center">
@@ -186,7 +187,7 @@
                     <div class="card mb-3" data-testid="order-return-customer">
                         <div class="card-header">{{ 'Customer'|trans }}</div>
                         <div class="card-body small">
-                            <p class="mb-1 fw-semibold">{{ return.customer.firstname }} {{ return.customer.lastname }}</p>
+                            <p class="mb-1 fw-semibold" data-testid="order-return-customer-name">{{ customer_flag }}{{ return.customer.firstname }} {{ return.customer.lastname }}</p>
                             <p class="mb-0 text-muted text-break">{{ return.customer.email }}</p>
                         </div>
                     </div>
