@@ -55,9 +55,10 @@ final class CustomerSheetTest extends WebIntegrationTestCase
      * cold count moves by one between runs, hence the margin. The sidebar total of orders
      * is read again on every request (22 warm), as the memo of the sidebar is reset
      * between two requests: it holds the figures of the administrator of the request.
+     * With returns on, the number of returns of the customer is one query more (23 warm).
      */
-    private const COLD_QUERY_BUDGET = 41;
-    private const WARM_QUERY_BUDGET = 22;
+    private const COLD_QUERY_BUDGET = 42;
+    private const WARM_QUERY_BUDGET = 23;
 
     private AdminSessionInjector $injector;
 
@@ -499,10 +500,13 @@ final class CustomerSheetTest extends WebIntegrationTestCase
     /**
      * Two hundred orders in every status: the sheet costs the same number of queries as
      * with a handful, and the carts are not read until their section opens. The budget
-     * is the count measured on this sheet, so a query per order or per row breaks it.
+     * is the count measured on this sheet, so a query per order or per row breaks it. The
+     * shop has returns on, the costliest sheet: the setting is written here, as an earlier
+     * test may have left it either way in the configuration cache.
      */
     public function testACustomerWithTwoHundredOrdersOpensWithinAFixedQueryBudget(): void
     {
+        ConfigQuery::write('order_return_enabled', '1');
         $customer = $this->customer();
         $codes = [OrderStatus::CODE_PAID, OrderStatus::CODE_SENT, OrderStatus::CODE_CANCELED, OrderStatus::CODE_NOT_PAID, OrderStatus::CODE_PROCESSING, OrderStatus::CODE_REFUNDED];
         for ($i = 0; $i < 200; ++$i) {
