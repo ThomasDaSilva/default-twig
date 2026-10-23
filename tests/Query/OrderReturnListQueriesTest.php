@@ -26,6 +26,7 @@ use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderProductAttributeCombination;
 use Thelia\Model\OrderReturn;
 use Thelia\Model\OrderReturnLine;
+use Thelia\Model\OrderReturnLineQuery;
 use Thelia\Model\OrderReturnStatus;
 use Thelia\Model\OrderReturnStatusQuery;
 use Thelia\Model\OrderStatus;
@@ -83,6 +84,7 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         );
 
         $line = $lines[(int) $twoLines->getId()][0];
+        self::assertStringStartsWith('PSE-', $line['ref'], 'A line is named by the reference of the ordered combination.');
         self::assertSame('A returnable product', $line['title']);
         self::assertSame(1.0, $line['quantity']);
         self::assertSame((int) $product->getId(), $line['product_id'], 'A line points to the catalogue product of its reference.');
@@ -91,6 +93,18 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
             $lines[(int) $oneLine->getId()][0]['product_id'],
             'A product gone from the catalogue keeps its line, without a link.',
         );
+    }
+
+    public function testALineWithoutCombinationReferenceIsNamedByItsProduct(): void
+    {
+        $orderReturn = $this->returnWith(1, 'A-PRODUCT-REF');
+        $orderProduct = OrderReturnLineQuery::create()->findOneByOrderReturnId((int) $orderReturn->getId())?->getOrderProduct();
+        self::assertNotNull($orderProduct);
+        $orderProduct->setProductSaleElementsRef('')->save($this->getPropelConnection());
+
+        $lines = $this->returns->findLinesByReturns([(int) $orderReturn->getId()]);
+
+        self::assertSame('A-PRODUCT-REF', $lines[(int) $orderReturn->getId()][0]['ref']);
     }
 
     public function testAnEmptyPageAsksNothing(): void
@@ -169,8 +183,8 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         $page = $this->returns->findPaginated(new OrderReturnFilters(customerId: (int) $customer->getId()), 1, 25);
         $rows = $presenter->presentAll($page['rows'], 'fr_FR');
 
-        self::assertStringContainsString("&times;&nbsp;1,5", (string) $rows[0]['products_html'], 'A decimal comma in French.');
-        self::assertStringContainsString("&times;&nbsp;1.5", (string) $presenter->presentAll($page['rows'], 'en_US')[0]['products_html']);
+        self::assertStringContainsString('&times;&nbsp;1,5', (string) $rows[0]['products_html'], 'A decimal comma in French.');
+        self::assertStringContainsString('&times;&nbsp;1.5', (string) $presenter->presentAll($page['rows'], 'en_US')[0]['products_html']);
     }
 
     private function returnWith(int $lineCount, ?string $productRef = null, ?Customer $customer = null, float $quantity = 1.0): OrderReturn

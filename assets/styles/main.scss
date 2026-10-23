@@ -809,6 +809,12 @@ td.bo-datatable__details-col {
     overflow-wrap: anywhere;
     min-width: 6rem;
     max-width: 24rem;
+
+    // A reference has no space to break at, and the `break-word` Bootstrap gives `code`
+    // does not shrink the column: a long one would set its width alone.
+    code {
+        overflow-wrap: anywhere;
+    }
 }
 
 // A text written by a person stops after four lines, so one long message does not make

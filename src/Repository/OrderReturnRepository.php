@@ -181,12 +181,14 @@ final class OrderReturnRepository
      * catalogue product each one still points to, and the attribute values of the
      * ordered combination. A return with no line is absent from the result.
      *
-     * The title and the attribute values are those frozen on the order, in the
-     * language it was placed in: the product may have been renamed or deleted since.
+     * The reference, the title and the attribute values are those frozen on the
+     * order, in the language it was placed in: the product may have been renamed or
+     * deleted since. The reference is that of the ordered combination, or of the
+     * product when the line has none.
      *
      * @param list<int> $returnIds
      *
-     * @return array<int, list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>>
+     * @return array<int, list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>>
      */
     public function findLinesByReturns(array $returnIds): array
     {
@@ -238,6 +240,7 @@ final class OrderReturnRepository
         foreach ($lines as $line) {
             $orderProduct = $line->getOrderProduct();
             $byReturn[(int) $line->getOrderReturnId()][] = [
+                'ref' => (string) ($orderProduct->getProductSaleElementsRef() ?: $orderProduct->getProductRef()),
                 'title' => (string) $orderProduct->getTitle(),
                 'quantity' => (float) $line->getQuantity(),
                 'product_id' => $productIds[(string) $orderProduct->getProductRef()] ?? null,

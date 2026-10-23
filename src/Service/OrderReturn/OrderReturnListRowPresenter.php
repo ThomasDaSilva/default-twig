@@ -81,10 +81,10 @@ final readonly class OrderReturnListRowPresenter
     }
 
     /**
-     * @param array<int, list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>> $lines        returned lines per return id, when the caller has them
-     * @param array<int, string>                                                                                                                  $reasonTitles  current title of each reason, when the caller has them
-     * @param array<int, string>                                                                                                                  $statusTitles  title of each status in $locale, when the caller has them
-     * @param array<int, string>                                                                                                                  $currencyCodes code of each currency, when the caller has them
+     * @param array<int, list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>> $lines         returned lines per return id, when the caller has them
+     * @param array<int, string>                                                                                                                                $reasonTitles  current title of each reason, when the caller has them
+     * @param array<int, string>                                                                                                                                $statusTitles  title of each status in $locale, when the caller has them
+     * @param array<int, string>                                                                                                                                $currencyCodes code of each currency, when the caller has them
      *
      * @return array<string, mixed>
      */
@@ -157,10 +157,11 @@ final readonly class OrderReturnListRowPresenter
     }
 
     /**
-     * The product of each returned line as it was ordered, with the values of its
-     * combination underneath, and the quantity when more than one unit goes back.
+     * The product of each returned line as it was ordered, its reference first as on
+     * the order sheet, with the values of its combination underneath, and the
+     * quantity when more than one unit goes back.
      *
-     * @param list<array{title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}> $lines
+     * @param list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}> $lines
      */
     private function renderProducts(array $lines, string $locale): string
     {
@@ -173,6 +174,10 @@ final readonly class OrderReturnListRowPresenter
         $items = [];
         foreach ($lines as $line) {
             $title = htmlspecialchars($line['title'], \ENT_QUOTES | \ENT_HTML5);
+
+            if ($line['ref'] !== '') {
+                $title = \sprintf('<code>%s</code> &mdash; %s', htmlspecialchars($line['ref'], \ENT_QUOTES | \ENT_HTML5), $title);
+            }
 
             if ($line['product_id'] !== null) {
                 $title = \sprintf(

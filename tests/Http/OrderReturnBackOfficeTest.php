@@ -120,7 +120,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
     public function testTheQueueShowsWhatIsReturnedAndWhy(): void
     {
         $this->loginFullAdmin();
-        [$return] = $this->requestedReturn();
+        [$return, $pse] = $this->requestedReturn();
 
         $crawler = $this->client->request('GET', '/admin/returns');
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
@@ -128,6 +128,7 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
         self::assertCount(1, $row);
         self::assertStringContainsString('A returnable product', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text());
+        self::assertSame((string) $pse->getRef(), $row->filter('[data-testid="datatable-order-returns-cell-products_html"] code')->text(), 'The line is named by the reference of the ordered combination, as on the order sheet.');
         self::assertStringContainsString('Size: XL', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'The line names the values of the ordered combination.');
         self::assertStringContainsString("×\u{a0}2", $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'Two units go back.');
         self::assertSame('Damaged on arrival', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()));
@@ -298,13 +299,16 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
     public function testTheProductOfALineIsEscapedInTheQueue(): void
     {
         $this->loginFullAdmin();
-        $this->requestedReturn(productTitle: '<script>alert(1)</script>');
+        [, , $line] = $this->requestedReturn(productTitle: '<script>alert(1)</script>');
+        $line->getOrderProduct()->setProductSaleElementsRef('<b>REF</b>')->save($this->getPropelConnection());
 
         $this->assertPageRenders('/admin/returns');
 
         $html = (string) $this->client->getResponse()->getContent();
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
+        self::assertStringNotContainsString('<b>REF</b>', $html);
+        self::assertStringContainsString('&lt;b&gt;REF&lt;/b&gt;', $html, 'The reference is escaped too.');
     }
 
     public function testTheSheetShowsTheRequestAndOffersTheCycleActions(): void
