@@ -286,6 +286,11 @@ final class OrderReturnRepository
         return (int) $this->restrict(OrderReturnQuery::create())->count();
     }
 
+    public function countByCustomer(int $customerId): int
+    {
+        return (int) $this->restrict(OrderReturnQuery::create())->filterByCustomerId($customerId)->count();
+    }
+
     /**
      * The statuses with their localized title, for the filter form.
      *

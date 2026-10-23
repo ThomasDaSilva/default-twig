@@ -365,6 +365,21 @@
         {% endembed %}
         {% endif %}
 
+        {# ── Returns, loaded when the section opens; absent while the shop has returns off
+              or for an administrator who may not see them ── #}
+        {% if returns_total is not null %}
+        {% embed '@BackOfficeDefaultTwig/customer/_section.html.twig' with {
+            id: 'returns', title: 'Returns'|trans, icon: 'bi-arrow-return-left', testid: 'customer-returns-section',
+            count: returns_total, open: false, lazy_url: path('admin.customer.returns', { customer_id: customer.id }),
+        } only %}
+            {% block section_body %}
+                <p class="text-muted small mb-0">
+                    <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>{{ 'Loading…'|trans }}
+                </p>
+            {% endblock %}
+        {% endembed %}
+        {% endif %}
+
         {# ── Carts, loaded when the section opens ────────────────────────── #}
         {% embed '@BackOfficeDefaultTwig/customer/_section.html.twig' with {
             id: 'carts', title: 'Carts'|trans, icon: 'bi-cart3', testid: 'customer-carts-section',

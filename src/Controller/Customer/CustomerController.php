@@ -19,6 +19,7 @@ use BackOfficeDefaultTwigBundle\Form\Customer\CustomerType;
 use BackOfficeDefaultTwigBundle\Repository\CountryRepository;
 use BackOfficeDefaultTwigBundle\Repository\CustomerRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
+use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
@@ -46,6 +47,7 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Customer\Service\CustomerTitleService;
+use Thelia\Domain\OrderReturn\Service\ReturnEligibilityChecker;
 use Thelia\Domain\Tagging\Service\TagService;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Model\ConfigQuery;
@@ -97,6 +99,8 @@ final class CustomerController
         private readonly TagService $tags,
         private readonly TagSwatch $swatch,
         private readonly CustomerOverviewProvider $overviewProvider,
+        private readonly ReturnEligibilityChecker $returnEligibility,
+        private readonly OrderReturnRepository $orderReturnRepository,
     ) {
     }
 
@@ -236,6 +240,12 @@ final class CustomerController
         $ordersPerPage = 20;
         $ordersLastPage = max(1, (int) ceil($ordersTotal / $ordersPerPage));
 
+        // No returns section while the shop has returns off, nor for an administrator
+        // who may not see them: their number is not even read.
+        $returnsTotal = $this->returnEligibility->isFeatureEnabled() && $this->access->canView(AdminResources::ORDER_RETURN)
+            ? $this->orderReturnRepository->countByCustomer($customerId)
+            : null;
+
         return new Response($this->twig->render(self::EDIT_TEMPLATE, [
             'form' => $form->createView(),
             'customer' => $customer,
@@ -247,6 +257,7 @@ final class CustomerController
             'orders_total' => $ordersTotal,
             'orders_page' => $ordersPage,
             'orders_last_page' => $ordersLastPage,
+            'returns_total' => $returnsTotal,
             'prev_url' => $navigation['previous'] !== null ? $this->urls->generate(self::EDIT_ROUTE, ['customer_id' => $navigation['previous']]) : null,
             'next_url' => $navigation['next'] !== null ? $this->urls->generate(self::EDIT_ROUTE, ['customer_id' => $navigation['next']]) : null,
         ]));

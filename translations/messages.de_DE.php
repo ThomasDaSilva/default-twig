@@ -1623,4 +1623,9 @@ return [
     'This trigger is unknown.' => 'Dieser Auslöser ist unbekannt.',
     'Too many test mails in a short time: wait a few minutes before the next one.' => 'Zu viele Testmails in kurzer Zeit: Warten Sie einige Minuten bis zur nächsten.',
     'Reason' => 'Grund',
+    'Returns' => 'Retouren',
+    'This customer does not exist.' => 'Dieser Kunde existiert nicht.',
+    'This customer has not asked for any return yet.' => 'Dieser Kunde hat noch keine Retoure angefragt.',
+    'Only the %count% most recent returns are shown.' => 'Nur die %count% neuesten Retouren werden angezeigt.',
+    'See the %count% returns of this customer' => 'Die %count% Retouren dieses Kunden anzeigen',
 ];

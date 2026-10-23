@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Controller\Customer\CustomerReturnsController;
 use BackOfficeDefaultTwigBundle\Tests\Support\QueryCounter;
 use Symfony\Component\DomCrawler\Crawler;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
@@ -29,6 +30,13 @@ use Thelia\Model\AdminLogQuery;
 use Thelia\Model\Config;
 use Thelia\Model\ConfigQuery;
 use Thelia\Model\Customer;
+use Thelia\Model\Order;
+use Thelia\Model\OrderProduct;
+use Thelia\Model\OrderProductAttributeCombination;
+use Thelia\Model\OrderReturn;
+use Thelia\Model\OrderReturnLine;
+use Thelia\Model\OrderReturnStatus;
+use Thelia\Model\OrderReturnStatusQuery;
 use Thelia\Model\OrderStatus;
 use Thelia\Model\Product;
 use Thelia\Test\FixtureFactory;
@@ -208,6 +216,106 @@ final class CustomerSheetTest extends WebIntegrationTestCase
         self::assertSame('false', $carts->filter('[data-testid="customer-carts-section-toggle"]')->attr('aria-expanded'), 'The carts are only read once the section is opened.');
         self::assertCount(0, $crawler->filter('[data-testid="customer-carts"]'), 'Their content is not in the page.');
         self::assertSame('true', $crawler->filter('[data-testid="customer-orders-section-toggle"]')->attr('aria-expanded'));
+    }
+
+    public function testTheReturnsWaitToBeOpenedAndTheSheetCountsThoseOfTheCustomer(): void
+    {
+        ConfigQuery::write('order_return_enabled', '1');
+        $customer = $this->customer();
+        $order = $this->factory->order($customer, ['statusCode' => OrderStatus::CODE_SENT]);
+        $this->returnOf($order);
+        $this->returnOf($order);
+        $this->returnOf($this->factory->order($this->customer(), ['statusCode' => OrderStatus::CODE_SENT]));
+
+        $crawler = $this->sheet($customer, $this->factory->admin());
+
+        $section = $crawler->filter('[data-testid="customer-returns-section"]');
+        self::assertCount(1, $section);
+        self::assertStringContainsString('/admin/customer/returns?customer_id='.$customer->getId(), (string) $section->attr('data-bo-lazy-collapse-url-value'));
+        self::assertSame('2', trim($section->filter('[data-testid="customer-returns-section-count"]')->text()), 'The returns of this customer only.');
+        self::assertSame('false', $section->filter('[data-testid="customer-returns-section-toggle"]')->attr('aria-expanded'), 'The returns are only read once the section is opened.');
+        self::assertCount(0, $crawler->filter('[data-testid="customer-returns"]'), 'Their rows are not in the page.');
+    }
+
+    public function testNoReturnsSectionWhileReturnsAreOffOrForAnAdministratorWhoMayNotSeeThem(): void
+    {
+        $customer = $this->customer();
+
+        ConfigQuery::write('order_return_enabled', '0');
+        self::assertCount(0, $this->sheet($customer, $this->factory->admin())->filter('[data-testid="customer-returns-section"]'), 'A shop with returns off has no returns section.');
+
+        ConfigQuery::write('order_return_enabled', '1');
+        $admin = $this->factory->restrictedAdmin([AdminResources::CUSTOMER => [AccessManager::VIEW]]);
+        self::assertCount(0, $this->sheet($customer, $admin)->filter('[data-testid="customer-returns-section"]'), 'Nor an administrator without the returns permission.');
+    }
+
+    public function testTheReturnsOfTheCustomerAreLaidOutAsInTheReturnQueue(): void
+    {
+        ConfigQuery::write('order_return_enabled', '1');
+        $customer = $this->customer();
+        $return = $this->returnOf($this->factory->order($customer, ['statusCode' => OrderStatus::CODE_SENT]));
+        $this->returnOf($this->factory->order($this->customer(), ['statusCode' => OrderStatus::CODE_SENT]));
+
+        $crawler = $this->returns($customer, $this->factory->admin());
+
+        $rows = $crawler->filter('[data-testid="datatable-customer-returns-row"]');
+        self::assertCount(1, $rows, 'The return of another customer is not listed.');
+        $orderCell = $rows->filter('[data-testid="datatable-customer-returns-cell-order_html"]');
+        self::assertStringContainsString((string) $return->getOrder()->getRef(), $orderCell->text(), 'The order names the row.');
+        self::assertSame((string) $return->getRef(), trim($orderCell->filter('.text-muted.small [data-testid="bo-order-return-ref-link"]')->text()), 'The return reference sits under the order.');
+        self::assertCount(1, $orderCell->filter('.text-muted.small time'), 'So does the date it was asked for.');
+        $products = $rows->filter('[data-testid="datatable-customer-returns-cell-products_html"]');
+        self::assertSame('PSE-RETURNED', $products->filter('code')->text(), 'Each line is named by the reference of the ordered combination.');
+        self::assertStringContainsString('Size: XL', $products->text());
+        self::assertSame('Too small', trim($rows->filter('[data-testid="datatable-customer-returns-cell-reason"]')->text()));
+        self::assertSame('Exchange', trim($rows->filter('[data-testid="datatable-customer-returns-cell-resolution_html"]')->text()));
+        self::assertCount(0, $crawler->filter('[data-testid="datatable-customer-returns-cell-customer_html"]'), 'No customer column on the sheet of the customer.');
+        self::assertCount(0, $crawler->filter('[data-testid="customer-returns-more"]'));
+    }
+
+    public function testBeyondOnePageTheReturnsSectionLinksToTheQueueOfTheCustomer(): void
+    {
+        ConfigQuery::write('order_return_enabled', '1');
+        $customer = $this->customer();
+        $order = $this->factory->order($customer, ['statusCode' => OrderStatus::CODE_SENT]);
+        for ($i = 0; $i <= CustomerReturnsController::PAGE_SIZE; ++$i) {
+            $this->returnOf($order);
+        }
+
+        $crawler = $this->returns($customer, $this->factory->admin());
+
+        self::assertCount(CustomerReturnsController::PAGE_SIZE, $crawler->filter('[data-testid="datatable-customer-returns-row"]'));
+        $link = $crawler->filter('[data-testid="customer-returns-all-link"]');
+        self::assertSame('/admin/returns?customer_id='.$customer->getId(), $link->attr('href'));
+        self::assertStringContainsString((string) (CustomerReturnsController::PAGE_SIZE + 1), $link->text());
+    }
+
+    public function testTheReturnsSectionIsRefusedWithoutTheReturnsPermission(): void
+    {
+        ConfigQuery::write('order_return_enabled', '1');
+        $customer = $this->customer();
+        $admin = $this->factory->restrictedAdmin([AdminResources::CUSTOMER => [AccessManager::VIEW]]);
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+
+        $this->client->request('GET', '/admin/customer/returns?customer_id='.$customer->getId());
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+    }
+
+    public function testTheReturnsSectionDoesNotExistWhileReturnsAreOffNorForAnUnknownCustomer(): void
+    {
+        $admin = $this->factory->admin();
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+
+        ConfigQuery::write('order_return_enabled', '0');
+        $this->client->request('GET', '/admin/customer/returns?customer_id='.$this->customer()->getId());
+        self::assertSame(404, $this->client->getResponse()->getStatusCode(), 'Returns off.');
+
+        ConfigQuery::write('order_return_enabled', '1');
+        $this->client->request('GET', '/admin/customer/returns?customer_id=987654321');
+        self::assertSame(404, $this->client->getResponse()->getStatusCode(), 'Unknown customer.');
     }
 
     public function testWithoutModuleTheSheetShowsNoModuleSection(): void
@@ -454,6 +562,60 @@ final class CustomerSheetTest extends WebIntegrationTestCase
         self::assertSame(200, $this->client->getResponse()->getStatusCode());
 
         return $crawler;
+    }
+
+    private function returns(Customer $customer, Admin $admin): Crawler
+    {
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+
+        $crawler = $this->client->request('GET', '/admin/customer/returns?customer_id='.$customer->getId());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+
+        return $crawler;
+    }
+
+    /**
+     * A requested exchange of one line of the order, for a size too small.
+     */
+    private function returnOf(Order $order): OrderReturn
+    {
+        $connection = $this->getPropelConnection();
+
+        $orderProduct = (new OrderProduct())
+            ->setOrderId((int) $order->getId())
+            ->setProductRef('REF-'.uniqid())
+            ->setProductSaleElementsRef('PSE-RETURNED')
+            ->setTitle('A returned product')
+            ->setQuantity(1.0)
+            ->setPrice('10.000000')
+            ->setPromoPrice('10.000000')
+            ->setWasNew(1)
+            ->setWasInPromo(0)
+            ->setVirtual(0);
+        $orderProduct->save($connection);
+
+        (new OrderProductAttributeCombination())
+            ->setOrderProductId((int) $orderProduct->getId())
+            ->setAttributeTitle('Size')
+            ->setAttributeAvTitle('XL')
+            ->save($connection);
+
+        $return = (new OrderReturn())
+            ->setOrder($order)
+            ->setCustomerId((int) $order->getCustomerId())
+            ->setOrderReturnStatus(OrderReturnStatusQuery::create()->findOneByCode(OrderReturnStatus::CODE_REQUESTED))
+            ->setReasonTitle('Too small')
+            ->setExpectedResolution(OrderReturn::RESOLUTION_EXCHANGE);
+        $return->save($connection);
+
+        (new OrderReturnLine())
+            ->setOrderReturn($return)
+            ->setOrderProduct($orderProduct)
+            ->setQuantity(1.0)
+            ->save($connection);
+
+        return $return;
     }
 
     private function sheet(Customer $customer, Admin $admin): Crawler

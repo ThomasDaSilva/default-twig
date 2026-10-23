@@ -1,0 +1,29 @@
+{#
+    Body of the returns section of the customer sheet, served on its own by
+    admin.customer.returns when the section opens. The rows are those of the return
+    queue (OrderReturnListRowPresenter), without the customer column; the most recent
+    requests only, with a link to the queue filtered on the customer when there are more.
+#}
+<div data-testid="customer-returns">
+    {{ component('BoDataTable', {
+        id: 'customer-returns',
+        columns: [
+            column_html('order_html', 'Order'|trans),
+            column_html('products_html', 'Products'|trans, visibleFrom: 'lg'),
+            column_text('reason', 'Reason'|trans, visibleFrom: 'xl', wrap: true),
+            column_html('resolution_html', 'Expected resolution'|trans, visibleFrom: 'xl', wrapHead: true),
+            column_badge('status_code', 'Status'|trans, {}, 'start', 'status', 'status_color', visibleFrom: 'sm'),
+            column_text('refund_amount', 'Refundable'|trans, 'end', visibleFrom: 'md'),
+            column_actions('_actions', 'Actions'|trans),
+        ],
+        rows: rows,
+        emptyMessage: 'This customer has not asked for any return yet.'|trans,
+        rowIdentifierKey: 'ref',
+    }) }}
+    {% if total > rows|length %}
+        <p class="small text-muted mt-3 mb-0" data-testid="customer-returns-more">
+            {{ 'Only the %count% most recent returns are shown.'|trans({ '%count%': rows|length }) }}
+            <a href="{{ list_url }}" class="link-primary text-decoration-none" data-testid="customer-returns-all-link">{{ 'See the %count% returns of this customer'|trans({ '%count%': total }) }}</a>
+        </p>
+    {% endif %}
+</div>
