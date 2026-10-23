@@ -266,7 +266,7 @@ final class CustomerSheetTest extends WebIntegrationTestCase
         self::assertSame((string) $return->getRef(), trim($orderCell->filter('.text-muted.small [data-testid="bo-order-return-ref-link"]')->text()), 'The return reference sits under the order.');
         self::assertCount(1, $orderCell->filter('.text-muted.small time'), 'So does the date it was asked for.');
         $products = $rows->filter('[data-testid="datatable-customer-returns-cell-products_html"]');
-        self::assertSame('PSE-RETURNED', $products->filter('code')->text(), 'Each line is named by the reference of the ordered combination.');
+        self::assertSame('PSE-RETURNED', $products->filter('li > div > code')->text(), 'The reference of the ordered combination has a line of its own under the product.');
         self::assertStringContainsString('Size: XL', $products->text());
         self::assertSame('Too small', trim($rows->filter('[data-testid="datatable-customer-returns-cell-reason"]')->text()));
         self::assertSame('Exchange', trim($rows->filter('[data-testid="datatable-customer-returns-cell-resolution_html"]')->text()));

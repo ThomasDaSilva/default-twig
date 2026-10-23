@@ -58,9 +58,11 @@ final readonly class OrderReturnListRowPresenter
     {
         $page = [];
         $returnIds = [];
+        $orderIds = [];
         foreach ($returns as $orderReturn) {
             $page[] = $orderReturn;
             $returnIds[] = (int) $orderReturn->getId();
+            $orderIds[] = (int) $orderReturn->getOrderId();
         }
 
         if ($page === []) {
@@ -71,10 +73,11 @@ final readonly class OrderReturnListRowPresenter
         $reasonTitles = $this->returns->findReasonTitles($locale);
         $statusTitles = array_column($this->returns->findStatusesLocalized($locale), 'title', 'id');
         $currencyCodes = $this->returns->findCurrencyCodes();
+        $countryCodes = $this->returns->findDeliveryCountryCodes(array_values(array_unique($orderIds)));
 
         $rows = [];
         foreach ($page as $orderReturn) {
-            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles, $statusTitles, $currencyCodes);
+            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles, $statusTitles, $currencyCodes, $countryCodes);
         }
 
         return $rows;
@@ -85,10 +88,11 @@ final readonly class OrderReturnListRowPresenter
      * @param array<int, string>                                                                                                                                $reasonTitles  current title of each reason, when the caller has them
      * @param array<int, string>                                                                                                                                $statusTitles  title of each status in $locale, when the caller has them
      * @param array<int, string>                                                                                                                                $currencyCodes code of each currency, when the caller has them
+     * @param array<int, string>                                                                                                                                $countryCodes  ISO code of the delivery country of each order, when the caller has them
      *
      * @return array<string, mixed>
      */
-    public function present(OrderReturn $orderReturn, string $locale, array $lines = [], array $reasonTitles = [], array $statusTitles = [], array $currencyCodes = []): array
+    public function present(OrderReturn $orderReturn, string $locale, array $lines = [], array $reasonTitles = [], array $statusTitles = [], array $currencyCodes = [], array $countryCodes = []): array
     {
         $returnId = (int) $orderReturn->getId();
         // status_id is a required column behind a RESTRICT foreign key: a return
@@ -101,7 +105,7 @@ final readonly class OrderReturnListRowPresenter
             'id' => $returnId,
             'ref' => (string) $orderReturn->getRef(),
             'order_html' => $this->renderOrder($orderReturn, $returnId),
-            'customer_html' => $this->renderCustomer($orderReturn),
+            'customer_html' => $this->renderCustomer($orderReturn, $countryCodes),
             'products_html' => $this->renderProducts($lines[$returnId] ?? [], $locale),
             'reason' => $this->reason($orderReturn, $reasonTitles),
             'resolution_html' => $this->renderResolution($orderReturn),
@@ -142,13 +146,25 @@ final readonly class OrderReturnListRowPresenter
         );
     }
 
-    private function renderCustomer(OrderReturn $orderReturn): string
+    /**
+     * The customer as the order list shows them: the flag of the delivery country before
+     * the name, the e-mail underneath.
+     *
+     * @param array<int, string> $countryCodes
+     */
+    private function renderCustomer(OrderReturn $orderReturn, array $countryCodes): string
     {
         // customer_id is a required column behind a RESTRICT foreign key.
         $customer = $orderReturn->getCustomer();
+        $orderId = (int) $orderReturn->getOrderId();
+        // delivery_order_address_id and country_id are required columns behind foreign keys.
+        $iso = \array_key_exists($orderId, $countryCodes)
+            ? $countryCodes[$orderId]
+            : $orderReturn->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2();
 
         return \sprintf(
-            '<div class="bo-order-customer bo-order-customer--compact"><div class="fw-semibold">%s %s</div><div class="text-muted small text-truncate" title="%s">%s</div></div>',
+            '<div class="bo-order-customer bo-order-customer--compact"><div class="fw-semibold">%s%s %s</div><div class="text-muted small text-truncate" title="%s">%s</div></div>',
+            $this->countryFlag($iso),
             htmlspecialchars((string) $customer->getFirstname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getLastname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getEmail(), \ENT_QUOTES | \ENT_HTML5),
@@ -157,9 +173,9 @@ final readonly class OrderReturnListRowPresenter
     }
 
     /**
-     * The product of each returned line as it was ordered, its reference first as on
-     * the order sheet, with the values of its combination underneath, and the
-     * quantity when more than one unit goes back.
+     * The product of each returned line as it was ordered, with the quantity when more
+     * than one unit goes back, then its reference and the values of its combination on
+     * lines of their own.
      *
      * @param list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}> $lines
      */
@@ -174,10 +190,6 @@ final readonly class OrderReturnListRowPresenter
         $items = [];
         foreach ($lines as $line) {
             $title = htmlspecialchars($line['title'], \ENT_QUOTES | \ENT_HTML5);
-
-            if ($line['ref'] !== '') {
-                $title = \sprintf('<code>%s</code> &mdash; %s', htmlspecialchars($line['ref'], \ENT_QUOTES | \ENT_HTML5), $title);
-            }
 
             if ($line['product_id'] !== null) {
                 $title = \sprintf(
@@ -200,8 +212,9 @@ final readonly class OrderReturnListRowPresenter
             );
 
             $items[] = \sprintf(
-                '<li>%s%s</li>',
+                '<li>%s%s%s</li>',
                 $title,
+                $line['ref'] === '' ? '' : '<div class="small"><code>'.htmlspecialchars($line['ref'], \ENT_QUOTES | \ENT_HTML5).'</code></div>',
                 $values === [] ? '' : '<div class="text-muted small">'.implode(', ', $values).'</div>',
             );
         }
@@ -263,6 +276,26 @@ final readonly class OrderReturnListRowPresenter
         $title = $title !== '' ? $title : (string) $orderReturn->getReasonTitle();
 
         return $title !== '' ? $title : trim((string) $orderReturn->getCustomerComment());
+    }
+
+    /**
+     * The flag emoji of a country from its ISO 3166-1 alpha-2 code, as the order list
+     * writes it.
+     */
+    private function countryFlag(?string $iso): string
+    {
+        if ($iso === null || \strlen($iso) !== 2) {
+            return '';
+        }
+
+        $upper = strtoupper($iso);
+        $offset = 0x1F1E6 - \ord('A');
+        $flag = '';
+        for ($i = 0, $len = \strlen($upper); $i < $len; ++$i) {
+            $flag .= mb_chr(\ord($upper[$i]) + $offset);
+        }
+
+        return $flag.' ';
     }
 
     private function renderDate(OrderReturn $orderReturn): string

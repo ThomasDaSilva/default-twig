@@ -128,11 +128,16 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         $row = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"]');
         self::assertCount(1, $row);
         self::assertStringContainsString('A returnable product', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text());
-        self::assertSame((string) $pse->getRef(), $row->filter('[data-testid="datatable-order-returns-cell-products_html"] code')->text(), 'The line is named by the reference of the ordered combination, as on the order sheet.');
+        self::assertSame((string) $pse->getRef(), $row->filter('[data-testid="datatable-order-returns-cell-products_html"] li > div > code')->text(), 'The reference of the ordered combination has a line of its own under the product.');
+        self::assertCount(0, $row->filter('[data-testid="datatable-order-returns-cell-products_html"] li > a code, [data-testid="datatable-order-returns-cell-products_html"] li > code'), 'The product title stays alone on its line.');
         self::assertStringContainsString('Size: XL', $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'The line names the values of the ordered combination.');
         self::assertStringContainsString("×\u{a0}2", $row->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text(), 'Two units go back.');
         self::assertSame('Damaged on arrival', trim($row->filter('[data-testid="datatable-order-returns-cell-reason"]')->text()));
         self::assertSame('Refund', trim($row->filter('[data-testid="datatable-order-returns-cell-resolution_html"]')->text()));
+
+        $iso = strtoupper((string) $return->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2());
+        $flag = mb_chr(\ord($iso[0]) + 0x1F1E6 - \ord('A')).mb_chr(\ord($iso[1]) + 0x1F1E6 - \ord('A'));
+        self::assertStringStartsWith($flag.' ', trim($row->filter('[data-testid="datatable-order-returns-cell-customer_html"] .fw-semibold')->text()), 'The flag of the delivery country before the name, as in the order list.');
 
         $orderCell = $row->filter('[data-testid="datatable-order-returns-cell-order_html"]');
         self::assertStringContainsString((string) $return->getOrder()->getRef(), $orderCell->text());

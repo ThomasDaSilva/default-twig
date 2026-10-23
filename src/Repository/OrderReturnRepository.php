@@ -20,6 +20,7 @@ use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
 use Thelia\Model\CurrencyQuery;
 use Thelia\Model\ExportQuery;
+use Thelia\Model\Map\CountryTableMap;
 use Thelia\Model\Map\OrderReturnTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
@@ -279,6 +280,38 @@ final class OrderReturnRepository
         }
 
         return $this->currencyCodes;
+    }
+
+    /**
+     * The ISO code of the delivery country of each of these orders, in one query: the
+     * queue flags the customer of each row as the order list does.
+     *
+     * @param list<int> $orderIds
+     *
+     * @return array<int, string>
+     */
+    public function findDeliveryCountryCodes(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return [];
+        }
+
+        $rows = OrderQuery::create()
+            ->filterById($orderIds, Criteria::IN)
+            ->useOrderAddressRelatedByDeliveryOrderAddressIdQuery()
+                ->useCountryQuery()
+                ->endUse()
+            ->endUse()
+            ->withColumn(CountryTableMap::COL_ISOALPHA2, 'iso')
+            ->select(['Id', 'iso'])
+            ->find();
+
+        $codes = [];
+        foreach ($rows as $row) {
+            $codes[(int) $row['Id']] = (string) $row['iso'];
+        }
+
+        return $codes;
     }
 
     public function countAll(): int

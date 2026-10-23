@@ -107,6 +107,28 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         self::assertSame('A-PRODUCT-REF', $lines[(int) $orderReturn->getId()][0]['ref']);
     }
 
+    public function testTheDeliveryCountriesOfAPageCostOneQuery(): void
+    {
+        $first = $this->returnWith(1);
+        $second = $this->returnWith(1);
+        $orderIds = [(int) $first->getOrderId(), (int) $second->getOrderId()];
+
+        $codes = [];
+        $queries = QueryCounter::count(function () use ($orderIds, &$codes): void {
+            $codes = $this->returns->findDeliveryCountryCodes($orderIds);
+        });
+
+        self::assertSame(1, $queries);
+        foreach ([$first, $second] as $orderReturn) {
+            self::assertSame(
+                (string) $orderReturn->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2(),
+                $codes[(int) $orderReturn->getOrderId()],
+                'The ISO code of the delivery country of the order.',
+            );
+        }
+        self::assertSame([], $this->returns->findDeliveryCountryCodes([]));
+    }
+
     public function testAnEmptyPageAsksNothing(): void
     {
         $lines = [];
