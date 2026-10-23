@@ -40,12 +40,11 @@ final readonly class OrderReturnResolutionLabels
 
     /**
      * What the customer wishes to receive, shown under an exchange only: a wish kept on a
-     * return switched to a refund since is not something the shop sends. Null on a core
-     * without the field yet (thelia/thelia#4218).
+     * return switched to a refund since is not something the shop sends.
      */
     public function wishedExchange(OrderReturn $orderReturn): ?string
     {
-        if (!method_exists($orderReturn, 'getExpectedExchange') || $orderReturn->getExpectedResolution() !== OrderReturn::RESOLUTION_EXCHANGE) {
+        if ($orderReturn->getExpectedResolution() !== OrderReturn::RESOLUTION_EXCHANGE) {
             return null;
         }
 
