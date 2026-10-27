@@ -217,7 +217,7 @@ final class CustomerOverviewProviderTest extends IntegrationTestCase
 
         $orderAccess = new OrderAccess(new AdminSaleUnitScope());
 
-        return new CustomerOverviewProvider(new OrderRepository($orderAccess), $access, new IdentityTranslator(), new ReturnEligibilityChecker(), new OrderReturnRepository($orderAccess));
+        return new CustomerOverviewProvider(new OrderRepository($orderAccess), $access, new IdentityTranslator(), static::getContainer()->get(ReturnEligibilityChecker::class), new OrderReturnRepository($orderAccess));
     }
 
     private function customer(?string $createdAt = null): Customer
