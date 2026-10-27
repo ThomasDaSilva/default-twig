@@ -312,27 +312,13 @@ final class WebhookSubscriptionController
             'id' => $subscription->getId(),
             'title' => $subscription->getTitle(),
             'url' => $subscription->getUrl(),
-            'events' => $this->eventNames($subscription),
+            'events' => $subscription->getEventNames(),
             'payload_mode' => $subscription->getPayloadMode(),
             'status' => $subscription->getStatus(),
         ], [
             'include_id' => true,
             'include_error' => WebhookStatus::SUBSCRIPTION_ERROR === $subscription->getStatus(),
         ]);
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function eventNames(WebhookSubscription $subscription): array
-    {
-        try {
-            $names = json_decode((string) $subscription->getEvents(), true, 512, \JSON_THROW_ON_ERROR);
-        } catch (\JsonException) {
-            return [];
-        }
-
-        return \is_array($names) ? array_values(array_map('strval', $names)) : [];
     }
 
     /**
@@ -369,7 +355,7 @@ final class WebhookSubscriptionController
             'id' => $id,
             'title' => (string) $subscription->getTitle(),
             'url' => \is_string($host) ? $host : '',
-            'events' => implode('', array_map(static fn (string $name): string => '<span class="d-block text-wrap">'.htmlspecialchars($name, \ENT_QUOTES).'</span>', $this->eventNames($subscription))),
+            'events' => implode('', array_map(static fn (string $name): string => '<span class="d-block text-wrap">'.htmlspecialchars($name, \ENT_QUOTES).'</span>', $subscription->getEventNames())),
             'status' => $status,
             'status_label' => match ($status) {
                 WebhookStatus::SUBSCRIPTION_ACTIVE => $this->translator->trans('Active'),
