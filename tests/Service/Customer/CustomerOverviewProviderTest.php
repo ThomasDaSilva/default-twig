@@ -17,11 +17,14 @@ namespace BackOfficeDefaultTwigBundle\Tests\Service\Customer;
 use BackOfficeDefaultTwigBundle\DTO\Dashboard\DateRange;
 use BackOfficeDefaultTwigBundle\Repository\CustomerRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
+use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Customer\CustomerOverviewProvider;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Tests\Support\QueryCounter;
 use Symfony\Component\Translation\IdentityTranslator;
+use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\OrderReturn\Service\ReturnEligibilityChecker;
 use Thelia\Domain\SaleUnit\Access\AdminSaleUnitScope;
 use Thelia\Model\Currency;
 use Thelia\Model\Customer;
@@ -209,9 +212,12 @@ final class CustomerOverviewProviderTest extends IntegrationTestCase
     private function provider(bool $canViewOrders): CustomerOverviewProvider
     {
         $access = $this->createStub(AdminAccessChecker::class);
-        $access->method('canView')->willReturn($canViewOrders);
+        // The orders only: the figures are what this test measures, the returns have their own section.
+        $access->method('canView')->willReturnCallback(static fn (string $resource): bool => $resource === AdminResources::ORDER && $canViewOrders);
 
-        return new CustomerOverviewProvider(new OrderRepository(new OrderAccess(new AdminSaleUnitScope())), $access, new IdentityTranslator());
+        $orderAccess = new OrderAccess(new AdminSaleUnitScope());
+
+        return new CustomerOverviewProvider(new OrderRepository($orderAccess), $access, new IdentityTranslator(), new ReturnEligibilityChecker(), new OrderReturnRepository($orderAccess));
     }
 
     private function customer(?string $createdAt = null): Customer

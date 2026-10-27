@@ -49,13 +49,17 @@ final readonly class OrderReturnListRowPresenter
     /**
      * A whole page of rows, reading the per-page figures once instead of once per
      * row: the returned lines of every return of the page come back in a fixed
-     * number of queries, and the reason titles in one.
+     * number of queries, and the reason titles in one. The returns must come from a
+     * query restricted to the sale units of the administrator: the per-page reads
+     * trust their ids.
      *
      * @param iterable<OrderReturn> $returns
+     * @param bool                  $withCustomer false when the page shows no customer column: the delivery countries are not read
+     * @param bool                  $linkProducts false when the administrator may not open the product sheets
      *
      * @return list<array<string, mixed>>
      */
-    public function presentAll(iterable $returns, string $locale): array
+    public function presentAll(iterable $returns, string $locale, bool $withCustomer = true, bool $linkProducts = true): array
     {
         $page = [];
         $returnIds = [];
@@ -74,26 +78,29 @@ final readonly class OrderReturnListRowPresenter
         $reasonTitles = $this->returns->findReasonTitles($locale);
         $statusTitles = array_column($this->returns->findStatusesLocalized($locale), 'title', 'id');
         $currencyCodes = $this->returns->findCurrencyCodes();
-        $countryCodes = $this->returns->findDeliveryCountryCodes(array_values(array_unique($orderIds)));
+        $countryCodes = $withCustomer ? $this->returns->findDeliveryCountryCodes(array_values(array_unique($orderIds))) : null;
 
         $rows = [];
         foreach ($page as $orderReturn) {
-            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles, $statusTitles, $currencyCodes, $countryCodes);
+            $rows[] = $this->present($orderReturn, $locale, $lines, $reasonTitles, $statusTitles, $currencyCodes, $countryCodes, $linkProducts);
         }
 
         return $rows;
     }
 
     /**
-     * @param array<int, list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>> $lines         returned lines per return id, when the caller has them
-     * @param array<int, string>                                                                                                                                $reasonTitles  current title of each reason, when the caller has them
-     * @param array<int, string>                                                                                                                                $statusTitles  title of each status in $locale, when the caller has them
-     * @param array<int, string>                                                                                                                                $currencyCodes code of each currency, when the caller has them
-     * @param array<int, string>                                                                                                                                $countryCodes  ISO code of the delivery country of each order, when the caller has them
+     * One row, from the figures {@see presentAll()} read for the whole page: nothing is
+     * read row by row.
+     *
+     * @param array<int, list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}>> $lines         returned lines per return id
+     * @param array<int, string>                                                                                                                                $reasonTitles  current title of each reason
+     * @param array<int, string>                                                                                                                                $statusTitles  title of each status in $locale
+     * @param array<int, string>                                                                                                                                $currencyCodes code of each currency
+     * @param array<int, string>|null                                                                                                                           $countryCodes  ISO code of the delivery country of each order, null without a customer column
      *
      * @return array<string, mixed>
      */
-    public function present(OrderReturn $orderReturn, string $locale, array $lines = [], array $reasonTitles = [], array $statusTitles = [], array $currencyCodes = [], array $countryCodes = []): array
+    private function present(OrderReturn $orderReturn, string $locale, array $lines, array $reasonTitles, array $statusTitles, array $currencyCodes, ?array $countryCodes, bool $linkProducts): array
     {
         $returnId = (int) $orderReturn->getId();
         // status_id is a required column behind a RESTRICT foreign key: a return
@@ -106,8 +113,8 @@ final readonly class OrderReturnListRowPresenter
             'id' => $returnId,
             'ref' => (string) $orderReturn->getRef(),
             'order_html' => $this->renderOrder($orderReturn, $returnId),
-            'customer_html' => $this->renderCustomer($orderReturn, $countryCodes),
-            'products_html' => $this->renderProducts($lines[$returnId] ?? [], $locale),
+            'customer_html' => $countryCodes === null ? '' : $this->renderCustomer($orderReturn, $countryCodes[(int) $orderReturn->getOrderId()] ?? null),
+            'products_html' => $this->renderProducts($lines[$returnId] ?? [], $locale, $linkProducts),
             'reason' => $this->reason($orderReturn, $reasonTitles),
             'resolution_html' => $this->renderResolution($orderReturn),
             'status' => $statusTitles[(int) $status->getId()] ?? (string) $status->getTitle(),
@@ -150,22 +157,15 @@ final readonly class OrderReturnListRowPresenter
     /**
      * The customer as the order list shows them: the flag of the delivery country before
      * the name, the e-mail underneath.
-     *
-     * @param array<int, string> $countryCodes
      */
-    private function renderCustomer(OrderReturn $orderReturn, array $countryCodes): string
+    private function renderCustomer(OrderReturn $orderReturn, ?string $countryCode): string
     {
         // customer_id is a required column behind a RESTRICT foreign key.
         $customer = $orderReturn->getCustomer();
-        $orderId = (int) $orderReturn->getOrderId();
-        // delivery_order_address_id and country_id are required columns behind foreign keys.
-        $iso = \array_key_exists($orderId, $countryCodes)
-            ? $countryCodes[$orderId]
-            : $orderReturn->getOrder()->getOrderAddressRelatedByDeliveryOrderAddressId()->getCountry()->getIsoalpha2();
 
         return \sprintf(
             '<div class="bo-order-customer bo-order-customer--compact"><div class="fw-semibold">%s%s %s</div><div class="text-muted small text-truncate" title="%s">%s</div></div>',
-            CountryFlag::prefix($iso),
+            CountryFlag::prefix($countryCode),
             htmlspecialchars((string) $customer->getFirstname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getLastname(), \ENT_QUOTES | \ENT_HTML5),
             htmlspecialchars((string) $customer->getEmail(), \ENT_QUOTES | \ENT_HTML5),
@@ -176,11 +176,12 @@ final readonly class OrderReturnListRowPresenter
     /**
      * The product of each returned line as it was ordered, with the quantity when more
      * than one unit goes back, then its reference and the values of its combination on
-     * lines of their own.
+     * lines of their own. The title links to the product sheet when the product is still
+     * in the catalogue and the administrator may open it.
      *
      * @param list<array{ref: string, title: string, quantity: float, product_id: ?int, attributes: list<array{attribute: string, value: string}>}> $lines
      */
-    private function renderProducts(array $lines, string $locale): string
+    private function renderProducts(array $lines, string $locale, bool $linkProducts): string
     {
         if ($lines === []) {
             return '<span class="text-muted">-</span>';
@@ -192,7 +193,7 @@ final readonly class OrderReturnListRowPresenter
         foreach ($lines as $line) {
             $title = htmlspecialchars($line['title'], \ENT_QUOTES | \ENT_HTML5);
 
-            if ($line['product_id'] !== null) {
+            if ($linkProducts && $line['product_id'] !== null) {
                 $title = \sprintf(
                     '<a href="%s" class="text-decoration-none">%s</a>',
                     htmlspecialchars($this->urls->generate(self::PRODUCT_ROUTE, ['product_id' => $line['product_id']]), \ENT_QUOTES | \ENT_HTML5),
@@ -246,7 +247,15 @@ final readonly class OrderReturnListRowPresenter
      */
     private function renderResolution(OrderReturn $orderReturn): string
     {
-        $html = \sprintf('<div>%s</div>', htmlspecialchars($this->resolutionLabels->label((string) $orderReturn->getExpectedResolution()), \ENT_QUOTES | \ENT_HTML5));
+        $label = $this->resolutionLabels->label((string) $orderReturn->getExpectedResolution());
+
+        // A value outside the known resolutions has no label: an empty cell, which the row
+        // details leave out.
+        if ($label === '') {
+            return '';
+        }
+
+        $html = \sprintf('<div>%s</div>', htmlspecialchars($label, \ENT_QUOTES | \ENT_HTML5));
         $wish = $this->resolutionLabels->wishedExchange($orderReturn);
 
         if ($wish === null) {

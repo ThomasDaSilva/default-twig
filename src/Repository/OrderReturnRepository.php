@@ -185,7 +185,8 @@ final class OrderReturnRepository
      * The reference, the title and the attribute values are those frozen on the
      * order, in the language it was placed in: the product may have been renamed or
      * deleted since. The reference is that of the ordered combination, or of the
-     * product when the line has none.
+     * product when the line has none. The ids are those of a page already restricted to
+     * the sale units of the administrator: this read does not restrict them again.
      *
      * @param list<int> $returnIds
      *
@@ -274,7 +275,8 @@ final class OrderReturnRepository
 
     /**
      * The attribute values of the combination each of these order lines was ordered in,
-     * as frozen on the order, in one query.
+     * as frozen on the order, in one query. The ids come from returns already restricted
+     * to the sale units of the administrator.
      *
      * @param list<int> $orderProductIds
      *
@@ -303,7 +305,9 @@ final class OrderReturnRepository
 
     /**
      * The ISO code of the delivery country of each of these orders, in one query: the
-     * queue flags the customer of each row as the order list does.
+     * queue flags the customer of each row as the order list does. The ids come from a
+     * page of returns already restricted to the sale units of the administrator; the read
+     * stays here, next to the other per-page reads of the queue.
      *
      * @param list<int> $orderIds
      *

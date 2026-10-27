@@ -168,6 +168,28 @@ final class OrderReturnListQueriesTest extends IntegrationTestCase
         self::assertSame(0, $second, 'The breakdown is memoised for the request.');
     }
 
+    public function testAPageWithoutCustomerColumnReadsNoCountry(): void
+    {
+        $presenter = $this->getService(OrderReturnListRowPresenter::class);
+        self::assertInstanceOf(OrderReturnListRowPresenter::class, $presenter);
+        $customer = $this->factory->customer($this->factory->customerTitle());
+        $this->returnWith(1, null, $customer);
+        $page = $this->returns->findPaginated(new OrderReturnFilters(customerId: (int) $customer->getId()), 1, 25);
+        // The per-request memos (reasons, statuses, currencies) are warmed first.
+        $presenter->presentAll($page['rows'], 'en_US');
+
+        $rows = [];
+        $withCustomer = QueryCounter::count(static function () use ($presenter, $page): void {
+            $presenter->presentAll($page['rows'], 'en_US');
+        });
+        $withoutCustomer = QueryCounter::count(static function () use ($presenter, $page, &$rows): void {
+            $rows = $presenter->presentAll($page['rows'], 'en_US', withCustomer: false);
+        });
+
+        self::assertSame($withCustomer - 1, $withoutCustomer, 'The delivery countries are not read for a column that is not shown.');
+        self::assertSame('', $rows[0]['customer_html']);
+    }
+
     public function testAPageCostsTheSameWhateverTheNumberOfReturns(): void
     {
         $presenter = $this->getService(OrderReturnListRowPresenter::class);

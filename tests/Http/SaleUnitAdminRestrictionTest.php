@@ -25,9 +25,13 @@ use Thelia\Domain\SaleUnit\SaleUnitActivityChecker;
 use Thelia\Model\Admin;
 use Thelia\Model\AdminSaleUnitQuery;
 use Thelia\Model\ConfigQuery;
+use Thelia\Model\Customer;
 use Thelia\Model\Order;
 use Thelia\Model\OrderHistoryQuery;
 use Thelia\Model\OrderQuery;
+use Thelia\Model\OrderReturn;
+use Thelia\Model\OrderReturnStatus;
+use Thelia\Model\OrderReturnStatusQuery;
 use Thelia\Model\OrderStatusQuery;
 use Thelia\Model\ProductSaleElementsQuery;
 use Thelia\Model\SaleUnit;
@@ -100,6 +104,32 @@ final class SaleUnitAdminRestrictionTest extends WebIntegrationTestCase
         $refs = $crawler->filter('[data-testid="bo-order-ref-link"]')->each(static fn ($link): string => trim($link->text()));
         self::assertContains($southOrder->getRef(), $refs, 'An administrator attached to no unit reaches every order.');
         self::assertContains($nationalOrder->getRef(), $refs);
+    }
+
+    /**
+     * The returns section of the customer sheet counts and lists the returns of the units
+     * the administrator works on only, as the return queue does.
+     */
+    public function testTheCustomerSheetShowsALimitedAdministratorTheReturnsOfItsUnitsOnly(): void
+    {
+        ConfigQuery::write('order_return_enabled', '1');
+        $this->saleUnits();
+        $customer = $this->factory->customer($this->factory->customerTitle());
+        $northReturn = $this->returnOf($this->orderOf($customer, $this->north));
+        $southReturn = $this->returnOf($this->orderOf($customer, $this->south));
+        $this->actAs($this->limitedAdmin([$this->north], [
+            AdminResources::CUSTOMER => [AccessManager::VIEW],
+            AdminResources::ORDER_RETURN => [AccessManager::VIEW],
+        ]));
+
+        $crawler = $this->client->request('GET', '/admin/customer/update?customer_id='.$customer->getId());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame('1', trim($crawler->filter('[data-testid="customer-returns-section-count"]')->text()), 'The return of the other unit is not counted.');
+
+        $crawler = $this->client->request('GET', '/admin/customer/returns?customer_id='.$customer->getId());
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $refs = $crawler->filter('[data-testid="bo-order-return-ref-link"]')->each(static fn ($link): string => trim($link->text()));
+        self::assertSame([(string) $northReturn->getRef()], $refs, 'Nor listed: '.$southReturn->getRef());
     }
 
     public function testTheSheetOfAnOrderOfAnotherUnitDoesNotExistForALimitedAdministrator(): void
@@ -491,6 +521,26 @@ final class SaleUnitAdminRestrictionTest extends WebIntegrationTestCase
         $nationalOrder = $this->factory->order();
 
         return [$northOrder, $southOrder, $nationalOrder];
+    }
+
+    private function orderOf(Customer $customer, SaleUnit $saleUnit): Order
+    {
+        $order = $this->factory->order($customer);
+        $order->setSaleUnitId($saleUnit->getId())->save($this->getPropelConnection());
+
+        return $order;
+    }
+
+    private function returnOf(Order $order): OrderReturn
+    {
+        $return = (new OrderReturn())
+            ->setOrder($order)
+            ->setCustomerId((int) $order->getCustomerId())
+            ->setOrderReturnStatus(OrderReturnStatusQuery::create()->findOneByCode(OrderReturnStatus::CODE_REQUESTED))
+            ->setExpectedResolution(OrderReturn::RESOLUTION_REFUND);
+        $return->save($this->getPropelConnection());
+
+        return $return;
     }
 
     private function orderCountOfTheSidebar(): int

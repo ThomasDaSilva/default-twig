@@ -92,7 +92,7 @@ final class OrderReturnController
         $paginated = $this->returns->findPaginated($filters, $page, self::PAGE_SIZE);
 
         return new Response($this->twig->render(self::LIST_TEMPLATE, [
-            'rows' => $this->rowPresenter->presentAll($paginated['rows'], $locale),
+            'rows' => $this->rowPresenter->presentAll($paginated['rows'], $locale, linkProducts: $this->access->canView(AdminResources::PRODUCT)),
             'total' => $paginated['total'],
             'pages' => $paginated['lastPage'],
             'current_page' => min($page, $paginated['lastPage']),

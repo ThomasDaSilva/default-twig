@@ -24,6 +24,7 @@ use Thelia\Model\Map\ProductSaleElementsTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderProductAttributeCombination;
+use Thelia\Model\OrderProductAttributeCombinationQuery;
 use Thelia\Model\OrderReturn;
 use Thelia\Model\OrderReturnLine;
 use Thelia\Model\OrderReturnQuery;
@@ -312,6 +313,78 @@ final class OrderReturnBackOfficeTest extends WebIntegrationTestCase
         self::assertStringContainsString('&lt;script&gt;', $html);
         self::assertStringNotContainsString('<b>REF</b>', $html);
         self::assertStringContainsString('&lt;b&gt;REF&lt;/b&gt;', $html, 'The reference is escaped too.');
+    }
+
+    /**
+     * Every text the customer typed, and every value frozen on the order, reaches the
+     * cells the grid renders raw: each one is escaped, in the queue and in the returns
+     * section of the customer sheet.
+     */
+    public function testEveryTextOfTheCustomerIsEscapedInTheQueueAndOnTheCustomerSheet(): void
+    {
+        $this->loginFullAdmin();
+        [$return, , $line] = $this->requestedReturn(
+            comment: '<i>comment</i>',
+            resolution: OrderReturn::RESOLUTION_EXCHANGE,
+            expectedExchange: method_exists(OrderReturn::class, 'setExpectedExchange') ? '<u>wish</u>' : null,
+        );
+        $connection = $this->getPropelConnection();
+        // Without a reason, the queue shows the customer's own words.
+        $return->setReasonId(null)->setReasonTitle(null)->save($connection);
+        $return->getCustomer()->setFirstname('<s>first</s>')->setLastname('<em>last</em>')->save($connection);
+        OrderProductAttributeCombinationQuery::create()
+            ->filterByOrderProductId((int) $line->getOrderProductId())
+            ->update(['AttributeAvTitle' => '<b>XL</b>'], $connection);
+
+        foreach (['/admin/returns', '/admin/customer/returns?customer_id='.$return->getCustomerId()] as $url) {
+            $this->assertPageRenders($url);
+            $html = (string) $this->client->getResponse()->getContent();
+
+            $markups = ['<i>comment</i>', '<b>XL</b>'];
+            if (method_exists(OrderReturn::class, 'setExpectedExchange')) {
+                $markups[] = '<u>wish</u>';
+            }
+            if ($url === '/admin/returns') {
+                $markups[] = '<s>first</s>';
+                $markups[] = '<em>last</em>';
+            }
+            foreach ($markups as $markup) {
+                self::assertStringNotContainsString($markup, $html, \sprintf('"%s" is escaped on %s.', $markup, $url));
+                self::assertStringContainsString(htmlspecialchars($markup, \ENT_QUOTES | \ENT_HTML5), $html, \sprintf('"%s" is shown escaped on %s.', $markup, $url));
+            }
+        }
+    }
+
+    public function testTheProductOfALineLinksToItsSheetOnlyForAnAdministratorWhoMayOpenIt(): void
+    {
+        [$return, $pse, $line] = $this->requestedReturn();
+        // The line points to the catalogue product through its reference.
+        $line->getOrderProduct()->setProductRef((string) $pse->getProduct()->getRef())->save($this->getPropelConnection());
+        $productLink = '[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"] [data-testid="datatable-order-returns-cell-products_html"] li > a';
+
+        $this->loginFullAdmin();
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertCount(1, $crawler->filter($productLink), 'An administrator who may open the product sheets gets the link.');
+
+        $admin = $this->factory->restrictedAdmin([AdminResources::ORDER_RETURN => [AccessManager::VIEW]]);
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+        $crawler = $this->client->request('GET', '/admin/returns');
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertCount(0, $crawler->filter($productLink), 'Without the products permission, the title is not a link to a sheet that would refuse it.');
+        self::assertStringContainsString('A returnable product', $crawler->filter('[data-testid="datatable-order-returns-cell-products_html"]')->text());
+    }
+
+    public function testAResolutionOutsideTheKnownOnesLeavesItsCellEmpty(): void
+    {
+        $this->loginFullAdmin();
+        [$return] = $this->requestedReturn();
+        $return->setExpectedResolution('bartering')->save($this->getPropelConnection());
+
+        $crawler = $this->client->request('GET', '/admin/returns');
+
+        $cell = $crawler->filter('[data-testid="datatable-order-returns-row"][data-row-id="'.$return->getId().'"] [data-testid="datatable-order-returns-cell-resolution_html"]');
+        self::assertSame('', trim($cell->html()), 'No empty block the row details would label.');
     }
 
     public function testTheSheetShowsTheRequestAndOffersTheCycleActions(): void

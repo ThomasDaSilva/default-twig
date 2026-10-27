@@ -306,6 +306,19 @@ final class CustomerSheetTest extends WebIntegrationTestCase
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
     }
 
+    public function testTheReturnsSectionIsRefusedWithoutTheCustomerPermission(): void
+    {
+        ConfigQuery::write('order_return_enabled', '1');
+        $customer = $this->customer();
+        $admin = $this->factory->restrictedAdmin([AdminResources::ORDER_RETURN => [AccessManager::VIEW]]);
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+
+        $this->client->request('GET', '/admin/customer/returns?customer_id='.$customer->getId());
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode(), 'The section belongs to the customer sheet: it needs its permission too.');
+    }
+
     public function testTheReturnsSectionDoesNotExistWhileReturnsAreOffNorForAnUnknownCustomer(): void
     {
         $admin = $this->factory->admin();

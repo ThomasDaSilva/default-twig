@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Order;
 use BackOfficeDefaultTwigBundle\Repository\CountryRepository;
 use BackOfficeDefaultTwigBundle\Repository\ModuleRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
+use BackOfficeDefaultTwigBundle\Service\I18n\CountryFlag;
 use Thelia\Module\BaseModule;
 
 /**
@@ -106,7 +107,7 @@ final class OrderFilterCatalog
             static fn (array $country): array => [
                 'id' => $country['id'],
                 'title' => $country['title'],
-                'flag' => self::countryFlag($country['iso']),
+                'flag' => CountryFlag::of($country['iso']),
                 'iso' => $country['iso'],
             ],
             $countries,
@@ -129,21 +130,5 @@ final class OrderFilterCatalog
     public function itemsBounds(): array
     {
         return $this->itemsBounds ??= $this->orders->getItemsBounds();
-    }
-
-    private static function countryFlag(string $iso): string
-    {
-        if (\strlen($iso) !== 2) {
-            return '';
-        }
-
-        $upper = strtoupper($iso);
-        $offset = 0x1F1E6 - \ord('A');
-        $flag = '';
-        for ($i = 0, $len = \strlen($upper); $i < $len; ++$i) {
-            $flag .= mb_chr(\ord($upper[$i]) + $offset);
-        }
-
-        return $flag;
     }
 }

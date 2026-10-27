@@ -17,9 +17,11 @@ namespace BackOfficeDefaultTwigBundle\Service\Customer;
 use BackOfficeDefaultTwigBundle\DTO\Customer\CustomerKpis;
 use BackOfficeDefaultTwigBundle\DTO\Customer\CustomerOverview;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
+use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\OrderReturn\Service\ReturnEligibilityChecker;
 use Thelia\Model\Currency;
 use Thelia\Model\CurrencyQuery;
 use Thelia\Model\Customer;
@@ -35,6 +37,8 @@ final readonly class CustomerOverviewProvider
         private OrderRepository $orders,
         private AdminAccessChecker $access,
         private TranslatorInterface $translator,
+        private ReturnEligibilityChecker $returnEligibility,
+        private OrderReturnRepository $returns,
     ) {
     }
 
@@ -48,7 +52,22 @@ final readonly class CustomerOverviewProvider
             canViewOrders: $canViewOrders,
             customerSince: $customerSince,
             customerAge: $customerSince !== null ? $this->age($customerSince, $now) : '',
+            returnCount: $this->returnCount((int) $customer->getId()),
         );
+    }
+
+    /**
+     * The number of returns of the customer the administrator reaches, or null when the
+     * sheet shows no returns section: returns off, or not allowed to see them. Nothing is
+     * read then.
+     */
+    private function returnCount(int $customerId): ?int
+    {
+        if (!$this->returnEligibility->isFeatureEnabled() || !$this->access->canView(AdminResources::ORDER_RETURN)) {
+            return null;
+        }
+
+        return $this->returns->countByCustomer($customerId);
     }
 
     private function kpis(int $customerId): CustomerKpis

@@ -414,10 +414,10 @@
 
         {# ── Returns, loaded when the section opens; absent while the shop has returns off
               or for an administrator who may not see them ── #}
-        {% if returns_total is not null %}
+        {% if overview.returnCount is not null %}
         {% embed '@BackOfficeDefaultTwig/customer/_section.html.twig' with {
             id: 'returns', title: 'Returns'|trans, icon: 'bi-arrow-return-left', testid: 'customer-returns-section',
-            count: returns_total, open: false, lazy_url: path('admin.customer.returns', { customer_id: customer.id }),
+            count: overview.returnCount, open: false, lazy_url: path('admin.customer.returns', { customer_id: customer.id }),
         } only %}
             {% block section_body %}
                 <p class="text-muted small mb-0">

@@ -75,7 +75,7 @@ final readonly class CustomerReturnsController
         $page = $this->returns->findPaginated(new OrderReturnFilters(customerId: $customerId), 1, self::PAGE_SIZE);
 
         return new Response($this->twig->render(self::TEMPLATE, [
-            'rows' => $this->rowPresenter->presentAll($page['rows'], $request->getLocale()),
+            'rows' => $this->rowPresenter->presentAll($page['rows'], $request->getLocale(), withCustomer: false, linkProducts: $this->access->canView(AdminResources::PRODUCT)),
             'total' => $page['total'],
             'list_url' => $this->urls->generate(self::LIST_ROUTE, ['customer_id' => $customerId]),
         ]));

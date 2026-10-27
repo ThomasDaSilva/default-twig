@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Order;
 
 use BackOfficeDefaultTwigBundle\Repository\ModuleRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
+use BackOfficeDefaultTwigBundle\Service\I18n\CountryFlag;
 use BackOfficeDefaultTwigBundle\Service\I18n\MoneyFormatter;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -198,7 +199,7 @@ final readonly class OrderListRowPresenter
         $firstname = htmlspecialchars((string) $customer->getFirstname());
         $lastname = htmlspecialchars((string) $customer->getLastname());
         $email = htmlspecialchars((string) $customer->getEmail());
-        $flag = $this->countryFlag($order->getOrderAddressRelatedByDeliveryOrderAddressId()?->getCountry()?->getIsoalpha2());
+        $flag = CountryFlag::prefix($order->getOrderAddressRelatedByDeliveryOrderAddressId()?->getCountry()?->getIsoalpha2());
 
         return \sprintf(
             '<div class="bo-order-customer"><div class="fw-semibold">%s%s %s</div><div class="text-muted small text-truncate">%s</div></div>',
@@ -298,22 +299,6 @@ final readonly class OrderListRowPresenter
         }
 
         return $createdAt->format('d/m/Y');
-    }
-
-    private function countryFlag(?string $iso): string
-    {
-        if ($iso === null || \strlen($iso) !== 2) {
-            return '';
-        }
-
-        $upper = strtoupper($iso);
-        $offset = 0x1F1E6 - \ord('A');
-        $flag = '';
-        for ($i = 0, $len = \strlen($upper); $i < $len; ++$i) {
-            $flag .= mb_chr(\ord($upper[$i]) + $offset);
-        }
-
-        return $flag.' ';
     }
 
     /**

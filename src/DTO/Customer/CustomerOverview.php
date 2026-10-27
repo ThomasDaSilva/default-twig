@@ -18,7 +18,9 @@ namespace BackOfficeDefaultTwigBundle\DTO\Customer;
  * What the customer sheet shows around the customer's own record.
  *
  * `kpis` is null, and the orders section is left out, when the administrator may not see
- * the orders: the figures are computed from them.
+ * the orders: the figures are computed from them. `returnCount` is null, and the returns
+ * section is left out, while the shop has returns off or for an administrator who may not
+ * see them.
  */
 final readonly class CustomerOverview
 {
@@ -27,6 +29,7 @@ final readonly class CustomerOverview
         public bool $canViewOrders,
         public ?\DateTimeImmutable $customerSince,
         public string $customerAge,
+        public ?int $returnCount,
     ) {
     }
 }

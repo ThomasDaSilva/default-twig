@@ -19,7 +19,6 @@ use BackOfficeDefaultTwigBundle\Form\Customer\CustomerType;
 use BackOfficeDefaultTwigBundle\Repository\CountryRepository;
 use BackOfficeDefaultTwigBundle\Repository\CustomerRepository;
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
-use BackOfficeDefaultTwigBundle\Repository\OrderReturnRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormErrorRenderer;
@@ -30,6 +29,7 @@ use BackOfficeDefaultTwigBundle\Service\Customer\CustomerFilters;
 use BackOfficeDefaultTwigBundle\Service\Customer\CustomerListRowPresenter;
 use BackOfficeDefaultTwigBundle\Service\Customer\CustomerOverviewProvider;
 use BackOfficeDefaultTwigBundle\Service\Customer\CustomerPaymentMethodsProvider;
+use BackOfficeDefaultTwigBundle\Service\I18n\CountryFlag;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\I18n\StateChoiceProvider;
 use BackOfficeDefaultTwigBundle\Service\Tag\TagSwatch;
@@ -48,7 +48,6 @@ use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Customer\Service\CustomerTitleService;
-use Thelia\Domain\OrderReturn\Service\ReturnEligibilityChecker;
 use Thelia\Domain\Tagging\Service\TagService;
 use Thelia\Mailer\MailerFactory;
 use Thelia\Model\ConfigQuery;
@@ -100,8 +99,6 @@ final class CustomerController
         private readonly TagService $tags,
         private readonly TagSwatch $swatch,
         private readonly CustomerOverviewProvider $overviewProvider,
-        private readonly ReturnEligibilityChecker $returnEligibility,
-        private readonly OrderReturnRepository $orderReturnRepository,
         private readonly CustomerPaymentMethodsProvider $paymentMethods,
     ) {
     }
@@ -182,28 +179,12 @@ final class CustomerController
         $index = [];
         foreach ($countries as $country) {
             $index[$country['id']] = [
-                'flag' => self::countryFlag($country['iso']),
+                'flag' => CountryFlag::of($country['iso']),
                 'title' => $country['title'],
             ];
         }
 
         return $index;
-    }
-
-    private static function countryFlag(string $iso): string
-    {
-        if (\strlen($iso) !== 2) {
-            return '';
-        }
-
-        $upper = strtoupper($iso);
-        $offset = 0x1F1E6 - \ord('A');
-        $flag = '';
-        for ($i = 0, $len = \strlen($upper); $i < $len; ++$i) {
-            $flag .= mb_chr(\ord($upper[$i]) + $offset);
-        }
-
-        return $flag;
     }
 
     #[Route('/customer/update', name: 'customer.update.view', methods: ['GET'])]
@@ -243,12 +224,6 @@ final class CustomerController
         $ordersPerPage = 20;
         $ordersLastPage = max(1, (int) ceil($ordersTotal / $ordersPerPage));
 
-        // No returns section while the shop has returns off, nor for an administrator
-        // who may not see them: their number is not even read.
-        $returnsTotal = $this->returnEligibility->isFeatureEnabled() && $this->access->canView(AdminResources::ORDER_RETURN)
-            ? $this->orderReturnRepository->countByCustomer($customerId)
-            : null;
-
         return new Response($this->twig->render(self::EDIT_TEMPLATE, [
             'form' => $form->createView(),
             'customer' => $customer,
@@ -262,7 +237,6 @@ final class CustomerController
             'orders_total' => $ordersTotal,
             'orders_page' => $ordersPage,
             'orders_last_page' => $ordersLastPage,
-            'returns_total' => $returnsTotal,
             'prev_url' => $navigation['previous'] !== null ? $this->urls->generate(self::EDIT_ROUTE, ['customer_id' => $navigation['previous']]) : null,
             'next_url' => $navigation['next'] !== null ? $this->urls->generate(self::EDIT_ROUTE, ['customer_id' => $navigation['next']]) : null,
         ]));

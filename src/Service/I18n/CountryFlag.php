@@ -15,23 +15,32 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\I18n;
 
 /**
- * The flag emoji of a country, written before a customer name as the order list does.
+ * The flag emoji of a country, as the lists and the filters of the back office show it.
  */
 final class CountryFlag
 {
     /**
-     * The flag of an ISO 3166-1 alpha-2 code followed by a space, or an empty string for
-     * anything else.
+     * The flag of an ISO 3166-1 alpha-2 code, or an empty string for anything else.
      */
-    public static function prefix(?string $iso): string
+    public static function of(?string $iso): string
     {
-        if ($iso === null || \strlen($iso) !== 2 || !ctype_alpha($iso)) {
+        if ($iso === null || preg_match('/^[A-Za-z]{2}$/', $iso) !== 1) {
             return '';
         }
 
         $upper = strtoupper($iso);
         $offset = 0x1F1E6 - \ord('A');
 
-        return mb_chr(\ord($upper[0]) + $offset).mb_chr(\ord($upper[1]) + $offset).' ';
+        return mb_chr(\ord($upper[0]) + $offset).mb_chr(\ord($upper[1]) + $offset);
+    }
+
+    /**
+     * The flag followed by a space, to write before a name; an empty string when there is no flag.
+     */
+    public static function prefix(?string $iso): string
+    {
+        $flag = self::of($iso);
+
+        return $flag === '' ? '' : $flag.' ';
     }
 }
