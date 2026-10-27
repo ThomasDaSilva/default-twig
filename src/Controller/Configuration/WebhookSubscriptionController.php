@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Form\Configuration\WebhookSubscriptionType;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFormAction;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
@@ -28,7 +29,6 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -72,6 +72,7 @@ final class WebhookSubscriptionController
         private readonly TokenProvider $tokens,
         private readonly SecurityContext $securityContext,
         private readonly WebhookDeliveryTransport $deliveryTransport,
+        private readonly AdminFlash $flash,
         #[Target('webhook_test')]
         private readonly RateLimiterFactoryInterface $testLimiter,
     ) {
@@ -242,7 +243,7 @@ final class WebhookSubscriptionController
         try {
             $this->tokens->checkToken((string) $request->request->get('_token', ''));
         } catch (\Throwable) {
-            $this->flash($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
+            $this->flash->add($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
 
             return $back;
         }
@@ -250,7 +251,7 @@ final class WebhookSubscriptionController
         $adminUser = $this->securityContext->getAdminUser();
 
         if (!$this->testLimiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
-            $this->flash($request, 'warning', $this->translator->trans('Too many test requests in a row. Try again in a few minutes.'));
+            $this->flash->add($request, 'warning', $this->translator->trans('Too many test requests in a row. Try again in a few minutes.'));
 
             return $back;
         }
@@ -260,7 +261,7 @@ final class WebhookSubscriptionController
         try {
             $this->events->dispatch($event, TheliaEvents::WEBHOOK_SUBSCRIPTION_TEST);
         } catch (\Throwable) {
-            $this->flash($request, 'danger', $this->translator->trans('The test request could not be sent.'));
+            $this->flash->add($request, 'danger', $this->translator->trans('The test request could not be sent.'));
 
             return $back;
         }
@@ -269,9 +270,9 @@ final class WebhookSubscriptionController
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Test request sent to webhook subscription %s', (string) $subscription->getTitle()), (int) $subscription->getId());
 
         if (WebhookStatus::DELIVERY_SUCCEEDED === $delivery?->getStatus()) {
-            $this->flash($request, 'success', $this->translator->trans('The receiver answered %code%: the configuration works.', ['%code%' => (int) $delivery->getResponseCode()]));
+            $this->flash->add($request, 'success', $this->translator->trans('The receiver answered %code%: the configuration works.', ['%code%' => (int) $delivery->getResponseCode()]));
         } else {
-            $this->flash($request, 'danger', null === $delivery?->getResponseCode()
+            $this->flash->add($request, 'danger', null === $delivery?->getResponseCode()
                 ? $this->translator->trans('The receiver did not answer. The test request is in the delivery log.')
                 : $this->translator->trans('The receiver answered %code%. The test request is in the delivery log.', ['%code%' => (int) $delivery->getResponseCode()]));
         }
@@ -412,14 +413,5 @@ final class WebhookSubscriptionController
         $session->remove(self::ISSUED_SECRET_KEY);
 
         return time() <= (int) ($issued['expires'] ?? 0) ? (string) ($issued['secret'] ?? '') : null;
-    }
-
-    private function flash(Request $request, string $type, string $message): void
-    {
-        $session = $request->hasSession() ? $request->getSession() : null;
-
-        if ($session instanceof FlashBagAwareSessionInterface) {
-            $session->getFlashBag()->add($type, $message);
-        }
     }
 }

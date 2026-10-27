@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 
 use BackOfficeDefaultTwigBundle\Repository\WebhookDeliveryRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
+use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Symfony\Component\DependencyInjection\Attribute\Target;
@@ -23,7 +24,6 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpFoundation\Session\FlashBagAwareSessionInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -63,6 +63,7 @@ final class WebhookDeliveryController
         private readonly EventDispatcherInterface $events,
         private readonly TokenProvider $tokens,
         private readonly SecurityContext $securityContext,
+        private readonly AdminFlash $flash,
         #[Target('webhook_replay')]
         private readonly RateLimiterFactoryInterface $replayLimiter,
     ) {
@@ -150,7 +151,7 @@ final class WebhookDeliveryController
         try {
             $this->tokens->checkToken((string) $request->request->get('_token', ''));
         } catch (\Throwable) {
-            $this->flash($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
+            $this->flash->add($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
 
             return $back;
         }
@@ -158,7 +159,7 @@ final class WebhookDeliveryController
         $adminUser = $this->securityContext->getAdminUser();
 
         if (!$this->replayLimiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
-            $this->flash($request, 'warning', $this->translator->trans('Too many replays in a row. Try again in a few minutes.'));
+            $this->flash->add($request, 'warning', $this->translator->trans('Too many replays in a row. Try again in a few minutes.'));
 
             return $back;
         }
@@ -166,24 +167,15 @@ final class WebhookDeliveryController
         try {
             $this->events->dispatch((new WebhookDeliveryEvent())->setDelivery($delivery), TheliaEvents::WEBHOOK_DELIVERY_REPLAY);
         } catch (\Throwable $exception) {
-            $this->flash($request, 'danger', $exception instanceof \LogicException ? $exception->getMessage() : $this->translator->trans('The delivery could not be replayed.'));
+            $this->flash->add($request, 'danger', $exception instanceof \LogicException ? $exception->getMessage() : $this->translator->trans('The delivery could not be replayed.'));
 
             return $back;
         }
 
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Webhook delivery %d replayed', $deliveryId), $deliveryId);
-        $this->flash($request, 'success', $this->translator->trans('The delivery was queued again: its result appears in the log.'));
+        $this->flash->add($request, 'success', $this->translator->trans('The delivery was queued again: its result appears in the log.'));
 
         return $back;
-    }
-
-    private function flash(Request $request, string $type, string $message): void
-    {
-        $session = $request->hasSession() ? $request->getSession() : null;
-
-        if ($session instanceof FlashBagAwareSessionInterface) {
-            $session->getFlashBag()->add($type, $message);
-        }
     }
 
     /**
