@@ -17,7 +17,7 @@ namespace BackOfficeDefaultTwigBundle\UiComponents\DataTable;
 final readonly class RowAction
 {
     /**
-     * @param string                          $kind             One of: 'edit', 'delete', 'view', 'custom'. Drives the default Bootstrap-icon glyph + variant.
+     * @param string                          $kind             One of the kinds of cells/actions.html.twig ('edit', 'delete', 'view', 'send', 'activate', 'deactivate', 'custom'…). Drives the Bootstrap-icon glyph + variant; 'activate' and 'deactivate' show the switch in the state the row is in, the action turning it over.
      * @param ?string                         $href             Destination URL. Mutually exclusive with $modalTarget - if both null, the action becomes a no-op button.
      * @param ?string                         $modalTarget      CSS selector of a Bootstrap modal to open (e.g. '#delete_dialog'). Adds data-bs-toggle/target.
      * @param ?string                         $grantedAttribute Symfony voter attribute (VIEW/UPDATE/DELETE) required to render the action. Null = no permission gate.
