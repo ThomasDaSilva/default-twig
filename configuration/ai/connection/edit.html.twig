@@ -1,0 +1,97 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ connection ? 'Edit the connection'|trans : 'New connection'|trans }}{% endblock %}
+{% block body_testid %}ai-connection-edit{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ connection ? connection.title : 'New connection'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set can_write = connection ? is_granted('UPDATE', 'admin.configuration.ai') : is_granted('CREATE', 'admin.configuration.ai') %}
+    <div class="container-fluid" data-testid="ai-connection-edit-page">
+        <h1 class="h3 mb-3">{{ connection ? 'Edit the connection'|trans : 'New connection'|trans }}</h1>
+
+        {% if outside_european_union %}
+            <div class="alert alert-info" role="alert" data-testid="ai-non-eu-warning">
+                <strong>{{ 'This connection processes the data outside the European Union.'|trans }}</strong>
+                {{ 'This is allowed, nothing is blocked. Keep it in mind for personal data of your visitors: a European provider avoids the question.'|trans }}
+            </div>
+        {% endif %}
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        {% form_theme form with bo_form_themes only %}
+                        {{ form_start(form, { action: connection ? path('admin.configuration.ai.connections.save', { id: connection.id }) : path('admin.configuration.ai.connections.create'), method: 'post', attr: { autocomplete: 'off' } }) }}
+                            {{ form_errors(form) }}
+                            {{ form_row(form.title) }}
+                            {{ form_row(form.code) }}
+                            {{ form_row(form.provider) }}
+                            {{ form_row(form.base_url) }}
+                            {{ form_row(form.jurisdiction) }}
+                            {{ form_row(form.api_key) }}
+                            {{ form_row(form.api_key_env) }}
+                            {{ form_row(form.allow_private_network) }}
+                            {{ form_row(form.active) }}
+                            {{ form_rest(form) }}
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <a href="{{ path('admin.configuration.ai.default') }}" class="btn btn-outline-secondary">{{ 'Cancel'|trans }}</a>
+                                {% if can_write %}
+                                    <button type="submit" class="btn btn-primary" data-testid="ai-connection-save"><i class="bi bi-check2"></i> {{ 'Save'|trans }}</button>
+                                {% endif %}
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h2 class="h6">{{ 'API key'|trans }}</h2>
+                        <p class="mb-1" data-testid="ai-key-status">
+                            {{ (has_key ? 'Key saved: yes' : 'Key saved: no')|trans }}
+                        </p>
+                        <p class="text-body-secondary small mb-0">{{ 'The key is stored encrypted. For your security it is never displayed again, not even to administrators.'|trans }}</p>
+                    </div>
+                </div>
+
+                {% if connection %}
+                    <div class="card mb-3">
+                        <div class="card-body">
+                            <h2 class="h6">{{ 'Test the connection'|trans }}</h2>
+                            <p class="text-body-secondary small">{{ 'Sends one very short message to the provider to check the address and the key. It costs a fraction of a cent at most.'|trans }}</p>
+                            {% if connection.checkedAt %}
+                                <p class="small mb-2" data-testid="ai-last-test">
+                                    {% if connection.checkError %}
+                                        <span class="badge text-bg-danger">{{ 'Failed'|trans }}</span> {{ connection.checkedAt|date('Y-m-d H:i') }}<br>
+                                        <span class="text-break">{{ connection.checkError }}</span>
+                                    {% else %}
+                                        <span class="badge text-bg-success">{{ 'Worked'|trans }}</span> {{ connection.checkedAt|date('Y-m-d H:i') }}
+                                    {% endif %}
+                                </p>
+                            {% endif %}
+                            {% if is_granted('UPDATE', 'admin.configuration.ai') %}
+                                <form method="post" action="{{ path('admin.configuration.ai.connections.test', { id: connection.id }) }}">
+                                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                    <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="ai-connection-test-button">
+                                        <i class="bi bi-send" aria-hidden="true"></i> {{ 'Test now'|trans }}
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+{% endblock %}

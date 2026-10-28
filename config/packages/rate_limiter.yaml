@@ -29,3 +29,9 @@ framework:
             policy: 'sliding_window'
             limit: 20
             interval: '5 minutes'
+        # A connection test is a real call to an AI provider, billed to the shop, on a button that can be held
+        # down. Per administrator.
+        ai_connection_test:
+            policy: 'sliding_window'
+            limit: 10
+            interval: '5 minutes'

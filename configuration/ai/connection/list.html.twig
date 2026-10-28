@@ -1,0 +1,80 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Connections'|trans }}{% endblock %}
+{% block body_testid %}ai-connections-list{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Artificial intelligence'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-connections-page">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <h1 class="h3 mb-0">{{ 'Artificial intelligence'|trans }}</h1>
+            {% if is_granted('CREATE', 'admin.configuration.ai') %}
+                <a class="btn btn-primary" href="{{ path('admin.configuration.ai.connections.new') }}" data-testid="ai-connection-create-button">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add a connection'|trans }}
+                </a>
+            {% endif %}
+        </div>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'connections' } only %}
+
+        <p class="text-body-secondary">{{ 'A connection is the link between your shop and a company that runs AI models. You need one, with its key, before any AI feature can work. Your shop pays the provider directly.'|trans }}</p>
+
+        {% if has_non_european_connection %}
+            <div class="alert alert-info" role="alert" data-testid="ai-non-eu-banner">
+                {{ 'At least one connection processes the data outside the European Union. This is allowed. If you prefer to keep your visitors\' data in Europe, European providers are available, and the option below can refuse the others.'|trans }}
+            </div>
+        {% endif %}
+
+        {{ component('BoDataTable', {
+            id: 'ai-connections',
+            columns: [
+                column('title', 'Name'|trans, 'start'),
+                column('code', 'Identifier'|trans, 'start', hideBelow: 'md'),
+                column('provider', 'Provider'|trans, 'start', hideBelow: 'md'),
+                column_badge('jurisdiction', 'Data processed'|trans, { eu: 'success', non_eu: 'warning' }, 'start', 'jurisdiction_label', hideBelow: 'lg'),
+                column_badge('has_key', 'API key'|trans, { yes: 'success', no: 'secondary' }, 'start', 'has_key_label'),
+                column_badge('status', 'Status'|trans, { active: 'success', inactive: 'secondary' }, 'start', 'status_label'),
+                column('last_test', 'Last test'|trans, 'start', hideBelow: 'xl'),
+                column_actions('_actions', 'Actions'|trans),
+            ],
+            rows: rows,
+            emptyMessage: 'No connection yet. Add one to start using AI in your shop.'|trans,
+        }) }}
+
+        <div class="card mt-3">
+            <div class="card-body">
+                <h2 class="h6">{{ 'European Union only'|trans }}</h2>
+                <p class="text-body-secondary small">{{ 'Off by default: Thelia prefers European providers but never forbids the others. Turn it on to refuse every AI call that would process data outside the European Union.'|trans }}</p>
+                <form method="post" action="{{ path('admin.configuration.ai.settings') }}" class="d-flex align-items-center gap-3">
+                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    <div class="form-check form-switch mb-0">
+                        <input class="form-check-input" type="checkbox" role="switch" name="european_union_only" value="1" id="ai-european-union-only"{{ european_union_only ? ' checked' : '' }}{{ is_granted('UPDATE', 'admin.configuration.ai') ? '' : ' disabled' }} data-testid="ai-eu-only">
+                        <label class="form-check-label" for="ai-european-union-only">{{ 'Refuse providers outside the European Union'|trans }}</label>
+                    </div>
+                    {% if is_granted('UPDATE', 'admin.configuration.ai') %}
+                        <button type="submit" class="btn btn-outline-primary btn-sm" data-testid="ai-eu-only-save">{{ 'Save'|trans }}</button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {{ component('BoConfirmDialog', {
+        id: 'ai-connection-delete-modal',
+        title: 'Delete the connection',
+        formAction: path('admin.configuration.ai.connections.delete'),
+        message: 'Do you really want to delete this connection? A connection still used by a range cannot be deleted.',
+        testid: 'ai-connection-delete',
+        prefillTrigger: 'data-connection-id',
+        prefillInput: 'connection_id',
+    }) }}
+{% endblock %}
