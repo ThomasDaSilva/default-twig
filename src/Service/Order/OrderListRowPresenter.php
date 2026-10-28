@@ -129,8 +129,8 @@ final readonly class OrderListRowPresenter
         return [
             'id' => $orderId,
             'ref' => (string) $order->getRef(),
-            'ref_html' => $this->renderRef(
-                (string) $order->getRef(),
+            'order_html' => $this->renderOrder(
+                $order,
                 $isUrgent,
                 $this->urls->generate(self::DETAIL_ROUTE, ['order_id' => $orderId]),
             ),
@@ -145,7 +145,6 @@ final readonly class OrderListRowPresenter
             'payment_html' => $this->renderModule($paymentTitle, 'bi-credit-card'),
             'delivery_html' => $this->renderDelivery($order, $deliveryTitle),
             'amount' => $this->formatAmount($order, $totals, $locale),
-            'date_html' => $this->renderDate($order),
             'sale_unit' => $this->saleUnitTitle($order, $saleUnitTitles, $locale),
             'is_urgent' => $isUrgent,
             '_row_class' => $isUrgent ? 'bo-order-row--urgent' : '',
@@ -168,16 +167,20 @@ final readonly class OrderListRowPresenter
         return $saleUnitTitles[$saleUnitId] ?? (string) $this->saleUnits->titleOf($order, $locale);
     }
 
-    private function renderRef(string $ref, bool $isUrgent, string $href): string
+    /**
+     * The reference of the order, linked to its sheet, with the date it was placed underneath.
+     */
+    private function renderOrder(Order $order, bool $isUrgent, string $href): string
     {
+        $date = '<div class="text-muted small">'.$this->renderDate($order).'</div>';
         $link = \sprintf(
             '<a href="%s" class="fw-semibold text-decoration-none" data-testid="bo-order-ref-link">%s</a>',
             htmlspecialchars($href),
-            htmlspecialchars($ref),
+            htmlspecialchars((string) $order->getRef()),
         );
 
         if (!$isUrgent) {
-            return $link;
+            return $link.$date;
         }
 
         $tooltip = $this->translator->trans('Unpaid for more than 48 hours - follow up needed');
@@ -186,7 +189,7 @@ final readonly class OrderListRowPresenter
             '<span class="bo-order-urgent" data-bs-toggle="tooltip" data-bs-placement="right" title="%s"><i class="bi bi-exclamation-triangle-fill text-danger me-1" aria-hidden="true"></i>%s</span>',
             htmlspecialchars($tooltip),
             $link,
-        );
+        ).$date;
     }
 
     private function renderCustomer(Order $order): string
@@ -264,41 +267,11 @@ final readonly class OrderListRowPresenter
             return '<span class="text-muted">-</span>';
         }
 
-        $iso = $createdAt->format(\DateTimeInterface::ATOM);
-        $display = $createdAt->format('d/m/Y H:i');
-        $relative = $this->relativeTime($createdAt);
-
         return \sprintf(
-            '<time datetime="%s" title="%s"><div>%s</div><div class="text-muted small">%s</div></time>',
-            htmlspecialchars($iso),
-            htmlspecialchars($display),
-            htmlspecialchars($display),
-            htmlspecialchars($relative),
+            '<time datetime="%s">%s</time>',
+            htmlspecialchars($createdAt->format(\DateTimeInterface::ATOM)),
+            htmlspecialchars($createdAt->format('d/m/Y H:i')),
         );
-    }
-
-    private function relativeTime(\DateTimeInterface $createdAt): string
-    {
-        $diffSeconds = time() - $createdAt->getTimestamp();
-        if ($diffSeconds < 60) {
-            return $this->translator->trans('Just now');
-        }
-        if ($diffSeconds < 3600) {
-            $minutes = (int) floor($diffSeconds / 60);
-
-            return $this->translator->trans('%count% min ago', ['%count%' => $minutes]);
-        }
-        if ($diffSeconds < 86400) {
-            $hours = (int) floor($diffSeconds / 3600);
-
-            return $this->translator->trans('%count% h ago', ['%count%' => $hours]);
-        }
-        $days = (int) floor($diffSeconds / 86400);
-        if ($days < 30) {
-            return $this->translator->trans('%count% d ago', ['%count%' => $days]);
-        }
-
-        return $createdAt->format('d/m/Y');
     }
 
     /**

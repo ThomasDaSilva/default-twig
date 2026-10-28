@@ -377,14 +377,13 @@
             {% endif %}
 
             {% set order_columns = [
-                column_html('ref_html', 'Reference'|trans, 'start', 'ref'),
+                column_html('order_html', 'Order'|trans, 'start', 'created_at'),
                 column_html('customer_html', 'Customer'|trans, visibleFrom: 'lg'),
                 column_html('items_html', 'Items'|trans, 'center', visibleFrom: 'lg'),
                 column_badge('status_code', 'Status'|trans, {}, 'start', 'status', 'status_color'),
                 column_html('payment_html', 'Payment'|trans, visibleFrom: 'xl'),
                 column_html('delivery_html', 'Delivery'|trans, visibleFrom: 'xl'),
                 column_text('amount', 'Total'|trans, 'end', 'amount', leftToRight: true),
-                column_html('date_html', 'Date'|trans, 'start', 'created_at', visibleFrom: 'lg'),
                 column_actions('_actions', 'Actions'|trans),
             ] %}
             {% if filters.sale_unit_options %}
