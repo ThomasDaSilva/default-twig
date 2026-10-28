@@ -576,6 +576,15 @@ input[type="color"].form-control {
     --bs-btn-hover-color: #{$btn-brand-dark};
 }
 
+// Brand badges carry text like the primary buttons, so they share their
+// surface and label instead of Bootstrap's $primary, which leaves either a
+// computed black label (.text-bg-primary) or white at 3.22:1 (.badge.bg-primary).
+.text-bg-primary,
+.badge.bg-primary {
+    color: #{$btn-brand-label} !important;
+    background-color: #{$btn-brand-surface} !important;
+}
+
 .btn-outline-danger {
     --bs-btn-color: #{$btn-danger-outline};
     --bs-btn-border-color: #{$btn-danger-outline};
