@@ -3,4 +3,10 @@
     <li class="nav-item">
         <a class="nav-link{{ active == 'connections' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.default') }}"{{ active == 'connections' ? ' aria-current="page"' : '' }} data-testid="ai-tab-connections">{{ 'Connections'|trans }}</a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link{{ active == 'models' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.models.default') }}"{{ active == 'models' ? ' aria-current="page"' : '' }} data-testid="ai-tab-models">{{ 'Models'|trans }}</a>
+    </li>
+    <li class="nav-item">
+        <a class="nav-link{{ active == 'tiers' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.tiers.default') }}"{{ active == 'tiers' ? ' aria-current="page"' : '' }} data-testid="ai-tab-tiers">{{ 'Ranges'|trans }}</a>
+    </li>
 </ul>

@@ -1,0 +1,53 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Ranges'|trans }}{% endblock %}
+{% block body_testid %}ai-tiers{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Ranges'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-tiers-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'tiers' } only %}
+
+        <p class="text-body-secondary">{{ 'Each AI feature asks for a range, never for a precise model. Here you choose, once, which model serves each range. Change it later and every feature follows.'|trans }}</p>
+
+        {% if not has_choices %}
+            <div class="alert alert-warning" role="alert" data-testid="ai-tiers-no-connection">
+                {{ 'No active connection yet: add one in the Connections tab, then come back to choose a model.'|trans }}
+            </div>
+        {% endif %}
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        {% form_theme form with bo_form_themes only %}
+                        {{ form_start(form, { action: path('admin.configuration.ai.tiers.save'), method: 'post' }) }}
+                            {{ form_errors(form) }}
+                            {{ form_row(form.fast) }}
+                            {{ form_row(form.standard) }}
+                            {{ form_row(form.advanced) }}
+                            {{ form_rest(form) }}
+                            <div class="d-flex justify-content-end mt-3">
+                                {% if is_granted('UPDATE', 'admin.configuration.ai') %}
+                                    <button type="submit" class="btn btn-primary" data-testid="ai-tiers-save"><i class="bi bi-check2"></i> {{ 'Save'|trans }}</button>
+                                {% endif %}
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

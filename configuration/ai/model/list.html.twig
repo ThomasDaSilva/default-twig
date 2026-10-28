@@ -1,0 +1,64 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Models'|trans }}{% endblock %}
+{% block body_testid %}ai-models-list{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Models'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-models-page">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <h1 class="h3 mb-0">{{ 'Artificial intelligence'|trans }}</h1>
+            {% if is_granted('CREATE', 'admin.configuration.ai') %}
+                <a class="btn btn-primary" href="{{ new_url }}" data-testid="ai-model-create-button">
+                    <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add a model'|trans }}
+                </a>
+            {% endif %}
+        </div>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'models' } only %}
+
+        <p class="text-body-secondary">{{ 'A model is one AI "brain" of a provider, with its price. Thelia ships a list of known models and their prices; edit a price if your contract differs, or add a model the list does not know. Prices are per million tokens (a token is about three quarters of a word).'|trans }}</p>
+
+        <ul class="nav nav-pills mb-3" data-testid="ai-provider-pills">
+            {% for item in providers %}
+                <li class="nav-item"><a class="nav-link{{ item.value == provider ? ' active' : '' }}" href="{{ item.url }}">{{ item.label }}</a></li>
+            {% endfor %}
+        </ul>
+
+        {{ component('BoDataTable', {
+            id: 'ai-models',
+            columns: [
+                column('name', 'Model identifier'|trans, 'start'),
+                column('title', 'Display name'|trans, 'start', hideBelow: 'lg'),
+                column('input_price', 'Input price'|trans, 'end', hideBelow: 'md'),
+                column('output_price', 'Output price'|trans, 'end', hideBelow: 'md'),
+                column('context_window', 'Context size'|trans, 'end', hideBelow: 'xl'),
+                column('capabilities', 'Abilities'|trans, 'start', hideBelow: 'xl'),
+                column_badge('source', 'Origin'|trans, { catalog: 'secondary', shop: 'primary' }, 'start', 'source_label'),
+                column_actions('_actions', 'Actions'|trans),
+            ],
+            rows: rows,
+            emptyMessage: 'No model known for this provider. Add one.'|trans,
+        }) }}
+    </div>
+
+    {{ component('BoConfirmDialog', {
+        id: 'ai-model-delete-modal',
+        title: 'Reset or delete the model',
+        formAction: path('admin.configuration.ai.models.delete'),
+        message: 'A model of the shipped list gets its shipped values back; a model you added is deleted. A model still used by a range cannot be removed.',
+        testid: 'ai-model-delete',
+        prefillTrigger: 'data-model-id',
+        prefillInput: 'model_id',
+    }) }}
+{% endblock %}

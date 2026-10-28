@@ -1,0 +1,67 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Edit the model'|trans }}{% endblock %}
+{% block body_testid %}ai-model-edit{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ list_url }}">{{ 'Models'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ provider_label }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-model-edit-page">
+        <h1 class="h3 mb-3">{{ 'Edit the model'|trans }} <small class="text-muted">{{ provider_label }}</small></h1>
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        {% form_theme form with bo_form_themes only %}
+                        {{ form_start(form, { action: path('admin.configuration.ai.models.save'), method: 'post' }) }}
+                            {{ form_errors(form) }}
+                            {{ form_widget(form.provider) }}
+                            {{ form_widget(form.connection_id) }}
+                            {{ form_row(form.name) }}
+                            {{ form_row(form.title) }}
+                            <div class="row">
+                                <div class="col-md-6">{{ form_row(form.input_price) }}</div>
+                                <div class="col-md-6">{{ form_row(form.output_price) }}</div>
+                                <div class="col-md-6">{{ form_row(form.cache_read_price) }}</div>
+                                <div class="col-md-6">{{ form_row(form.cache_write_price) }}</div>
+                            </div>
+                            {{ form_row(form.currency) }}
+                            {{ form_row(form.context_window) }}
+                            {{ form_row(form.max_output_tokens) }}
+                            {{ form_row(form.supports_structured_output) }}
+                            {{ form_row(form.supports_tools) }}
+                            {{ form_row(form.supports_vision) }}
+                            {{ form_row(form.supports_streaming) }}
+                            {{ form_row(form.active) }}
+                            {{ form_rest(form) }}
+                            <div class="d-flex justify-content-end gap-2 mt-3">
+                                <a href="{{ list_url }}" class="btn btn-outline-secondary">{{ 'Cancel'|trans }}</a>
+                                {% if is_granted('UPDATE', 'admin.configuration.ai') %}
+                                    <button type="submit" class="btn btn-primary" data-testid="ai-model-save"><i class="bi bi-check2"></i> {{ 'Save'|trans }}</button>
+                                {% endif %}
+                            </div>
+                        {{ form_end(form) }}
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="h6">{{ 'How prices are used'|trans }}</h2>
+                        <p class="text-body-secondary small mb-0">{{ 'The prices let Thelia estimate what each AI call costs and respect your budgets. They are not what the provider bills you: check your contract.'|trans }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
