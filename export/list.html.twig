@@ -34,7 +34,7 @@
                                 {% set unavailable_html = export.handler_available ? '' : '<br><span class="badge text-bg-warning" data-testid="export-handler-missing">' ~ 'Unavailable: the module providing this export has been removed'|trans|e ~ '</span>' %}
                                 {% set rows = rows|merge([{
                                     'id': export.id,
-                                    'title_html': '<strong>' ~ export.title|e ~ '</strong>' ~ (export.description ? '<br><small class="text-muted">' ~ export.description|e ~ '</small>' : '') ~ unavailable_html,
+                                    'title_html': '<div class="text-wrap"><strong>' ~ export.id ~ ' - ' ~ export.title|e ~ '</strong>' ~ (export.description ? '<br><small class="text-muted">' ~ export.description|e ~ '</small>' : '') ~ unavailable_html ~ '</div>',
                                     '_actions': [ row_action('download', 'Export'|trans, path('export.view', { id: export.id })) ],
                                 }]) %}
                             {% endfor %}

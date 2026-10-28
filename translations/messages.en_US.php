@@ -645,4 +645,7 @@ return [
     'Payment methods' => 'Payment methods',
     'Payment module' => 'Payment module',
     'This customer has no saved payment method.' => 'This customer has no saved payment method.',
+    'Flush the application cache? The next pages load more slowly while it is rebuilt.' => 'Flush the application cache? The next pages load more slowly while it is rebuilt.',
+    'Flush the compiled assets? The files under public/assets are deleted.' => 'Flush the compiled assets? The files under public/assets are deleted.',
+    'Flush the cached images and documents? The original files are kept.' => 'Flush the cached images and documents? The original files are kept.',
 ];

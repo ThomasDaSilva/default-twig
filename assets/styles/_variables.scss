@@ -8,12 +8,12 @@ $dark: #282828;           // thelia.net deep text / sidebar accent
 
 // Button palette - WCAG AA (4.5:1 text, 3:1 non-text) against both #ffffff
 // and $body-bg. A white label on the brand orange only reaches 3.22:1, so the
-// primary buttons keep the brand as their surface and carry a near-black label
-// instead - the one combination that keeps both the thelia.net orange and AA.
-$btn-brand-surface: #f26041;       // .btn-primary bg = $primary: 5.41 with $btn-brand-label
-$btn-brand-surface-hover: #e5552f; // hover/active bg: 4.70 with $btn-brand-label
-$btn-brand-border: #d94e2f;        // button boundary: 4.13 on card, 3.83 on page ($primary alone is 2.99 on page)
-$btn-brand-label: #1a1a1a;         // label on both surfaces, ratios above
+// primary buttons carry their white label on a darker orange of the same hue,
+// and $primary keeps the thelia.net orange for non-text surfaces.
+$btn-brand-surface: #c8461f;       // .btn-primary bg: 4.83 with $btn-brand-label, 4.49 on page
+$btn-brand-surface-hover: #a43a0b; // hover/active bg: 6.59 with $btn-brand-label
+$btn-brand-border: transparent;    // no boundary of its own: the surface reads 4.49 on page, 4.83 on card
+$btn-brand-label: #ffffff;         // label on both surfaces, ratios above
 $btn-brand: #bd4e0a;              // outline idle label/border, links: 4.93 on card, 4.59 on page
                                   // (the most vivid orange that stays AA as text on both backgrounds)
 $btn-brand-dark: #8c3f13;         // .btn-link hover: 7.41 on card
