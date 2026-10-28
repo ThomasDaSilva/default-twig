@@ -2852,6 +2852,15 @@ tr.bo-order-row--urgent {
     }
 }
 
+// JSON an AI proposed, shown in full on the approval screen: a very long state
+// scrolls inside its block instead of pushing the decision buttons out of reach.
+.bo-ai-json {
+    max-height: 24rem;
+    overflow: auto;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
 // Right-to-left corrections for what the utility overrides above cannot reach:
 // Bootstrap component internals and this file's own directional rules. Last, so
 // every `[dir="rtl"]` rule sits after the declaration it corrects.

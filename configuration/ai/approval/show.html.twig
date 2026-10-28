@@ -32,15 +32,15 @@
                 <h2 class="h6">{{ 'Summary'|trans }}</h2>
                 <p data-testid="ai-approval-summary">{{ approval.summary }}</p>
                 <h2 class="h6">{{ 'Arguments'|trans }}</h2>
-                <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-arguments">{{ approval.arguments_json }}</pre>
+                <pre class="bo-ai-json border rounded p-2 bg-body-tertiary" data-testid="ai-approval-arguments">{{ approval.arguments_json }}</pre>
                 {% if approval.amended %}
                     <h2 class="h6">{{ 'Arguments asked by the AI, before the amendment'|trans }}</h2>
-                    <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-original-arguments">{{ approval.original_arguments_json }}</pre>
+                    <pre class="bo-ai-json border rounded p-2 bg-body-tertiary" data-testid="ai-approval-original-arguments">{{ approval.original_arguments_json }}</pre>
                 {% endif %}
                 <h2 class="h6">{{ 'State before'|trans }}</h2>
-                <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-before">{{ approval.before_state_json }}</pre>
+                <pre class="bo-ai-json border rounded p-2 bg-body-tertiary" data-testid="ai-approval-before">{{ approval.before_state_json }}</pre>
                 <h2 class="h6">{{ 'State after the change'|trans }}</h2>
-                <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-after">{{ approval.after_state_json }}</pre>
+                <pre class="bo-ai-json border rounded p-2 bg-body-tertiary" data-testid="ai-approval-after">{{ approval.after_state_json }}</pre>
                 <dl class="row small mb-0">
                     <dt class="col-sm-3">{{ 'Proposed by'|trans }}</dt><dd class="col-sm-9">{{ approval.proposed_by }}{% if approval.token_prefix %} ({{ 'token'|trans }} {{ approval.token_prefix }}){% endif %}</dd>
                     <dt class="col-sm-3">{{ 'Proposed on'|trans }}</dt><dd class="col-sm-9">{{ approval.created_at }}</dd>

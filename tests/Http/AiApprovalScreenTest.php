@@ -105,6 +105,19 @@ final class AiApprovalScreenTest extends WebIntegrationTestCase
         self::assertStringNotContainsString("\u{200B}", $html);
     }
 
+    public function testTheJsonBlocksScrollInsteadOfPushingTheButtonsAway(): void
+    {
+        $id = $this->proposal(['after_state' => json_encode(['big' => str_repeat('x', 5000)], \JSON_THROW_ON_ERROR)]);
+
+        $this->assertPageRenders('/admin/configuration/ai/approvals/'.$id);
+
+        $html = $this->html();
+        // Arguments, state before and state after: none amended, so three blocks.
+        self::assertSame(3, preg_match_all('/<pre class="bo-ai-json /', $html));
+        self::assertSame(0, preg_match_all('/<pre[^>]*style=/', $html), 'no inline style');
+        self::assertMatchesRegularExpression('/\.bo-ai-json\s*\{[^}]*max-height:[^}]*overflow:\s*auto/', (string) file_get_contents(\dirname(__DIR__, 2).'/assets/styles/main.scss'));
+    }
+
     public function testRejectingNeedsItsTokenAndWritesTheApproverOfTheSession(): void
     {
         $id = $this->proposal();
