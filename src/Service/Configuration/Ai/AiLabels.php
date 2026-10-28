@@ -18,6 +18,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Domain\Ai\AiJurisdiction;
 use Thelia\Domain\Ai\AiProvider;
 use Thelia\Domain\Ai\AiTier;
+use Thelia\Domain\Ai\Guardrail\GuardrailMode;
 
 /**
  * The words the AI screens use for the providers, the ranges and the jurisdictions, in plain language.
@@ -61,6 +62,30 @@ final readonly class AiLabels
             AiTier::Standard => 'For everyday writing and analysis. A good balance between quality and price.',
             AiTier::Advanced => 'For long texts and complex tasks. Pick the strongest model you accept to pay for.',
         });
+    }
+
+    public function guardrail(string $name): string
+    {
+        return match ($name) {
+            'topic' => $this->translator->trans('Topic check'),
+            'mistral_moderation' => $this->translator->trans('Mistral moderation'),
+            'openai_moderation' => $this->translator->trans('OpenAI moderation'),
+            default => $name,
+        };
+    }
+
+    public function guardrailHelp(string $name): string
+    {
+        return match ($name) {
+            'topic' => $this->translator->trans('A model checks that the message stays on the subject of the feature.'),
+            'mistral_moderation', 'openai_moderation' => $this->translator->trans('The text is sent to the moderation service of the provider to detect hateful, violent or unsafe content.'),
+            default => $this->translator->trans('Check provided by a module.'),
+        };
+    }
+
+    public function guardrailMode(string $mode): string
+    {
+        return $this->translator->trans(GuardrailMode::Block->value === $mode ? 'Block the request' : 'Let it through and note it');
     }
 
     public function jurisdiction(?string $jurisdiction): string

@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration\Ai;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiGuardrailSelection;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiLabels;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
@@ -31,6 +32,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Guardrail\GuardrailMode;
 use Thelia\Domain\Ai\Service\AiFailureExplainer;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
@@ -122,14 +124,22 @@ final class AiUsageController
         }
 
         try {
+            $general = $this->sent($request, AiUsageAdmin::SECTION_GENERAL);
+            $current = $this->usages->row($id);
+            // A form that does not carry a setting keeps it: only a field sent empty goes back to its default.
+            $field = fn (string $name, mixed $stored): string => $general && $request->request->has($name) ? $request->request->getString($name) : (string) $stored;
+
             $this->usages->save(
                 $id,
-                $request->request->getBoolean('enabled'),
-                $request->request->getString('tier'),
-                $request->request->getString('monthly_budget'),
-                $request->request->getString('pinned_model'),
-                $request->request->getBoolean('notice'),
-                $request->request->getBoolean('mark'),
+                $general ? $request->request->getBoolean('enabled') : $this->usages->isSwitchedOn($id),
+                $field('tier', $this->usages->chosenTierOf($id)),
+                $field('monthly_budget', $this->usages->budgetOf($id)),
+                $field('pinned_model', $this->usages->pinnedChoiceOf($id)),
+                $general ? $request->request->getBoolean('notice') : (bool) $current['notice_enabled'],
+                $general ? $request->request->getBoolean('mark') : (bool) $current['provenance_mark_enabled'],
+                $this->limits($request),
+                $this->guardrailChoices($request),
+                $this->privacy($request),
             );
         } catch (AiExceptionInterface|HttpExceptionInterface|\InvalidArgumentException $refusal) {
             // The message is plain text of the core: the flash is escaped by the layout.
@@ -164,7 +174,90 @@ final class AiUsageController
             'pinned' => $this->usages->pinnedChoiceOf($id),
             'model_choices' => $this->usages->modelChoices(),
             'switched_on' => $this->usages->isSwitchedOn($id),
+            'limits' => $this->usages->limitsOf($id),
+            'guardrails' => array_map(fn (array $guardrail): array => $guardrail + ['label' => $this->labels->guardrail($guardrail['name']), 'help' => $this->labels->guardrailHelp($guardrail['name']), 'declared_label' => null === $guardrail['declared'] ? $this->translator->trans('Not applied') : $this->labels->guardrailMode($guardrail['declared'])], $this->usages->guardrailRows($id)),
         ]));
+    }
+
+    private function sent(Request $request, string $section): bool
+    {
+        return \in_array($section, $request->request->all('sections'), true);
+    }
+
+    /**
+     * @return array<string, int|null>|null null when the form did not send the section: what is stored stays
+     */
+    private function limits(Request $request): ?array
+    {
+        if (!$this->sent($request, AiUsageAdmin::SECTION_LIMITS)) {
+            return null;
+        }
+
+        $limits = [];
+
+        foreach (['requests_per_minute' => 'Requests per minute', 'requests_per_day' => 'Requests per day', 'max_output_tokens' => 'Length of the answer', 'max_input_characters' => 'Length of what a person types'] as $field => $label) {
+            if ($request->request->has($field)) {
+                $limits[$field] = $this->wholeNumber($request->request->getString($field), $label);
+            }
+        }
+
+        return $limits;
+    }
+
+    /**
+     * @return array<string, string>|null
+     */
+    private function guardrailChoices(Request $request): ?array
+    {
+        if (!$this->sent($request, AiUsageAdmin::SECTION_GUARDRAILS)) {
+            return null;
+        }
+
+        $choices = [];
+        $allowed = [AiGuardrailSelection::FOLLOW, AiGuardrailSelection::OFF, ...array_column(GuardrailMode::cases(), 'value')];
+
+        foreach ($request->request->all('guardrail') as $name => $choice) {
+            if (!\is_string($choice) || !\in_array($choice, $allowed, true)) {
+                throw new \InvalidArgumentException($this->translator->trans('The choice made for the guardrail "%name%" is not one of the proposed ones.', ['%name%' => (string) $name]));
+            }
+
+            $choices[(string) $name] = $choice;
+        }
+
+        return $choices;
+    }
+
+    /**
+     * @return array{store_prompt: bool, prompt_retention_days?: int|null}|null
+     */
+    private function privacy(Request $request): ?array
+    {
+        if (!$this->sent($request, AiUsageAdmin::SECTION_PRIVACY)) {
+            return null;
+        }
+
+        $privacy = ['store_prompt' => $request->request->getBoolean('store_prompt')];
+
+        if ($request->request->has('prompt_retention_days')) {
+            $privacy['prompt_retention_days'] = $this->wholeNumber($request->request->getString('prompt_retention_days'), 'Retention of the prompts');
+        }
+
+        return $privacy;
+    }
+
+    private function wholeNumber(string $raw, string $label): ?int
+    {
+        $raw = trim($raw);
+
+        if ('' === $raw) {
+            return null;
+        }
+
+        if (1 !== preg_match('/^[1-9]\d{0,8}$/', $raw)) {
+            throw new \InvalidArgumentException($this->translator->trans('%field% must be a whole number, 1 or more. Leave it empty to use the default.', ['%field%' => $this->translator->trans($label)]));
+        }
+
+        return (int) $raw;
     }
 
     private function tokenIsValid(Request $request): bool
@@ -180,6 +273,11 @@ final class AiUsageController
 
     private function failureMessage(\Throwable $refusal, Request $request): string
     {
-        return $refusal instanceof AiExceptionInterface ? $this->failures->explain($refusal, $request->getLocale()) : $refusal->getMessage();
+        if ($refusal instanceof AiExceptionInterface) {
+            return $this->failures->explain($refusal, $request->getLocale());
+        }
+
+        // The messages of this screen are already in the language of the administrator, but the one of the service is an English source text.
+        return $this->translator->trans($refusal->getMessage());
     }
 }

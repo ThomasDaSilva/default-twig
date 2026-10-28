@@ -109,7 +109,7 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
     public function testARangeThatIsNotOneIsRefusedAndNothingIsWritten(): void
     {
         $token = $this->getService(TokenProvider::class)->assignToken();
-        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'tier' => 'turbo', '_token' => $token]);
+        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'sections' => ['general'], 'tier' => 'turbo', '_token' => $token]);
 
         self::assertSame(0, AiUsageSettingQuery::create()->count());
     }

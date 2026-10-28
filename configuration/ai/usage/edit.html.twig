@@ -53,6 +53,7 @@
                         <form method="post" action="{{ path('admin.configuration.ai.usages.save', { id: row.id }) }}" data-testid="ai-usage-form">
                             <input type="hidden" name="_token" value="{{ assignToken() }}">
                             <fieldset{{ can_edit ? '' : ' disabled' }}>
+                                <input type="hidden" name="sections[]" value="general">
                                 <div class="form-check form-switch mb-3">
                                     <input class="form-check-input" type="checkbox" role="switch" name="enabled" value="1" id="ai-usage-enabled"{{ switched_on ? ' checked' : '' }} data-testid="ai-usage-enabled">
                                     <label class="form-check-label" for="ai-usage-enabled">{{ 'Allow this usage'|trans }}</label>
@@ -85,6 +86,65 @@
                                         {% endfor %}
                                     </select>
                                     <div class="form-text">{{ 'By default the usage runs on the model of its range (Ranges tab). Pick a model here only if this usage needs its own.'|trans }}</div>
+                                </div>
+
+                                <input type="hidden" name="sections[]" value="guardrails">
+                                <h2 class="h6 mt-4" data-testid="ai-usage-section-guardrails">{{ 'Safety checks'|trans }}</h2>
+                                <p class="form-text">{{ 'Optional checks run on what is sent to the model and on its answer. Block stops the request. Annotate lets it through and notes the problem in the log and in the response. Thelia always applies its own checks (limits, budget, untrusted content, output format) whatever you choose here.'|trans }}</p>
+                                {% if guardrails is empty %}
+                                    <p class="text-body-secondary" data-testid="ai-usage-no-guardrail">{{ 'No optional check is installed.'|trans }}</p>
+                                {% endif %}
+                                {% for guardrail in guardrails %}
+                                    <div class="mb-3" data-testid="ai-usage-guardrail-{{ guardrail.name }}">
+                                        <label class="form-label" for="ai-usage-guardrail-{{ guardrail.name }}">{{ guardrail.label }}</label>
+                                        <select class="form-select" id="ai-usage-guardrail-{{ guardrail.name }}" name="guardrail[{{ guardrail.name }}]">
+                                            <option value="follow"{{ guardrail.current == 'follow' ? ' selected' : '' }}>{{ 'Follow the module (%mode%)'|trans({ '%mode%': guardrail.declared_label }) }}</option>
+                                            <option value="block"{{ guardrail.current == 'block' ? ' selected' : '' }}>{{ 'Block the request'|trans }}</option>
+                                            <option value="annotate"{{ guardrail.current == 'annotate' ? ' selected' : '' }}>{{ 'Let it through and note it'|trans }}</option>
+                                            <option value="off"{{ guardrail.current == 'off' ? ' selected' : '' }}>{{ 'Not applied'|trans }}</option>
+                                        </select>
+                                        <div class="form-text">{{ guardrail.help }}{% if not guardrail.installed %} <strong>{{ 'This check is not installed: when it is asked for, it counts as failed.'|trans }}</strong>{% endif %}</div>
+                                    </div>
+                                {% endfor %}
+                                <p class="form-text">{{ 'Choosing "Follow the module" for every check gives back the checks the module declared.'|trans }}</p>
+
+                                <input type="hidden" name="sections[]" value="limits">
+                                <h2 class="h6 mt-4" data-testid="ai-usage-section-limits">{{ 'Limits'|trans }}</h2>
+                                <p class="form-text">{{ 'An empty field means the default of Thelia, written under it.'|trans }}</p>
+                                <div class="row g-3 mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="ai-usage-rpm">{{ 'Requests per minute'|trans }}</label>
+                                        <input type="number" min="1" step="1" class="form-control" id="ai-usage-rpm" name="requests_per_minute" value="{{ limits.requests_per_minute }}" data-testid="ai-usage-rpm">
+                                        <div class="form-text">{% if limits.default_requests_per_minute is null %}{{ 'Empty: no limit for this kind of usage.'|trans }}{% else %}{{ 'Empty: %count% per minute and per person.'|trans({ '%count%': limits.default_requests_per_minute }) }}{% endif %}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="ai-usage-rpd">{{ 'Requests per day'|trans }}</label>
+                                        <input type="number" min="1" step="1" class="form-control" id="ai-usage-rpd" name="requests_per_day" value="{{ limits.requests_per_day }}" data-testid="ai-usage-rpd">
+                                        <div class="form-text">{% if limits.default_requests_per_day is null %}{{ 'Empty: no limit for this kind of usage.'|trans }}{% else %}{{ 'Empty: %count% per day and per person.'|trans({ '%count%': limits.default_requests_per_day }) }}{% endif %}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="ai-usage-output">{{ 'Length of the answer (tokens)'|trans }}</label>
+                                        <input type="number" min="1" step="1" class="form-control" id="ai-usage-output" name="max_output_tokens" value="{{ limits.max_output_tokens }}" data-testid="ai-usage-output">
+                                        <div class="form-text">{{ 'Empty: %count% tokens, or less if the model cannot write that much.'|trans({ '%count%': limits.default_max_output_tokens }) }}</div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="ai-usage-input">{{ 'Length of what a person types (characters)'|trans }}</label>
+                                        <input type="number" min="1" step="1" class="form-control" id="ai-usage-input" name="max_input_characters" value="{{ limits.max_input_characters }}" data-testid="ai-usage-input">
+                                        <div class="form-text">{% if limits.default_max_input_characters is null %}{{ 'Empty: no limit.'|trans }}{% else %}{{ 'Empty: %count% characters, as the module declares.'|trans({ '%count%': limits.default_max_input_characters }) }}{% endif %}</div>
+                                    </div>
+                                </div>
+
+                                <input type="hidden" name="sections[]" value="privacy">
+                                <h2 class="h6 mt-4" data-testid="ai-usage-section-privacy">{{ 'Privacy'|trans }}</h2>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="store_prompt" value="1" id="ai-usage-store-prompt"{{ limits.store_prompt ? ' checked' : '' }} data-testid="ai-usage-store-prompt">
+                                    <label class="form-check-label" for="ai-usage-store-prompt">{{ 'Keep the prompts in the log'|trans }}</label>
+                                    <div class="form-text">{{ 'Off by default: the log keeps the cost, the model and the checks, not the text sent. Turn it on only to investigate; the texts can hold personal data.'|trans }}</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label" for="ai-usage-retention">{{ 'Days the prompts are kept'|trans }}</label>
+                                    <input type="number" min="1" step="1" class="form-control" id="ai-usage-retention" name="prompt_retention_days" value="{{ limits.prompt_retention_days }}" data-testid="ai-usage-retention">
+                                    <div class="form-text">{{ 'Empty: %count% days. Only used when the prompts are kept.'|trans({ '%count%': limits.default_prompt_retention_days }) }}</div>
                                 </div>
 
                                 <h2 class="h6 mt-4">{{ 'Transparency (Article 50)'|trans }}</h2>

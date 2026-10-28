@@ -24,6 +24,7 @@ use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\AiTransparency;
 use Thelia\Domain\Ai\AsAiUsage;
 use Thelia\Domain\Ai\Catalog\AiModelCatalog;
+use Thelia\Domain\Ai\Guardrail\AiGuardrailRunner;
 use Thelia\Domain\Ai\Provider\AiBaseUrlValidator;
 use Thelia\Domain\Ai\Provider\AiTargetResolver;
 use Thelia\Domain\Ai\Repository\AiRoutingRepository;
@@ -158,6 +159,8 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
             $resolver,
             new AiSettingsWriter(new AiKeyVault(new AiKeyCipher('screen-test-secret')), new AiBaseUrlValidator(new WebhookUrlValidator()), $registry, new AiSettings()),
             new AiTierAdmin($catalog, $this->getService(AiSettingsWriter::class), $this->getService(AiTierAssignmentWriteProcessor::class)),
+            $registry,
+            new AiGuardrailRunner([]),
         );
     }
 }
