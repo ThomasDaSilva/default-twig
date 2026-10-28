@@ -984,4 +984,5 @@ return [
     'Effect' => 'Effect',
     'Summary' => 'Summary',
     'This form was already sent, or it has expired. Check the list below, then open the form again to create another token.' => 'This form was already sent, or it has expired. Check the list below, then open the form again to create another token.',
+    'Choose either all your rights or some scopes, not both. No token was created.' => 'Choose either all your rights or some scopes, not both. No token was created.',
 ];

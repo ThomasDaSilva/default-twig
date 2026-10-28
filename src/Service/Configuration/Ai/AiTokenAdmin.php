@@ -78,7 +78,8 @@ final readonly class AiTokenAdmin
      */
     public function create(int $adminId, string $label, bool $allRights, array $resources, array $accesses, array $modules): AiCreatedToolToken
     {
-        return $this->tokens->create($adminId, $label, $allRights ? [] : self::scopes($resources, $accesses, $modules), $allRights);
+        // Both are handed over as chosen: the service of the core refuses all the rights together with scopes.
+        return $this->tokens->create($adminId, $label, self::scopes($resources, $accesses, $modules), $allRights);
     }
 
     /**

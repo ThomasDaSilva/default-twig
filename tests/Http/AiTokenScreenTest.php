@@ -106,6 +106,15 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
         self::assertSame(1, AiToolTokenQuery::create()->count());
     }
 
+    public function testATokenCannotTakeAllTheRightsAndScopesAtOnce(): void
+    {
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', $this->form(['all_rights' => '1']));
+        $this->client->followRedirect();
+
+        self::assertSame(0, AiToolTokenQuery::create()->count(), 'the scopes must not be dropped in silence');
+        self::assertStringContainsString('Choose either all your rights or some scopes, not both.', $this->html());
+    }
+
     public function testACreationWithoutItsTokenWritesNothing(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Forged', 'resources' => [AdminResources::PRODUCT], 'accesses' => [AccessManager::VIEW]]);

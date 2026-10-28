@@ -30,6 +30,7 @@ use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
 use Thelia\Domain\Ai\Tool\AiCreatedToolToken;
+use Thelia\Domain\Ai\Tool\Exception\AiToolTokenException;
 use Thelia\Model\Admin;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
@@ -98,7 +99,7 @@ final class AiTokenController
         try {
             $created = $this->tokens->create($this->adminId(), (string) $request->request->get('label', ''), $allRights, $resources, $accesses, $modules);
         } catch (AiExceptionInterface $refusal) {
-            $this->flash->add($request, 'danger', $refusal->getMessage());
+            $this->flash->add($request, 'danger', $this->creationRefusal($refusal));
 
             return $back;
         }
@@ -154,6 +155,15 @@ final class AiTokenController
         $response->headers->set('Cache-Control', 'no-store');
 
         return $response;
+    }
+
+    private function creationRefusal(AiExceptionInterface $refusal): string
+    {
+        if ($refusal instanceof AiToolTokenException && AiToolTokenException::ALL_RIGHTS_WITH_SCOPES === $refusal->getCode()) {
+            return $this->translator->trans('Choose either all your rights or some scopes, not both. No token was created.');
+        }
+
+        return $refusal->getMessage();
     }
 
     /**
