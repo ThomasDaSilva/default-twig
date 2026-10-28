@@ -27,9 +27,9 @@
                         <p class="text-muted small">{{ 'Clear Symfony cache (templates, container, routing).'|trans }}</p>
                     </div>
                     <div class="card-footer text-end">
-                        <a href="{{ path('admin.configuration.advanced.flush-cache') }}" data-bo-post class="btn btn-warning" data-testid="advanced-flush-cache">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#advanced-flush-cache-modal" data-testid="advanced-flush-cache">
                             <i class="bi bi-trash3" aria-hidden="true"></i> {{ 'Flush cache'|trans }}
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -41,9 +41,9 @@
                         <p class="text-muted small">{{ 'Clear public/assets compiled output (Webpack/Encore artifacts).'|trans }}</p>
                     </div>
                     <div class="card-footer text-end">
-                        <a href="{{ path('admin.configuration.advanced.flush-assets') }}" data-bo-post class="btn btn-warning" data-testid="advanced-flush-assets">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#advanced-flush-assets-modal" data-testid="advanced-flush-assets">
                             <i class="bi bi-trash3" aria-hidden="true"></i> {{ 'Flush assets'|trans }}
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -55,14 +55,47 @@
                         <p class="text-muted small">{{ 'Clear generated images and documents cache directories.'|trans }}</p>
                     </div>
                     <div class="card-footer text-end">
-                        <a href="{{ path('admin.configuration.advanced.flush-images-and-documents') }}" data-bo-post class="btn btn-warning" data-testid="advanced-flush-images">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#advanced-flush-images-modal" data-testid="advanced-flush-images">
                             <i class="bi bi-trash3" aria-hidden="true"></i> {{ 'Flush images/documents'|trans }}
-                        </a>
+                        </button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+
+    {{ component('BoConfirmDialog', {
+        id: 'advanced-flush-cache-modal',
+        title: 'Flush cache',
+        formAction: path('admin.configuration.advanced.flush-cache'),
+        message: 'Flush the application cache? The next pages load more slowly while it is rebuilt.',
+        variant: 'warning',
+        confirmLabel: 'Flush cache',
+        confirmIcon: 'bi-trash3',
+        testid: 'advanced-flush-cache',
+    }) }}
+
+    {{ component('BoConfirmDialog', {
+        id: 'advanced-flush-assets-modal',
+        title: 'Flush assets',
+        formAction: path('admin.configuration.advanced.flush-assets'),
+        message: 'Flush the compiled assets? The files under public/assets are deleted.',
+        variant: 'warning',
+        confirmLabel: 'Flush assets',
+        confirmIcon: 'bi-trash3',
+        testid: 'advanced-flush-assets',
+    }) }}
+
+    {{ component('BoConfirmDialog', {
+        id: 'advanced-flush-images-modal',
+        title: 'Flush images/documents',
+        formAction: path('admin.configuration.advanced.flush-images-and-documents'),
+        message: 'Flush the cached images and documents? The original files are kept.',
+        variant: 'warning',
+        confirmLabel: 'Flush images/documents',
+        confirmIcon: 'bi-trash3',
+        testid: 'advanced-flush-images',
+    }) }}
 
     {{ safe_hook('advanced-configuration.bottom') }}
 {% endblock %}
