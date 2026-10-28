@@ -18,22 +18,24 @@ use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTierAdmin;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Thelia\Api\Bridge\Propel\Service\ApiResourcePropelTransformerService;
-use Thelia\Api\State\Processor\AiUsageSettingWriteProcessor;
+use Thelia\Api\State\Processor\AiTierAssignmentWriteProcessor;
 use Thelia\Domain\Ai\AiAudience;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\AiTransparency;
 use Thelia\Domain\Ai\AsAiUsage;
 use Thelia\Domain\Ai\Catalog\AiModelCatalog;
+use Thelia\Domain\Ai\Provider\AiBaseUrlValidator;
 use Thelia\Domain\Ai\Provider\AiTargetResolver;
 use Thelia\Domain\Ai\Repository\AiRoutingRepository;
 use Thelia\Domain\Ai\Repository\AiUsageSettingRepository;
 use Thelia\Domain\Ai\Service\AiSettings;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Domain\Ai\Service\AiTextTranslator;
 use Thelia\Domain\Ai\Service\AiUsageRegister;
 use Thelia\Domain\Ai\Service\AiUsageRegistry;
 use Thelia\Domain\Ai\Vault\AiKeyCipher;
 use Thelia\Domain\Ai\Vault\AiKeyVault;
+use Thelia\Domain\Webhook\WebhookUrlValidator;
 use Thelia\Model\AiUsageSettingQuery;
 use Thelia\Model\ConfigQuery;
 use Thelia\Test\FixtureFactory;
@@ -86,7 +88,7 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
         self::assertSame(AiUsageAdmin::REASON_NO_BUDGET, $row['inactive_reason']);
         self::assertSame('met', $row['compliance']);
 
-        $admin->save('screenprobe.chat', true, '5', null, false, true);
+        $admin->save('screenprobe.chat', true, null, '5', null, false, true);
 
         $row = $admin->row('screenprobe.chat');
         self::assertNotNull($row);
@@ -101,6 +103,9 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
             'row' => $row,
             'audience_label' => 'Your visitors',
             'tier_label' => 'Fast',
+            'declared_tier_label' => 'Fast',
+            'tier_choices' => [],
+            'chosen_tier' => null,
             'inactive_reason' => null,
             'budget' => '5',
             'pinned' => null,
@@ -120,7 +125,7 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
 
         $this->pushRequest();
         $html = $this->twig()->load('@BackOfficeDefaultTwig/configuration/ai/usage/edit.html.twig')->renderBlock('content', [
-            'row' => $row, 'audience_label' => 'a', 'tier_label' => 't', 'inactive_reason' => null, 'budget' => null, 'pinned' => null, 'model_choices' => [], 'switched_on' => true,
+            'row' => $row, 'audience_label' => 'a', 'tier_label' => 't', 'declared_tier_label' => 't', 'tier_choices' => [], 'chosen_tier' => null, 'inactive_reason' => null, 'budget' => null, 'pinned' => null, 'model_choices' => [], 'switched_on' => true,
         ]);
 
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
@@ -149,11 +154,10 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
 
         return new AiUsageAdmin(
             new AiUsageRegister($registry, $settings, $resolver, $translator),
-            $registry,
             new AiSettings(),
             $resolver,
-            new AiUsageSettingWriteProcessor($this->getService(ApiResourcePropelTransformerService::class), $registry),
-            new AiTierAdmin($catalog, $this->getService(\Thelia\Api\State\Processor\AiTierAssignmentWriteProcessor::class)),
+            new AiSettingsWriter(new AiKeyVault(new AiKeyCipher('screen-test-secret')), new AiBaseUrlValidator(new WebhookUrlValidator()), $registry, new AiSettings()),
+            new AiTierAdmin($catalog, $this->getService(AiSettingsWriter::class), $this->getService(AiTierAssignmentWriteProcessor::class)),
         );
     }
 }

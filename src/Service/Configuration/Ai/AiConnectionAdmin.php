@@ -15,24 +15,24 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use Thelia\Api\Resource\AiConnection as AiConnectionResource;
 use Thelia\Api\State\Processor\AiConnectionWriteProcessor;
 use Thelia\Domain\Ai\Service\AiConnectionTester;
 use Thelia\Domain\Ai\Service\AiSettings;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Model\AiConnection;
 use Thelia\Model\AiConnectionQuery;
 
 /**
- * Writes the AI connections of the shop through the rules of the core: the processors of the admin API check the
- * code, the address and the jurisdiction and seal the key in the vault, so the screen cannot differ from the API.
- * A refusal comes back as an HTTP exception whose message the controller shows.
+ * Writes the AI connections of the shop through the writer of the core, which checks the code, the address and the
+ * jurisdiction and seals the key in the vault: the screen cannot differ from the API. A refusal comes back as an
+ * AI exception whose message the controller shows; a deletion goes through the processor of the admin API, which
+ * refuses a connection a range still uses.
  */
 final readonly class AiConnectionAdmin
 {
     public function __construct(
-        private AiConnectionWriteProcessor $writer,
+        private AiSettingsWriter $writer,
+        private AiConnectionWriteProcessor $deleter,
         private AiConnectionTester $tester,
         private AiSettings $settings,
     ) {
@@ -51,25 +51,25 @@ final readonly class AiConnectionAdmin
      */
     public function save(?int $id, array $values): void
     {
-        $resource = (new AiConnectionResource())
-            ->setCode((string) ($values['code'] ?? ''))
-            ->setTitle((string) ($values['title'] ?? ''))
-            ->setProvider((string) ($values['provider'] ?? ''))
-            ->setJurisdiction(null === ($values['jurisdiction'] ?? null) ? null : (string) $values['jurisdiction'])
-            ->setBaseUrl(null === ($values['base_url'] ?? null) ? null : (string) $values['base_url'])
-            ->setApiKey(null === ($values['api_key'] ?? null) ? null : (string) $values['api_key'])
-            ->setApiKeyEnv(null === ($values['api_key_env'] ?? null) ? null : (string) $values['api_key_env'])
-            ->setAllowPrivateNetwork((bool) ($values['allow_private_network'] ?? false))
-            ->setActive((bool) ($values['active'] ?? true));
+        $text = static fn (string $field): ?string => null === ($values[$field] ?? null) ? null : (string) $values[$field];
 
-        null === $id
-            ? $this->writer->process($resource, new Post())
-            : $this->writer->process($resource, new Patch(), ['id' => $id]);
+        $this->writer->saveConnection(
+            null === $id ? null : AiConnectionQuery::create()->findPk($id),
+            (string) ($values['code'] ?? ''),
+            (string) ($values['title'] ?? ''),
+            (string) ($values['provider'] ?? ''),
+            $text('jurisdiction'),
+            $text('base_url'),
+            $text('api_key'),
+            $text('api_key_env'),
+            (bool) ($values['allow_private_network'] ?? false),
+            (bool) ($values['active'] ?? true),
+        );
     }
 
     public function delete(int $id): void
     {
-        $this->writer->process(null, new Delete(), ['id' => $id]);
+        $this->deleter->process(null, new Delete(), ['id' => $id]);
     }
 
     /**
@@ -87,6 +87,6 @@ final readonly class AiConnectionAdmin
 
     public function setEuropeanUnionOnly(bool $europeanUnionOnly): void
     {
-        $this->settings->setEuropeanUnionOnly($europeanUnionOnly);
+        $this->writer->setEuropeanUnionOnly($europeanUnionOnly);
     }
 }

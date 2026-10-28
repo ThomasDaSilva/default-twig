@@ -28,6 +28,7 @@ use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
 use Thelia\Domain\Ai\Log\AiConsumptionReport;
 use Thelia\Domain\Ai\Service\AiSettings;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
@@ -45,6 +46,7 @@ final class AiConsumptionController
     public function __construct(
         private readonly AiConsumptionReport $report,
         private readonly AiSettings $settings,
+        private readonly AiSettingsWriter $writer,
         private readonly AdminAccessChecker $access,
         private readonly AdminLogger $adminLogger,
         private readonly AdminFlash $flash,
@@ -109,14 +111,14 @@ final class AiConsumptionController
         }
 
         try {
-            $this->settings->setMonthlyCap('' === trim($request->request->getString('monthly_cap')) ? '0' : $request->request->getString('monthly_cap'));
+            $this->writer->setMonthlyCap('' === trim($request->request->getString('monthly_cap')) ? '0' : $request->request->getString('monthly_cap'));
         } catch (AiExceptionInterface $refusal) {
             $this->flash->add($request, 'danger', $refusal->getMessage());
 
             return $back;
         }
 
-        $this->settings->setEnabled($request->request->getBoolean('ai_enabled'));
+        $this->writer->setEnabled($request->request->getBoolean('ai_enabled'));
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, 'AI global settings updated');
         $this->flash->add($request, 'success', $this->translator->trans('The setting was saved.'));
 

@@ -29,6 +29,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\Ai\AiTier;
+use Thelia\Domain\Ai\Exception\AiExceptionInterface;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
@@ -121,12 +123,13 @@ final class AiUsageController
             $this->usages->save(
                 $id,
                 $request->request->getBoolean('enabled'),
+                $request->request->getString('tier'),
                 $request->request->getString('monthly_budget'),
                 $request->request->getString('pinned_model'),
                 $request->request->getBoolean('notice'),
                 $request->request->getBoolean('mark'),
             );
-        } catch (HttpExceptionInterface|\InvalidArgumentException $refusal) {
+        } catch (AiExceptionInterface|HttpExceptionInterface|\InvalidArgumentException $refusal) {
             // The message is plain text of the core: the flash is escaped by the layout.
             $this->flash->add($request, 'danger', $refusal->getMessage());
 
@@ -151,6 +154,9 @@ final class AiUsageController
             'row' => $row,
             'audience_label' => $this->labels->audience((string) $row['audience']),
             'tier_label' => $this->labels->tierName((string) $row['tier']),
+            'declared_tier_label' => $this->labels->tierName((string) $row['declared_tier']),
+            'tier_choices' => array_map(fn (AiTier $tier): array => ['value' => $tier->value, 'label' => $this->labels->tier($tier)], AiTier::cases()),
+            'chosen_tier' => $this->usages->chosenTierOf($id),
             'inactive_reason' => null === $row['inactive_reason'] ? null : $this->labels->inactiveReason((string) $row['inactive_reason']),
             'budget' => $this->usages->budgetOf($id),
             'pinned' => $this->usages->pinnedChoiceOf($id),

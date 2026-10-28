@@ -32,6 +32,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\AiTier;
+use Thelia\Domain\Ai\Exception\AiExceptionInterface;
 use Twig\Environment;
 
 /**
@@ -81,7 +82,7 @@ final class AiTierController
                 foreach (AiTier::cases() as $tier) {
                     $this->tiers->assign($tier, $form->get($tier->value)->getData());
                 }
-            } catch (HttpExceptionInterface $refusal) {
+            } catch (AiExceptionInterface|HttpExceptionInterface $refusal) {
                 $form->addError(new FormError($refusal->getMessage()));
 
                 return $this->render($form);

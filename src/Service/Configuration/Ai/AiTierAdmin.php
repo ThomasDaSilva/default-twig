@@ -15,13 +15,11 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 
 use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use Thelia\Api\Resource\AiTierAssignment as AiTierAssignmentResource;
 use Thelia\Api\State\Processor\AiTierAssignmentWriteProcessor;
 use Thelia\Domain\Ai\AiProvider;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Catalog\AiModelCatalog;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Model\AiConnectionQuery;
 use Thelia\Model\AiModel;
 use Thelia\Model\AiModelQuery;
@@ -38,7 +36,8 @@ final readonly class AiTierAdmin
 
     public function __construct(
         private AiModelCatalog $catalog,
-        private AiTierAssignmentWriteProcessor $writer,
+        private AiSettingsWriter $writer,
+        private AiTierAssignmentWriteProcessor $deleter,
     ) {
     }
 
@@ -115,7 +114,7 @@ final readonly class AiTierAdmin
 
         if (null === $choice || '' === $choice) {
             if (null !== $assignment) {
-                $this->writer->process(null, new Delete(), ['id' => $assignment->getId()]);
+                $this->deleter->process(null, new Delete(), ['id' => $assignment->getId()]);
             }
 
             return;
@@ -124,13 +123,6 @@ final readonly class AiTierAdmin
         $row = $this->resolve($choice);
         $connection = (int) explode(self::SEPARATOR, $choice, 2)[0];
 
-        $resource = (new AiTierAssignmentResource())
-            ->setTier($tier->value)
-            ->setConnectionId($connection)
-            ->setModelId($row->getId());
-
-        null === $assignment
-            ? $this->writer->process($resource, new Post())
-            : $this->writer->process($resource, new Patch(), ['id' => $assignment->getId()]);
+        $this->writer->assignTier($assignment, $tier->value, $connection, $row->getId());
     }
 }

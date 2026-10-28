@@ -38,6 +38,7 @@ use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Core\Security\User\UserInterface;
 use Thelia\Domain\Ai\AiJurisdiction;
+use Thelia\Domain\Ai\Exception\AiExceptionInterface;
 use Thelia\Model\AiConnection;
 use Thelia\Model\AiConnectionQuery;
 use Thelia\Tools\TokenProvider;
@@ -267,7 +268,7 @@ final class AiConnectionController
 
             try {
                 $this->connections->save($connection?->getId(), $values);
-            } catch (HttpExceptionInterface $refusal) {
+            } catch (AiExceptionInterface|HttpExceptionInterface $refusal) {
                 $form->addError(new \Symfony\Component\Form\FormError($refusal->getMessage()));
 
                 return $this->render($connection, $form);

@@ -60,6 +60,15 @@
                                 </div>
 
                                 <div class="mb-3">
+                                    <label class="form-label" for="ai-usage-tier">{{ 'Range of this usage'|trans }}</label>
+                                    <select class="form-select" id="ai-usage-tier" name="tier" data-testid="ai-usage-tier">
+                                        <option value="">{{ 'As declared by the module (%range%)'|trans({ '%range%': declared_tier_label }) }}</option>
+                                        {% for choice in tier_choices %}<option value="{{ choice.value }}"{{ choice.value == chosen_tier ? ' selected' : '' }}>{{ choice.label }}</option>{% endfor %}
+                                    </select>
+                                    <div class="form-text" data-testid="ai-usage-declared-tier">{{ 'Declared by the module: %range%.'|trans({ '%range%': declared_tier_label }) }} {{ 'The model of the range you pick must be able to do what the module needs (tools, structured answers, streaming), or the usage stops.'|trans }}</div>
+                                </div>
+
+                                <div class="mb-3">
                                     <label class="form-label" for="ai-usage-budget">{{ 'Monthly budget (US dollars)'|trans }}</label>
                                     <input type="text" class="form-control" id="ai-usage-budget" name="monthly_budget" inputmode="decimal" value="{{ budget }}" placeholder="10.00" data-testid="ai-usage-budget">
                                     <div class="form-text">{{ 'When the month has used this amount, the usage stops until the next month. A usage open to your visitors needs a budget to run. Leave empty for no cap.'|trans }}</div>

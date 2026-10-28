@@ -86,6 +86,34 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertTrue((bool) $setting->getEnabled());
     }
 
+    public function testTheRangeOfAUsageIsChosenAndGivenBackToTheModule(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
+        $crawler = $this->client->getCrawler();
+        self::assertSame(['', 'fast', 'standard', 'advanced'], $crawler->filter('select[data-testid="ai-usage-tier"] option')->each(static fn ($option): string => (string) $option->attr('value')));
+        self::assertNotSame('', trim($crawler->filter('[data-testid="ai-usage-declared-tier"]')->text()), 'the screen says which range the module declared');
+
+        $form = $crawler->filter('form[data-testid="ai-usage-form"]')->form(['tier' => 'advanced']);
+        $this->client->submit($form);
+
+        self::assertSame('advanced', AiUsageSettingQuery::create()->findOneByUsageId(self::USAGE)?->getTier());
+        $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
+        self::assertSame('advanced', $this->client->getCrawler()->filter('select[data-testid="ai-usage-tier"] option[selected]')->attr('value'));
+
+        $form = $this->client->getCrawler()->filter('form[data-testid="ai-usage-form"]')->form(['tier' => '']);
+        $this->client->submit($form);
+
+        self::assertNull(AiUsageSettingQuery::create()->findOneByUsageId(self::USAGE)?->getTier());
+    }
+
+    public function testARangeThatIsNotOneIsRefusedAndNothingIsWritten(): void
+    {
+        $token = $this->getService(TokenProvider::class)->assignToken();
+        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'tier' => 'turbo', '_token' => $token]);
+
+        self::assertSame(0, AiUsageSettingQuery::create()->count());
+    }
+
     public function testAUsageFormWithoutItsTokenWritesNothing(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'monthly_budget' => '99']);
@@ -158,7 +186,7 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertStringNotContainsString('data-testid="ai-global-save"', $this->html());
 
         $token = $this->getService(TokenProvider::class)->assignToken();
-        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'monthly_budget' => '5', '_token' => $token]);
+        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'tier' => 'advanced', 'monthly_budget' => '5', '_token' => $token]);
         self::assertSame(0, AiUsageSettingQuery::create()->count());
 
         $this->client->request('POST', '/admin/configuration/ai/consumption/settings', ['monthly_cap' => '5', 'ai_enabled' => '1', '_token' => $token]);

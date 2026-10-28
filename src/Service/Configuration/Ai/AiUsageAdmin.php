@@ -14,23 +14,19 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
-use Thelia\Api\Resource\AiUsageSetting as AiUsageSettingResource;
-use Thelia\Api\State\Processor\AiUsageSettingWriteProcessor;
-use Thelia\Domain\Ai\AiUsageRegistryInterface;
+use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
 use Thelia\Domain\Ai\Provider\AiTargetResolver;
 use Thelia\Domain\Ai\Service\AiSettings;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Domain\Ai\Service\AiUsageRegister;
 use Thelia\Model\AiModelQuery;
-use Thelia\Model\AiUsageSetting;
 use Thelia\Model\AiUsageSettingQuery;
 
 /**
- * What the screens show of the AI usages the modules declared, and what they write: the switch, the monthly
- * budget, the pinned model and the two Article 50 switches of a usage. Writes go through the processor of the
- * admin API, so the screen cannot differ from the API; a refusal comes back as an HTTP exception.
+ * What the screens show of the AI usages the modules declared, and what they write: the switch, the range, the
+ * monthly budget, the pinned model and the two Article 50 switches of a usage. Writes go through the writer of the
+ * core, so the screen cannot differ from the API; a refusal comes back as an AI exception.
  */
 final readonly class AiUsageAdmin
 {
@@ -40,10 +36,9 @@ final readonly class AiUsageAdmin
 
     public function __construct(
         private AiUsageRegister $register,
-        private AiUsageRegistryInterface $usages,
         private AiSettings $settings,
         private AiTargetResolver $targets,
-        private AiUsageSettingWriteProcessor $writer,
+        private AiSettingsWriter $writer,
         private AiTierAdmin $tiers,
     ) {
     }
@@ -104,6 +99,16 @@ final readonly class AiUsageAdmin
         return (bool) (AiUsageSettingQuery::create()->findOneByUsageId($usageId)?->getEnabled() ?? true);
     }
 
+    /**
+     * @return string|null the range the merchant chose for the usage, null when it follows the one the module declared
+     */
+    public function chosenTierOf(string $usageId): ?string
+    {
+        $tier = AiUsageSettingQuery::create()->findOneByUsageId($usageId)?->getTier();
+
+        return null === $tier || null === AiTier::tryFrom($tier) ? null : $tier;
+    }
+
     public function budgetOf(string $usageId): ?string
     {
         $budget = AiUsageSettingQuery::create()->findOneByUsageId($usageId)?->getMonthlyBudget();
@@ -128,30 +133,37 @@ final readonly class AiUsageAdmin
     }
 
     /**
+     * @param string|null $tier         the range the merchant chose, null or empty to follow the one the module declared
      * @param string|null $budget       a decimal in US dollars, null or empty for none
      * @param string|null $pinnedChoice "connection id|model name" of modelChoices(), null to follow the range
+     *
+     * @throws \Thelia\Domain\Ai\Exception\AiExceptionInterface when the core refuses a value
      */
-    public function save(string $usageId, bool $enabled, ?string $budget, ?string $pinnedChoice, bool $notice, bool $mark): void
+    public function save(string $usageId, bool $enabled, ?string $tier, ?string $budget, ?string $pinnedChoice, bool $notice, bool $mark): void
     {
-        $this->usages->get($usageId);
-
         $existing = AiUsageSettingQuery::create()->findOneByUsageId($usageId);
-        $resource = null === $existing ? new AiUsageSettingResource() : $this->resourceOf($existing);
-
         $pinnedModel = null === $pinnedChoice || '' === $pinnedChoice ? null : $this->tiers->resolve($pinnedChoice);
 
-        $resource
-            ->setUsageId($usageId)
-            ->setEnabled($enabled)
-            ->setMonthlyBudget(null === $budget || '' === trim($budget) ? null : trim($budget))
-            ->setPinnedConnectionId(null === $pinnedModel ? null : (int) explode('|', (string) $pinnedChoice, 2)[0])
-            ->setPinnedModelId($pinnedModel?->getId())
-            ->setTransparencyNotice($notice)
-            ->setProvenanceMark($mark);
-
-        null === $existing
-            ? $this->writer->process($resource, new Post())
-            : $this->writer->process($resource, new Patch(), ['id' => $existing->getId()]);
+        // The writer takes the whole row: what the screen does not edit is read back so it survives.
+        $this->writer->saveUsageSetting(
+            $existing,
+            $usageId,
+            $enabled,
+            $tier,
+            $budget,
+            $existing?->getCurrency() ?? 'USD',
+            $existing?->getRequestsPerMinute(),
+            $existing?->getRequestsPerDay(),
+            $existing?->getMaxOutputTokens(),
+            $existing?->getMaxInputCharacters(),
+            null === $pinnedModel ? null : (int) explode('|', (string) $pinnedChoice, 2)[0],
+            $pinnedModel?->getId(),
+            $existing?->getGuardrailMap() ?? [],
+            $notice,
+            $mark,
+            (bool) $existing?->getStorePrompt(),
+            $existing?->getPromptRetentionDays(),
+        );
     }
 
     /**
@@ -185,21 +197,5 @@ final readonly class AiUsageAdmin
         $row['budget'] = $this->budgetOf((string) $row['id']);
 
         return $row;
-    }
-
-    /**
-     * The processor writes the whole row: what the screen does not edit is read back so it survives.
-     */
-    private function resourceOf(AiUsageSetting $setting): AiUsageSettingResource
-    {
-        return (new AiUsageSettingResource())
-            ->setCurrency($setting->getCurrency())
-            ->setRequestsPerMinute($setting->getRequestsPerMinute())
-            ->setRequestsPerDay($setting->getRequestsPerDay())
-            ->setMaxOutputTokens($setting->getMaxOutputTokens())
-            ->setMaxInputCharacters($setting->getMaxInputCharacters())
-            ->setGuardrails($setting->getGuardrailMap())
-            ->setStorePrompt((bool) $setting->getStorePrompt())
-            ->setPromptRetentionDays($setting->getPromptRetentionDays());
     }
 }
