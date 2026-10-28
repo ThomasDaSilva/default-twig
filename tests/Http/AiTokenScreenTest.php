@@ -167,6 +167,44 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
         self::assertCount(2, $answers);
     }
 
+    public function testTheMcpServerIsSwitchedOnAndOffFromTheScreen(): void
+    {
+        $settings = $this->getService(\Thelia\Domain\Ai\Service\AiSettings::class);
+        self::assertFalse($settings->mcpEnabled());
+
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+        self::assertStringContainsString('data-testid="ai-mcp-switch"', $this->html());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/mcp', ['enabled' => '1', '_token' => $this->token()]);
+        ConfigQuery::resetCache();
+        self::assertTrue($settings->mcpEnabled());
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+        self::assertStringNotContainsString('data-testid="ai-tokens-mcp-off"', $this->html());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/mcp', ['enabled' => '0', '_token' => $this->token()]);
+        ConfigQuery::resetCache();
+        self::assertFalse($settings->mcpEnabled());
+    }
+
+    public function testTheMcpSwitchNeedsItsTokenAndTheRightToUpdateTheAiSettings(): void
+    {
+        $this->client->request('POST', '/admin/configuration/ai/tokens/mcp', ['enabled' => '1']);
+        ConfigQuery::resetCache();
+        self::assertFalse($this->getService(\Thelia\Domain\Ai\Service\AiSettings::class)->mcpEnabled(), 'without its token nothing is switched');
+
+        $limited = (new FixtureFactory($this->getPropelConnection()))->restrictedAdmin([AdminResources::AI_MCP => [AccessManager::VIEW, AccessManager::CREATE], AdminResources::AI => [AccessManager::VIEW]]);
+        $limited->eraseCredentials();
+        $this->injector?->setAdmin($limited);
+
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+        self::assertStringNotContainsString('data-testid="ai-mcp-switch"', $this->html());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/mcp', ['enabled' => '1', '_token' => $this->token()]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        ConfigQuery::resetCache();
+        self::assertFalse($this->getService(\Thelia\Domain\Ai\Service\AiSettings::class)->mcpEnabled());
+    }
+
     public function testACreationWithoutItsTokenWritesNothing(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Forged', 'resources' => [AdminResources::PRODUCT], 'accesses' => [AccessManager::VIEW]]);

@@ -110,6 +110,29 @@ final class AiTokenController
         return $this->render($request, $created, $this->tokens->createsTrifecta($allRights, $resources, $accesses, $modules), $allRights);
     }
 
+    #[Route('/mcp', name: 'mcp', methods: ['POST'])]
+    public function switchMcp(Request $request): Response
+    {
+        if ($denied = $this->access->check(AdminResources::AI, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        $back = new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
+
+        if (!$this->tokenIsValid($request)) {
+            $this->flash->add($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
+
+            return $back;
+        }
+
+        $enabled = $request->request->getBoolean('enabled');
+        $this->tokens->switchMcp($enabled);
+        $this->adminLogger->log(AdminResources::AI, AccessManager::UPDATE, $enabled ? 'MCP server switched on' : 'MCP server switched off');
+        $this->flash->add($request, 'success', $this->translator->trans($enabled ? 'The MCP server is now on.' : 'The MCP server is now off.'));
+
+        return $back;
+    }
+
     #[Route('/{id}/revoke', name: 'revoke', methods: ['POST'], requirements: ['id' => '\d+'])]
     public function revoke(Request $request, int $id): Response
     {

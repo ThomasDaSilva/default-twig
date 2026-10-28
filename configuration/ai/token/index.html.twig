@@ -23,6 +23,19 @@
 
         <p class="text-body-secondary">{{ 'An MCP token lets an AI assistant outside your shop (a desktop assistant, a development tool) use the tools of your shop in your name. It can never do more than you can, and everything it proposes still waits for an approval. Create one token per assistant and revoke it when you stop using it.'|trans }}</p>
 
+        {% if is_granted('UPDATE', 'admin.configuration.ai') %}
+            <form method="post" action="{{ path('admin.configuration.ai.tokens.mcp') }}" class="card card-body mb-3" data-testid="ai-mcp-switch">
+                <input type="hidden" name="_token" value="{{ assignToken() }}">
+                <input type="hidden" name="enabled" value="{{ mcp_enabled ? '0' : '1' }}">
+                <div class="d-flex flex-wrap align-items-center gap-3">
+                    <strong>{{ 'MCP server enabled'|trans }}</strong>
+                    {% if mcp_enabled %}<span class="badge text-bg-success">{{ 'Active'|trans }}</span>{% endif %}
+                    <button type="submit" class="btn btn-sm {{ mcp_enabled ? 'btn-outline-danger' : 'btn-outline-primary' }}" data-testid="ai-mcp-switch-button">{{ (mcp_enabled ? 'Switch off' : 'Switch on')|trans }}</button>
+                </div>
+                <div class="form-text">{{ 'Switching it on opens /api/mcp to the assistants that hold a valid token. Nothing else changes: every change they propose still waits for your approval.'|trans }}</div>
+            </form>
+        {% endif %}
+
         {% if not mcp_enabled %}
             <div class="alert alert-secondary" role="status" data-testid="ai-tokens-mcp-off">{{ 'The MCP server is switched off, so no token works yet. It is off by default.'|trans }}</div>
         {% endif %}

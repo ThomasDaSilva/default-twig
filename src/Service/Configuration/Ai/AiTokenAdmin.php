@@ -19,6 +19,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\Service\AiSettings;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Domain\Ai\Tool\AiCreatedToolToken;
 use Thelia\Domain\Ai\Tool\Exception\AiToolTokenException;
 use Thelia\Domain\Ai\Tool\Mcp\McpAllowedHosts;
@@ -39,6 +40,7 @@ final readonly class AiTokenAdmin
         private AiToolTokenService $tokens,
         private AiToolAdmin $tools,
         private AiSettings $settings,
+        private AiSettingsWriter $writer,
         private McpAllowedHosts $hosts,
         private TranslatorInterface $translator,
     ) {
@@ -113,6 +115,11 @@ final readonly class AiTokenAdmin
     public function mcpEnabled(): bool
     {
         return $this->settings->isEnabled() && $this->settings->mcpEnabled();
+    }
+
+    public function switchMcp(bool $enabled): void
+    {
+        $this->writer->setMcpEnabled($enabled);
     }
 
     /**

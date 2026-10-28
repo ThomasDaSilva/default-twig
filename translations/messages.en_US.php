@@ -988,4 +988,10 @@ return [
     'Choose either all your rights or some scopes, not both. No token was created.' => 'Choose either all your rights or some scopes, not both. No token was created.',
     'This token carries all the rights of a superadministrator: it can propose every change the shop allows. Revoke it as soon as you stop using it.' => 'This token carries all the rights of a superadministrator: it can propose every change the shop allows. Revoke it as soon as you stop using it.',
     'You are a superadministrator: no right of yours is ever refused, so this token could propose every change of the shop, without any limit. Prefer scopes.' => 'You are a superadministrator: no right of yours is ever refused, so this token could propose every change of the shop, without any limit. Prefer scopes.',
+    'MCP server enabled' => 'MCP server enabled',
+    'Switching it on opens /api/mcp to the assistants that hold a valid token. Nothing else changes: every change they propose still waits for your approval.' => 'Switching it on opens /api/mcp to the assistants that hold a valid token. Nothing else changes: every change they propose still waits for your approval.',
+    'Switch on' => 'Switch on',
+    'Switch off' => 'Switch off',
+    'The MCP server is now on.' => 'The MCP server is now on.',
+    'The MCP server is now off.' => 'The MCP server is now off.',
 ];
