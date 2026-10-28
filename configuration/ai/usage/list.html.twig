@@ -1,0 +1,42 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Usages'|trans }}{% endblock %}
+{% block body_testid %}ai-usages{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Usages'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-usages-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'usages' } only %}
+
+        <p class="text-body-secondary">{{ 'A usage is one thing a module asks the AI to do, for example answering your visitors. Each usage can be switched on or off, capped, and checked against the duties of the European AI regulation (Article 50).'|trans }}</p>
+
+        {{ component('BoDataTable', {
+            id: 'ai-usages',
+            columns: [
+                column('usage', 'Usage'|trans, 'start'),
+                column('module', 'Module'|trans, 'start', hideBelow: 'md'),
+                column('audience', 'Audience'|trans, 'start', hideBelow: 'md'),
+                column('tier', 'Range'|trans, 'start', hideBelow: 'lg'),
+                column('budget', 'Monthly budget'|trans, 'start', hideBelow: 'md'),
+                column_badge('status', 'Status'|trans, { active: 'success', inactive: 'secondary' }, 'start', 'status_label'),
+                column_badge('compliance', 'Article 50'|trans, { met: 'success', not_met: 'danger', to_review: 'warning', not_applicable: 'secondary' }, 'start', 'compliance_label', hideBelow: 'lg'),
+                column('reason', 'Why it does not run'|trans, 'start', hideBelow: 'xl'),
+                column_actions('_actions', 'Actions'|trans),
+            ],
+            rows: rows,
+            emptyMessage: 'No module declares an AI usage yet.'|trans,
+        }) }}
+    </div>
+{% endblock %}

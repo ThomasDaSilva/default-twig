@@ -23,6 +23,7 @@ use Thelia\Domain\Ai\AiProvider;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Catalog\AiModelCatalog;
 use Thelia\Model\AiConnectionQuery;
+use Thelia\Model\AiModel;
 use Thelia\Model\AiModelQuery;
 use Thelia\Model\AiTierAssignment;
 use Thelia\Model\AiTierAssignmentQuery;
@@ -82,6 +83,28 @@ final readonly class AiTierAdmin
     }
 
     /**
+     * The model row of a choice of choices(); the shipped list gives a model no row, so it is imported first.
+     *
+     * @param string $choice "connection id|model name"
+     *
+     * @throws \InvalidArgumentException when the choice is not one of choices()
+     */
+    public function resolve(string $choice): AiModel
+    {
+        [$connectionId, $name] = explode(self::SEPARATOR, $choice, 2) + [1 => ''];
+        $connection = AiConnectionQuery::create()->findPk((int) $connectionId);
+        $provider = null === $connection ? null : AiProvider::tryFrom((string) $connection->getProvider());
+
+        if (null === $connection || null === $provider || '' === $name || null === ($this->catalog->find($provider->value, $name, $connection->getId()))) {
+            throw new \InvalidArgumentException('Unknown model for this connection.');
+        }
+
+        return AiModelQuery::create()->filterByProvider($provider->value)->filterByName($name)->filterByConnectionId($connection->getId())->findOne()
+            ?? $this->catalog->import($provider->value, $name)
+            ?? throw new \InvalidArgumentException('Unknown model for this connection.');
+    }
+
+    /**
      * @param string|null $choice "connection id|model name", null or empty to leave the range without a model
      *
      * @throws \InvalidArgumentException when the choice is not one of choices()
@@ -98,21 +121,12 @@ final readonly class AiTierAdmin
             return;
         }
 
-        [$connectionId, $name] = explode(self::SEPARATOR, $choice, 2) + [1 => ''];
-        $connection = AiConnectionQuery::create()->findPk((int) $connectionId);
-        $provider = null === $connection ? null : AiProvider::tryFrom((string) $connection->getProvider());
-
-        if (null === $connection || null === $provider || '' === $name || null === ($this->catalog->find($provider->value, $name, $connection->getId()))) {
-            throw new \InvalidArgumentException('Unknown model for this connection.');
-        }
-
-        $row = AiModelQuery::create()->filterByProvider($provider->value)->filterByName($name)->filterByConnectionId($connection->getId())->findOne()
-            ?? $this->catalog->import($provider->value, $name)
-            ?? throw new \InvalidArgumentException('Unknown model for this connection.');
+        $row = $this->resolve($choice);
+        $connection = (int) explode(self::SEPARATOR, $choice, 2)[0];
 
         $resource = (new AiTierAssignmentResource())
             ->setTier($tier->value)
-            ->setConnectionId($connection->getId())
+            ->setConnectionId($connection)
             ->setModelId($row->getId());
 
         null === $assignment

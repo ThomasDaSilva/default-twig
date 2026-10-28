@@ -1,0 +1,113 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ row.purpose }}{% endblock %}
+{% block body_testid %}ai-usage-edit{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.usages.default') }}">{{ 'Usages'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ row.id }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set can_edit = is_granted('UPDATE', 'admin.configuration.ai') %}
+    {% set problems = row.compliance_details|filter(detail => detail.state != 'met') %}
+    <div class="container-fluid" data-testid="ai-usage-edit-page">
+        <h1 class="h3 mb-1">{{ row.purpose }}</h1>
+        <p class="text-body-secondary">{{ 'Module'|trans }} : {{ row.module }} · {{ 'Audience'|trans }} : {{ audience_label }} · {{ 'Range'|trans }} : {{ tier_label }}</p>
+
+        {% if inactive_reason %}
+            <div class="alert alert-secondary" role="status" data-testid="ai-usage-inactive">
+                <strong>{{ 'This usage does not run.'|trans }}</strong> {{ inactive_reason }}
+            </div>
+        {% endif %}
+
+        {% if row.compliance == 'not_met' %}
+            <div class="alert alert-danger" role="alert" data-testid="ai-usage-not-compliant">
+                <strong>{{ 'This usage does not respect Article 50 of the European AI regulation:'|trans }}</strong>
+                <ul class="mb-1">
+                    {% for detail in problems %}<li data-testid="ai-usage-reason">{{ detail.message }}</li>{% endfor %}
+                </ul>
+                <span class="small">{{ 'You can still save: Thelia explains the duty, it never forbids a choice. The responsibility stays with the shop.'|trans }}</span>
+            </div>
+        {% elseif row.compliance == 'to_review' %}
+            <div class="alert alert-warning" role="status" data-testid="ai-usage-to-review">
+                <ul class="mb-0">
+                    {% for detail in problems %}<li>{{ detail.message }}</li>{% endfor %}
+                </ul>
+            </div>
+        {% elseif row.compliance == 'met' %}
+            <div class="alert alert-success" role="status" data-testid="ai-usage-compliant">{{ 'This usage respects Article 50 of the European AI regulation.'|trans }}</div>
+        {% endif %}
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body">
+                        <form method="post" action="{{ path('admin.configuration.ai.usages.save', { id: row.id }) }}" data-testid="ai-usage-form">
+                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                            <fieldset{{ can_edit ? '' : ' disabled' }}>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="enabled" value="1" id="ai-usage-enabled"{{ switched_on ? ' checked' : '' }} data-testid="ai-usage-enabled">
+                                    <label class="form-check-label" for="ai-usage-enabled">{{ 'Allow this usage'|trans }}</label>
+                                    <div class="form-text">{{ 'Switch it off to stop this usage at once, without touching the module.'|trans }}</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="ai-usage-budget">{{ 'Monthly budget (US dollars)'|trans }}</label>
+                                    <input type="text" class="form-control" id="ai-usage-budget" name="monthly_budget" inputmode="decimal" value="{{ budget }}" placeholder="10.00" data-testid="ai-usage-budget">
+                                    <div class="form-text">{{ 'When the month has used this amount, the usage stops until the next month. A usage open to your visitors needs a budget to run. Leave empty for no cap.'|trans }}</div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label" for="ai-usage-model">{{ 'Model for this usage'|trans }}</label>
+                                    <select class="form-select" id="ai-usage-model" name="pinned_model" data-testid="ai-usage-model">
+                                        <option value="">{{ 'Follow the range (%range%)'|trans({ '%range%': tier_label }) }}</option>
+                                        {% for group, models in model_choices %}
+                                            <optgroup label="{{ group }}">
+                                                {% for label, value in models %}<option value="{{ value }}"{{ value == pinned ? ' selected' : '' }}>{{ label }}</option>{% endfor %}
+                                            </optgroup>
+                                        {% endfor %}
+                                    </select>
+                                    <div class="form-text">{{ 'By default the usage runs on the model of its range (Ranges tab). Pick a model here only if this usage needs its own.'|trans }}</div>
+                                </div>
+
+                                <h2 class="h6 mt-4">{{ 'Transparency (Article 50)'|trans }}</h2>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="notice" value="1" id="ai-usage-notice"{{ row.notice_enabled ? ' checked' : '' }} data-testid="ai-usage-notice">
+                                    <label class="form-check-label" for="ai-usage-notice">{{ 'Tell people they are talking to an AI'|trans }}</label>
+                                    <div class="form-text">{{ 'Article 50(1): when a person talks with an AI, they must be told. Thelia shows a short notice on the feature.'|trans }}</div>
+                                </div>
+                                <div class="form-check form-switch mb-3">
+                                    <input class="form-check-input" type="checkbox" role="switch" name="mark" value="1" id="ai-usage-mark"{{ row.provenance_mark_enabled ? ' checked' : '' }} data-testid="ai-usage-mark">
+                                    <label class="form-check-label" for="ai-usage-mark">{{ 'Mark generated content as made by an AI'|trans }}</label>
+                                    <div class="form-text">{{ 'Article 50(2): text, images or sound produced by an AI must be marked as such, in a way machines can read. Thelia adds the mark to what the feature generates.'|trans }}</div>
+                                </div>
+                            </fieldset>
+                            <div class="d-flex justify-content-end gap-2">
+                                <a href="{{ path('admin.configuration.ai.usages.default') }}" class="btn btn-outline-secondary">{{ 'Cancel'|trans }}</a>
+                                {% if can_edit %}
+                                    <button type="submit" class="btn btn-primary" data-testid="ai-usage-save"><i class="bi bi-check2"></i> {{ 'Save'|trans }}</button>
+                                {% endif %}
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-body">
+                        <h2 class="h6">{{ 'About the budget'|trans }}</h2>
+                        <p class="text-body-secondary small mb-0">{{ 'Amounts are in US dollars, as the AI companies bill them. Your shop pays the provider directly.'|trans }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

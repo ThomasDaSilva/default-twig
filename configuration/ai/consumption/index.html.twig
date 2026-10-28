@@ -1,0 +1,135 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Consumption'|trans }}{% endblock %}
+{% block body_testid %}ai-consumption{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Consumption'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set can_edit = is_granted('UPDATE', 'admin.configuration.ai') %}
+    <div class="container-fluid" data-testid="ai-consumption-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'consumption' } only %}
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6">{{ 'Global settings'|trans }}</h2>
+                <form method="post" action="{{ path('admin.configuration.ai.consumption.settings') }}" data-testid="ai-global-form">
+                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    <fieldset class="row g-3 align-items-end"{{ can_edit ? '' : ' disabled' }}>
+                        <div class="col-md-5">
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" role="switch" name="ai_enabled" value="1" id="ai-enabled"{{ ai_enabled ? ' checked' : '' }} data-testid="ai-enabled">
+                                <label class="form-check-label" for="ai-enabled">{{ 'AI is allowed in the shop'|trans }}</label>
+                            </div>
+                            <div class="form-text">{{ 'The master switch: turn it off and no module can use AI, whatever its own settings say.'|trans }}</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="ai-monthly-cap">{{ 'Monthly cap for the whole shop (US dollars)'|trans }}</label>
+                            <input type="text" class="form-control" id="ai-monthly-cap" name="monthly_cap" inputmode="decimal" value="{{ monthly_cap }}" data-testid="ai-monthly-cap">
+                            <div class="form-text">{{ '0 means no cap. All usages together stop when the month reaches it.'|trans }}</div>
+                        </div>
+                        <div class="col-md-3">
+                            {% if can_edit %}<button type="submit" class="btn btn-primary" data-testid="ai-global-save"><i class="bi bi-check2"></i> {{ 'Save'|trans }}</button>{% endif %}
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+        </div>
+
+        <form method="get" action="{{ path('admin.configuration.ai.consumption.default') }}" class="row g-2 align-items-end mb-3" data-testid="ai-period-form">
+            <div class="col-auto">
+                <label class="form-label" for="ai-from">{{ 'From'|trans }}</label>
+                <input type="date" class="form-control" id="ai-from" name="from" value="{{ from }}" data-testid="ai-from">
+            </div>
+            <div class="col-auto">
+                <label class="form-label" for="ai-to">{{ 'To'|trans }}</label>
+                <input type="date" class="form-control" id="ai-to" name="to" value="{{ to }}" data-testid="ai-to">
+            </div>
+            <div class="col-auto"><button type="submit" class="btn btn-outline-primary" data-testid="ai-period-apply">{{ 'Show'|trans }}</button></div>
+        </form>
+
+        <p class="fs-5" data-testid="ai-consumption-total">{{ 'Over this period: %calls% calls, %cost% US dollars.'|trans({ '%calls%': total_calls, '%cost%': total_cost }) }}</p>
+
+        <div class="row g-3">
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6">{{ 'By usage'|trans }}</h2>
+                    <table class="table table-sm mb-0" data-testid="ai-consumption-usage">
+                        <thead><tr><th>{{ 'Usage'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <tbody>
+                            {% for line in tables.usage %}
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6">{{ 'By module'|trans }}</h2>
+                    <table class="table table-sm mb-0" data-testid="ai-consumption-module">
+                        <thead><tr><th>{{ 'Module'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <tbody>
+                            {% for line in tables.module %}
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6">{{ 'By model'|trans }}</h2>
+                    <table class="table table-sm mb-0" data-testid="ai-consumption-model">
+                        <thead><tr><th>{{ 'Model'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <tbody>
+                            {% for line in tables.model %}
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h6">{{ 'By day'|trans }}</h2>
+                    <table class="table table-sm mb-0" data-testid="ai-consumption-day">
+                        <thead><tr><th>{{ 'Day'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <tbody>
+                            {% for line in tables.day %}
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                            {% else %}
+                                <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+{% endblock %}

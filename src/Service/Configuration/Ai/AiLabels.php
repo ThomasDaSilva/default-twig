@@ -67,4 +67,40 @@ final readonly class AiLabels
     {
         return $this->translator->trans(AiJurisdiction::EuropeanUnion->value === $jurisdiction ? 'In the European Union' : 'Outside the European Union');
     }
+
+    public function tierName(string $tier): string
+    {
+        $case = AiTier::tryFrom($tier);
+
+        return null === $case ? $tier : $this->tier($case);
+    }
+
+    public function audience(string $audience): string
+    {
+        return $this->translator->trans(match ($audience) {
+            'public' => 'Your visitors',
+            'customer' => 'Your customers',
+            'admin' => 'Your team (back-office)',
+            default => 'Thelia itself (internal)',
+        });
+    }
+
+    public function compliance(string $state): string
+    {
+        return $this->translator->trans(match ($state) {
+            'met' => 'Respects Article 50',
+            'not_met' => 'Does not respect Article 50',
+            'to_review' => 'To review',
+            default => 'No duty',
+        });
+    }
+
+    public function inactiveReason(string $reason): string
+    {
+        return $this->translator->trans(match ($reason) {
+            AiUsageAdmin::REASON_GLOBAL_OFF => 'AI is switched off for the whole shop (Consumption tab).',
+            AiUsageAdmin::REASON_SWITCHED_OFF => 'You switched this usage off.',
+            default => 'This usage talks to your visitors, so it stays off until you give it a monthly budget: that protects you from a surprise bill.',
+        });
+    }
 }

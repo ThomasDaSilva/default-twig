@@ -1,0 +1,155 @@
+<?php
+
+declare(strict_types=1);
+
+/*
+ * This file is part of the Thelia package.
+ * http://www.thelia.net
+ *
+ * (c) OpenStudio <info@thelia.net>
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace BackOfficeDefaultTwigBundle\Tests\Http;
+
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\Ai\Log\AiConsumptionReport;
+use Thelia\Model\AiUsageLog;
+use Thelia\Model\AiUsageSettingQuery;
+use Thelia\Model\ConfigQuery;
+use Thelia\Test\FixtureFactory;
+use Thelia\Test\WebIntegrationTestCase;
+use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
+use Thelia\Tools\TokenProvider;
+
+/**
+ * Configuration > Artificial intelligence > Usages, Register and Consumption: a form without its token writes
+ * nothing, a read-only administrator sees no button and is refused on the server, the exports give the lines of
+ * the register, and a usage can be allowed with a budget.
+ */
+final class AiUsageScreensTest extends WebIntegrationTestCase
+{
+    private const USAGE = 'core.guardrail_topic';
+
+    private ?AdminSessionInjector $injector = null;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (ConfigQuery::read('active-admin-template') !== 'default-twig') {
+            self::markTestSkipped('The Twig back-office is not the active admin template of the test shop: its routes are not registered.');
+        }
+
+        $this->injector = new AdminSessionInjector();
+        $this->getService(EventDispatcherInterface::class)->addSubscriber($this->injector);
+        $admin = (new FixtureFactory($this->getPropelConnection()))->admin();
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->injector?->clear();
+        ConfigQuery::write('ai_enabled', '1');
+        ConfigQuery::write('ai_monthly_cap', '0');
+
+        parent::tearDown();
+    }
+
+    public function testTheThreeScreensRender(): void
+    {
+        $this->assertPageRenders('/admin/configuration/ai/usages');
+        self::assertStringContainsString(self::USAGE, $this->html());
+        $this->assertPageRenders('/admin/configuration/ai/usages/'.self::USAGE);
+        $this->assertPageRenders('/admin/configuration/ai/consumption');
+        self::assertStringContainsString('data-testid="ai-global-form"', $this->html());
+    }
+
+    public function testAUsageIsSavedWithItsBudget(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
+        $form = $this->client->getCrawler()->filter('form[data-testid="ai-usage-form"]')->form(['monthly_budget' => '7.5']);
+        $this->client->submit($form);
+
+        self::assertTrue($this->client->getResponse()->isRedirection());
+        $setting = AiUsageSettingQuery::create()->findOneByUsageId(self::USAGE);
+        self::assertNotNull($setting);
+        self::assertSame(7.5, (float) $setting->getMonthlyBudget());
+        self::assertTrue((bool) $setting->getEnabled());
+    }
+
+    public function testAUsageFormWithoutItsTokenWritesNothing(): void
+    {
+        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'monthly_budget' => '99']);
+
+        self::assertSame(0, AiUsageSettingQuery::create()->count());
+    }
+
+    public function testTheGlobalSettingsAreWrittenWithTheirTokenOnly(): void
+    {
+        $this->client->request('POST', '/admin/configuration/ai/consumption/settings', ['monthly_cap' => '12']);
+        self::assertSame('0', ConfigQuery::read('ai_monthly_cap', '0'));
+
+        $this->client->request('POST', '/admin/configuration/ai/consumption/settings', ['monthly_cap' => '12.50', '_token' => $this->getService(TokenProvider::class)->assignToken()]);
+        self::assertSame('12.50', ConfigQuery::read('ai_monthly_cap', '0'));
+        self::assertSame('0', ConfigQuery::read('ai_enabled', '1'), 'a switch left unchecked turns the AI off');
+    }
+
+    public function testAnUnreadableCapIsRefusedAndKeepsTheSetting(): void
+    {
+        $this->client->request('POST', '/admin/configuration/ai/consumption/settings', ['monthly_cap' => 'lots', 'ai_enabled' => '1', '_token' => $this->getService(TokenProvider::class)->assignToken()]);
+
+        self::assertSame('0', ConfigQuery::read('ai_monthly_cap', '0'));
+    }
+
+    public function testTheConsumptionIsReadOverTheChosenPeriod(): void
+    {
+        $log = (new AiUsageLog())
+            ->setUsageId('screen.chat')->setModule('screen')->setModel('screen-model')->setKind('completion')->setCost('1.25000000')
+            ->setActorType('system')->setActorHash(str_repeat('a', 64))->setStatus('succeeded')
+            ->setCreatedAt(new \DateTimeImmutable('2031-05-10 12:00:00'));
+        $log->save();
+
+        $this->client->request('GET', '/admin/configuration/ai/consumption?from=2031-05-01&to=2031-05-31');
+        $html = $this->html();
+        self::assertStringContainsString('screen.chat', $html);
+        self::assertStringContainsString('screen-model', $html);
+        self::assertStringContainsString('2031-05-10', $html);
+        self::assertStringContainsString('1.25000000', $html);
+
+        $this->client->request('GET', '/admin/configuration/ai/consumption?from=2031-06-01&to=2031-06-30');
+        self::assertStringNotContainsString('screen.chat', $this->html());
+        self::assertGreaterThan(0, \count((new AiConsumptionReport())->by('usage', new \DateTimeImmutable('2031-05-01'), new \DateTimeImmutable('2031-05-31'))));
+    }
+
+    public function testAReadOnlyAdministratorSeesNoButtonAndCannotWrite(): void
+    {
+        $reader = (new FixtureFactory($this->getPropelConnection()))->restrictedAdmin([AdminResources::AI => [AccessManager::VIEW]]);
+        $reader->eraseCredentials();
+        $this->injector?->setAdmin($reader);
+
+        $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
+        self::assertStringNotContainsString('data-testid="ai-usage-save"', $this->html());
+        self::assertStringContainsString('<fieldset disabled', $this->html());
+
+        $this->client->request('GET', '/admin/configuration/ai/consumption');
+        self::assertStringNotContainsString('data-testid="ai-global-save"', $this->html());
+
+        $token = $this->getService(TokenProvider::class)->assignToken();
+        $this->client->request('POST', '/admin/configuration/ai/usages/'.self::USAGE, ['enabled' => '1', 'monthly_budget' => '5', '_token' => $token]);
+        self::assertSame(0, AiUsageSettingQuery::create()->count());
+
+        $this->client->request('POST', '/admin/configuration/ai/consumption/settings', ['monthly_cap' => '5', 'ai_enabled' => '1', '_token' => $token]);
+        self::assertSame('0', ConfigQuery::read('ai_monthly_cap', '0'));
+    }
+
+    private function html(): string
+    {
+        return (string) $this->client->getResponse()->getContent();
+    }
+}
