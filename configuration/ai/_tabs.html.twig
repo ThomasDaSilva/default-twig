@@ -24,4 +24,9 @@
     <li class="nav-item">
         <a class="nav-link{{ active == 'approvals' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.approvals.default') }}"{{ active == 'approvals' ? ' aria-current="page"' : '' }} data-testid="ai-tab-approvals">{{ 'Approvals'|trans }}</a>
     </li>
+    {% if is_granted('VIEW', 'admin.configuration.ai-mcp') %}
+        <li class="nav-item">
+            <a class="nav-link{{ active == 'tokens' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.tokens.default') }}"{{ active == 'tokens' ? ' aria-current="page"' : '' }} data-testid="ai-tab-tokens">{{ 'MCP tokens'|trans }}</a>
+        </li>
+    {% endif %}
 </ul>

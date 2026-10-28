@@ -1,0 +1,123 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'MCP tokens'|trans }}{% endblock %}
+{% block body_testid %}ai-tokens{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'MCP tokens'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    {% set can_create = is_granted('CREATE', 'admin.configuration.ai-mcp') %}
+    <div class="container-fluid" data-testid="ai-tokens-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'tokens' } only %}
+
+        <p class="text-body-secondary">{{ 'An MCP token lets an AI assistant outside your shop (a desktop assistant, a development tool) use the tools of your shop in your name. It can never do more than you can, and everything it proposes still waits for an approval. Create one token per assistant and revoke it when you stop using it.'|trans }}</p>
+
+        {% if not mcp_enabled %}
+            <div class="alert alert-secondary" role="status" data-testid="ai-tokens-mcp-off">{{ 'The MCP server is switched off, so no token works yet. It is off by default.'|trans }}</div>
+        {% endif %}
+        {% if not host_allowed %}
+            <div class="alert alert-warning" role="alert" data-testid="ai-tokens-host-warning">{{ 'The address you use now (%host%) is not among the addresses the MCP server accepts: an assistant that connects through it will be refused.'|trans({ '%host%': host }) }}</div>
+        {% endif %}
+
+        {% if created %}
+            <div class="alert alert-success" role="alert" data-testid="ai-token-created">
+                <p class="mb-1"><strong>{{ 'Copy your token now: it is shown only once.'|trans }}</strong> {{ 'Thelia keeps only a fingerprint of it and cannot show it again.'|trans }}</p>
+                <input type="text" class="form-control font-monospace" readonly value="{{ created.token }}" aria-label="{{ 'Your token'|trans }}" data-testid="ai-token-value">
+            </div>
+            {% if created_trifecta %}
+                <div class="alert alert-danger" role="alert" data-testid="ai-token-trifecta">{{ 'Warning: the tools this token reaches together read private data, read untrusted content and can reach out of the shop. An attack hidden in a text the assistant reads could use them. Narrow the scopes if you can.'|trans }}</div>
+            {% endif %}
+        {% endif %}
+
+        <div class="table-responsive mb-4">
+            <table class="table table-sm align-middle" data-testid="ai-tokens-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'Name'|trans }}</th>
+                        <th>{{ 'Token'|trans }}</th>
+                        <th>{{ 'Reach'|trans }}</th>
+                        <th>{{ 'Expires on'|trans }}</th>
+                        <th>{{ 'Last used'|trans }}</th>
+                        <th>{{ 'Status'|trans }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr data-testid="ai-token-row" data-token="{{ row.id }}">
+                            <td>{{ row.label }}{% if row.trifecta %} <span class="badge text-bg-danger" data-testid="ai-token-row-trifecta">{{ 'Trifecta'|trans }}</span>{% endif %}</td>
+                            <td><code>{{ row.prefix }}…</code></td>
+                            <td>{{ row.reach }}</td>
+                            <td>{{ row.expires_at }}</td>
+                            <td>{{ row.last_used_at }}</td>
+                            <td><span class="badge text-bg-{{ row.state == 'active' ? 'success' : 'secondary' }}">{{ row.state_label }}</span></td>
+                            <td class="text-end">
+                                {% if row.state == 'active' %}
+                                    <form method="post" action="{{ path('admin.configuration.ai.tokens.revoke', { id: row.id }) }}">
+                                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="ai-token-revoke">{{ 'Revoke'|trans }}</button>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-center text-body-secondary">{{ 'You have no token yet.'|trans }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if can_create %}
+            <div class="card">
+                <div class="card-body">
+                    <h2 class="h6">{{ 'Create a token'|trans }}</h2>
+                    <form method="post" action="{{ path('admin.configuration.ai.tokens.create') }}" data-testid="ai-token-form">
+                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                        <div class="mb-3">
+                            <label class="form-label" for="ai-token-label">{{ 'Name'|trans }}</label>
+                            <input type="text" class="form-control" id="ai-token-label" name="label" maxlength="64" required data-testid="ai-token-label">
+                            <div class="form-text">{{ 'To recognise the assistant that uses it.'|trans }}</div>
+                        </div>
+                        <fieldset class="mb-3">
+                            <legend class="form-label fs-6">{{ 'What the token may do'|trans }}</legend>
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label" for="ai-token-resources">{{ 'Parts of the back office'|trans }}</label>
+                                    <select class="form-select" id="ai-token-resources" name="resources[]" multiple size="8" data-testid="ai-token-resources">
+                                        {% for resource in resource_choices %}<option value="{{ resource }}">{{ resource }}</option>{% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <span class="form-label d-block">{{ 'Kind of access'|trans }}</span>
+                                    {% for access in access_choices %}
+                                        <div class="form-check"><input class="form-check-input" type="checkbox" name="accesses[]" value="{{ access }}" id="ai-token-access-{{ access }}"><label class="form-check-label" for="ai-token-access-{{ access }}">{{ access }}</label></div>
+                                    {% endfor %}
+                                    <label class="form-label mt-2" for="ai-token-modules">{{ 'Modules (codes separated by commas)'|trans }}</label>
+                                    <input type="text" class="form-control" id="ai-token-modules" name="modules" data-testid="ai-token-modules">
+                                </div>
+                            </div>
+                            <div class="form-text">{{ 'Choose at least one scope. The token can use a tool only when its scopes and your own rights both allow it.'|trans }}</div>
+                        </fieldset>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="all_rights" value="1" id="ai-token-all-rights" data-testid="ai-token-all-rights">
+                            <label class="form-check-label" for="ai-token-all-rights">{{ 'Give this token all my rights (no scopes)'|trans }}</label>
+                            <div class="form-text text-danger">{{ 'Risky: the token will be able to propose anything you may do in the shop. Prefer scopes.'|trans }}</div>
+                        </div>
+                        <button type="submit" class="btn btn-primary" data-testid="ai-token-create">{{ 'Create the token'|trans }}</button>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}
