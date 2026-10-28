@@ -37,6 +37,7 @@
                         <th>{{ 'Audience'|trans }}</th>
                         <th>{{ 'Provider'|trans }}</th>
                         <th>{{ 'Model'|trans }}</th>
+                        <th>{{ 'Tools'|trans }}</th>
                         <th>{{ 'Obligations'|trans }}</th>
                         <th>{{ 'Status'|trans }}</th>
                     </tr>
@@ -49,6 +50,10 @@
                             <td>{{ row.audience_label }}</td>
                             <td>{{ row.provider_label ?: '-' }}</td>
                             <td>{{ row.model ?: '-' }}</td>
+                            <td data-testid="ai-register-tools">
+                                {% for name in row.tool_names %}<div class="small"><code>{{ name }}</code></div>{% else %}-{% endfor %}
+                                {% if row.trifecta %}<span class="badge text-bg-danger" data-testid="ai-register-trifecta">{{ 'Lethal trifecta'|trans }}</span>{% endif %}
+                            </td>
                             <td>
                                 {% for detail in row.compliance_details %}
                                     <div class="small"><span class="badge text-bg-{{ detail.state == 'met' ? 'success' : (detail.state == 'not_met' ? 'danger' : 'warning') }}">{{ detail.obligation == 'article_50_1' ? 'Art. 50(1)' : 'Art. 50(2)' }}</span> {{ detail.message }}</div>
@@ -59,7 +64,7 @@
                             <td><span class="badge text-bg-{{ {met: 'success', not_met: 'danger', to_review: 'warning'}[row.compliance] ?? 'secondary' }}" data-testid="ai-register-status">{{ row.compliance_label }}</span></td>
                         </tr>
                     {% else %}
-                        <tr><td colspan="7" class="text-center text-body-secondary">{{ 'No module declares an AI usage yet.'|trans }}</td></tr>
+                        <tr><td colspan="8" class="text-center text-body-secondary">{{ 'No module declares an AI usage yet.'|trans }}</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

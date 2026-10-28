@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration\Ai;
 
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiLabels;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiToolAdmin;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
@@ -37,6 +38,7 @@ final class AiRegisterController
         private readonly AiUsageAdmin $usages,
         private readonly AiUsageRegisterExport $export,
         private readonly AiLabels $labels,
+        private readonly AiToolAdmin $tools,
         private readonly AdminAccessChecker $access,
         private readonly Environment $twig,
     ) {
@@ -55,6 +57,9 @@ final class AiRegisterController
             $row['audience_label'] = $this->labels->audience((string) $row['audience']);
             $row['tier_label'] = $this->labels->tierName((string) $row['tier']);
             $row['provider_label'] = $this->labels->provider(\is_string($row['provider']) ? $row['provider'] : null);
+            $usageTools = $this->tools->toolsOfUsage((string) $row['id']);
+            $row['tool_names'] = array_map(static fn ($tool): string => $tool->name, $usageTools);
+            $row['trifecta'] = $this->tools->isLethalTrifecta($usageTools);
             $row['compliance_label'] = $this->labels->compliance((string) $row['compliance']);
             $rows[] = $row;
         }

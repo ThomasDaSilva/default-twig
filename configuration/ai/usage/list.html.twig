@@ -22,6 +22,10 @@
 
         <p class="text-body-secondary">{{ 'A usage is one thing a module asks the AI to do, for example answering your visitors. Each usage can be switched on or off, capped, and checked against the duties of the European AI regulation (Article 50).'|trans }}</p>
 
+        {% if rows|filter(row => row.trifecta == 'yes') %}
+            <div class="alert alert-danger" role="alert" data-testid="ai-usages-trifecta">{{ 'Warning: at least one usage can be offered tools that together read private data, read untrusted content and reach out of the shop. An attack hidden in a text the AI reads could use them. This is signalled, not blocked: review the tools of that usage.'|trans }}</div>
+        {% endif %}
+
         {{ component('BoDataTable', {
             id: 'ai-usages',
             columns: [
@@ -29,6 +33,8 @@
                 column('module', 'Module'|trans, 'start', hideBelow: 'md'),
                 column('audience', 'Audience'|trans, 'start', hideBelow: 'md'),
                 column('tier', 'Range'|trans, 'start', hideBelow: 'lg'),
+                column('tools', 'Tools'|trans, 'start', hideBelow: 'lg'),
+                column_badge('trifecta', 'Tools together'|trans, { yes: 'danger', no: 'secondary' }, 'start', 'trifecta_label', hideBelow: 'lg'),
                 column('budget', 'Monthly budget'|trans, 'start', hideBelow: 'md'),
                 column_badge('status', 'Status'|trans, { active: 'success', inactive: 'secondary' }, 'start', 'status_label'),
                 column_badge('compliance', 'Article 50'|trans, { met: 'success', not_met: 'danger', to_review: 'warning', not_applicable: 'secondary' }, 'start', 'compliance_label', hideBelow: 'lg'),

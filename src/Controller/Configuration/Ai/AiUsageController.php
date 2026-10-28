@@ -19,6 +19,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiGuardrailSelection;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiLabels;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiToolAdmin;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -52,6 +53,7 @@ final class AiUsageController
     public function __construct(
         private readonly AiUsageAdmin $usages,
         private readonly AiLabels $labels,
+        private readonly AiToolAdmin $tools,
         private readonly AdminAccessChecker $access,
         private readonly AdminLogger $adminLogger,
         private readonly AdminFlash $flash,
@@ -73,6 +75,7 @@ final class AiUsageController
         $rows = [];
         foreach ($this->usages->rows() as $row) {
             $id = (string) $row['id'];
+            $usageTools = $this->tools->toolsOfUsage($id);
             $rows[] = [
                 'id' => $id,
                 'usage' => $row['purpose'],
@@ -83,6 +86,9 @@ final class AiUsageController
                 'status' => null === $row['inactive_reason'] ? 'active' : 'inactive',
                 'status_label' => $this->translator->trans(null === $row['inactive_reason'] ? 'Running' : 'Not running'),
                 'reason' => null === $row['inactive_reason'] ? '' : $this->labels->inactiveReason((string) $row['inactive_reason']),
+                'tools' => [] === $usageTools ? '-' : implode(', ', array_map(static fn ($tool): string => $tool->name, $usageTools)),
+                'trifecta' => $this->tools->isLethalTrifecta($usageTools) ? 'yes' : 'no',
+                'trifecta_label' => $this->translator->trans($this->tools->isLethalTrifecta($usageTools) ? 'Lethal trifecta' : 'No'),
                 'compliance' => (string) $row['compliance'],
                 'compliance_label' => $this->labels->compliance((string) $row['compliance']),
                 '_actions' => [

@@ -1,0 +1,56 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Tools'|trans }}{% endblock %}
+{% block body_testid %}ai-tools{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Tools'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-tools-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'tools' } only %}
+
+        <p class="text-body-secondary">{{ 'A tool is something a module lets the AI do in your shop: reading products, or proposing a change. A tool that changes something only proposes: nothing happens until an administrator approves it (Approvals tab). The AI never gets more rights than the person it works for.'|trans }}</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" data-testid="ai-tools-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'Tool'|trans }}</th>
+                        <th>{{ 'Module'|trans }}</th>
+                        <th>{{ 'Effect'|trans }}</th>
+                        <th>{{ 'Right needed'|trans }}</th>
+                        <th>{{ 'Audience'|trans }}</th>
+                        <th>{{ 'Available over MCP'|trans }}</th>
+                        <th>{{ 'Risks'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr data-testid="ai-tool-row" data-tool="{{ row.name }}">
+                            <td><code>{{ row.name }}</code><div class="small text-body-secondary">{{ row.description }}</div></td>
+                            <td>{{ row.module }}</td>
+                            <td><span class="badge text-bg-{{ row.effect == 'write' ? 'warning' : 'secondary' }}">{{ row.effect_label }}</span></td>
+                            <td>{{ row.right }}</td>
+                            <td>{{ row.audiences }}</td>
+                            <td data-testid="ai-tool-mcp">{{ row.mcp_label }}</td>
+                            <td>{{ row.risks ?: '-' }}</td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-center text-body-secondary">{{ 'No module declares an AI tool yet.'|trans }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
