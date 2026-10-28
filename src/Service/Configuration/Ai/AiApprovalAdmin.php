@@ -22,7 +22,8 @@ use Thelia\Domain\Ai\Tool\AiToolApprovalView;
 /**
  * What the approval screens show of the changes the write tools proposed. The summary is written by the tool from a
  * request of the model, so it never suffices to decide: the screen gives the arguments and the state after the
- * change in full. Everything here is plain text; the templates escape it.
+ * change in full. Everything here is plain text; the templates escape it, and the characters that hide in a line
+ * (direction controls, zero width) are shown as code points.
  */
 final readonly class AiApprovalAdmin
 {
@@ -87,8 +88,8 @@ final readonly class AiApprovalAdmin
             'id' => $view->id,
             'tool' => $view->toolName,
             'module' => $view->module,
-            'target' => $view->target,
-            'summary' => $view->summary,
+            'target' => AiVisibleText::reveal($view->target),
+            'summary' => AiVisibleText::reveal($view->summary),
             'status' => $view->status->value,
             'status_label' => $this->translator->trans(match ($view->status) {
                 AiToolApprovalStatus::Pending => 'Waiting for a decision',
@@ -108,6 +109,6 @@ final readonly class AiApprovalAdmin
      */
     private static function json(array $data): string
     {
-        return json_encode($data, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES | \JSON_PARTIAL_OUTPUT_ON_ERROR) ?: '{}';
+        return AiVisibleText::reveal(json_encode($data, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_UNICODE | \JSON_UNESCAPED_SLASHES | \JSON_PARTIAL_OUTPUT_ON_ERROR) ?: '{}');
     }
 }

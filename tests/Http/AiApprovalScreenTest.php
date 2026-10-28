@@ -81,6 +81,30 @@ final class AiApprovalScreenTest extends WebIntegrationTestCase
         self::assertStringContainsString('data-testid="ai-approval-after"', $html);
     }
 
+    public function testTheCharactersThatHideInATextAreShownAsCodePointsAndAccentsStayNormal(): void
+    {
+        $bidi = "\u{202E}";
+        $id = $this->proposal([
+            'summary' => 'Price of MUG'.$bidi.'gpj.exe é',
+            'target' => 'product'.$bidi.':42',
+            'arguments' => json_encode(['note' => "zero\u{200B}width".$bidi.'flip', 'name' => 'Théière'], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE),
+            'after_state' => json_encode(['label' => "end\u{2066}isolate\u{FEFF}"], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_UNICODE),
+        ]);
+
+        foreach (['/admin/configuration/ai/approvals', '/admin/configuration/ai/approvals/'.$id] as $url) {
+            $this->assertPageRenders($url);
+            $html = $this->html();
+            self::assertStringNotContainsString($bidi, $html, $url);
+            self::assertStringContainsString('Price of MUG⟨U+202E⟩gpj.exe é', $html, $url);
+            self::assertStringContainsString('product⟨U+202E⟩:42', $html, $url);
+        }
+
+        self::assertStringContainsString('zero⟨U+200B⟩width⟨U+202E⟩flip', $html);
+        self::assertStringContainsString('end⟨U+2066⟩isolate⟨U+FEFF⟩', $html);
+        self::assertStringContainsString('Théière', $html);
+        self::assertStringNotContainsString("\u{200B}", $html);
+    }
+
     public function testRejectingNeedsItsTokenAndWritesTheApproverOfTheSession(): void
     {
         $id = $this->proposal();
