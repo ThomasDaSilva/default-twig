@@ -3140,6 +3140,7 @@ return [
     'Rejected' => 'Refusée',
     'Revoked' => 'Révoqué',
     'This form was already sent, or it has expired. Check the list below, then open the form again to create another token.' => 'Ce formulaire a déjà été envoyé, ou il a expiré. Vérifiez la liste ci-dessous, puis rouvrez le formulaire pour créer un autre jeton.',
+    'This token does not exist or cannot be revoked.' => 'Ce jeton n\'existe pas ou ne peut pas être révoqué.',
     'Choose either all your rights or some scopes, not both. No token was created.' => 'Choisissez soit tous vos droits, soit des périmètres, pas les deux. Aucun jeton n\'a été créé.',
     'This token carries all the rights of a superadministrator: it can propose every change the shop allows. Revoke it as soon as you stop using it.' => 'Ce jeton porte tous les droits d\'un super-administrateur : il peut proposer toutes les modifications que la boutique autorise. Révoquez-le dès que vous ne l\'utilisez plus.',
     'You are a superadministrator: no right of yours is ever refused, so this token could propose every change of the shop, without any limit. Prefer scopes.' => 'Vous êtes super-administrateur : aucun de vos droits n\'est jamais refusé, ce jeton pourrait donc proposer toutes les modifications de la boutique, sans aucune limite. Préférez des périmètres.',

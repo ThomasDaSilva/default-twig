@@ -127,8 +127,10 @@ final class AiTokenController
 
         try {
             $this->tokens->revoke($id, $this->adminId());
-        } catch (AiExceptionInterface $refusal) {
-            $this->flash->add($request, 'danger', $refusal->getMessage());
+        } catch (AiExceptionInterface) {
+            // One answer for a token that does not exist, one that belongs to another administrator and one that
+            // cannot be revoked: an id forged in the form learns nothing.
+            $this->flash->add($request, 'danger', $this->translator->trans('This token does not exist or cannot be revoked.'));
 
             return $back;
         }

@@ -142,6 +142,31 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
         self::assertStringNotContainsString('data-testid="ai-token-super-administrator-created"', $this->html());
     }
 
+    public function testRevokingATokenThatIsNotYoursAnswersLikeOneThatDoesNotExist(): void
+    {
+        $factory = new FixtureFactory($this->getPropelConnection());
+        $other = $factory->admin();
+        $foreign = (new AiToolToken())->setAdminId($other->getId())->setLabel('Foreign')->setTokenHash(str_repeat('a', 64))->setTokenPrefix('thelia_mcp_abcd')->setAllRights(1)->setExpiresAt(new \DateTimeImmutable('+30 days'));
+        $foreign->save();
+
+        $limited = $factory->restrictedAdmin([AdminResources::AI_MCP => [AccessManager::VIEW]]);
+        $limited->eraseCredentials();
+        $this->injector?->setAdmin($limited);
+        $answers = [];
+
+        foreach ([2000000000, $foreign->getId()] as $id) {
+            $this->client->request('POST', '/admin/configuration/ai/tokens/'.$id.'/revoke', ['_token' => $this->token()]);
+            $this->client->followRedirect();
+            self::assertSame(1, preg_match('/This token does not exist or cannot be revoked\./', $this->html()), 'token '.$id);
+            self::assertStringNotContainsString('does not hold the right', $this->html());
+            $answers[] = true;
+        }
+
+        \Thelia\Model\Map\AiToolTokenTableMap::clearInstancePool();
+        self::assertNull(AiToolTokenQuery::create()->findPk($foreign->getId())?->getRevokedAt());
+        self::assertCount(2, $answers);
+    }
+
     public function testACreationWithoutItsTokenWritesNothing(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Forged', 'resources' => [AdminResources::PRODUCT], 'accesses' => [AccessManager::VIEW]]);
