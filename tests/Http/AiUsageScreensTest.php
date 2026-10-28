@@ -18,6 +18,8 @@ use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\Log\AiConsumptionReport;
+use Thelia\Domain\Ai\Service\AiUsageRegister;
+use Thelia\Domain\Ai\Service\AiUsageRegisterExport;
 use Thelia\Model\AiUsageLog;
 use Thelia\Model\AiUsageSettingQuery;
 use Thelia\Model\ConfigQuery;
@@ -66,6 +68,7 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         $this->assertPageRenders('/admin/configuration/ai/usages');
         self::assertStringContainsString(self::USAGE, $this->html());
         $this->assertPageRenders('/admin/configuration/ai/usages/'.self::USAGE);
+        $this->assertPageRenders('/admin/configuration/ai/register');
         $this->assertPageRenders('/admin/configuration/ai/consumption');
         self::assertStringContainsString('data-testid="ai-global-form"', $this->html());
     }
@@ -105,6 +108,20 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         $this->client->request('POST', '/admin/configuration/ai/consumption/settings', ['monthly_cap' => 'lots', 'ai_enabled' => '1', '_token' => $this->getService(TokenProvider::class)->assignToken()]);
 
         self::assertSame('0', ConfigQuery::read('ai_monthly_cap', '0'));
+    }
+
+    public function testTheExportsGiveTheLinesOfTheRegister(): void
+    {
+        $rows = $this->getService(AiUsageRegister::class)->rows();
+        $export = new AiUsageRegisterExport();
+
+        $this->client->request('GET', '/admin/configuration/ai/register/export.csv');
+        self::assertSame($export->csv($rows), $this->html());
+        self::assertStringContainsString('text/csv', (string) $this->client->getResponse()->headers->get('Content-Type'));
+
+        $this->client->request('GET', '/admin/configuration/ai/register/export.json');
+        self::assertSame($rows, json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR));
+        self::assertNotSame([], $rows);
     }
 
     public function testTheConsumptionIsReadOverTheChosenPeriod(): void

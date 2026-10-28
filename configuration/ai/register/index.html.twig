@@ -1,0 +1,68 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Register of AI usages'|trans }}{% endblock %}
+{% block body_testid %}ai-register{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Register'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-register-page">
+        <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
+            <h1 class="h3 mb-0">{{ 'Register of AI usages'|trans }}</h1>
+            <div class="d-flex gap-2">
+                <a class="btn btn-outline-primary" href="{{ path('admin.configuration.ai.register.export', { format: 'csv' }) }}" data-testid="ai-register-csv"><i class="bi bi-filetype-csv" aria-hidden="true"></i> {{ 'Export as CSV'|trans }}</a>
+                <a class="btn btn-outline-primary" href="{{ path('admin.configuration.ai.register.export', { format: 'json' }) }}" data-testid="ai-register-json"><i class="bi bi-filetype-json" aria-hidden="true"></i> {{ 'Export as JSON'|trans }}</a>
+            </div>
+        </div>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'register' } only %}
+
+        <p class="text-body-secondary">{{ 'This is the list of the artificial intelligence your shop runs: what for, who it talks to, which company and model process the data, and whether each usage meets its duties under Article 50 of the European AI regulation. Keep an export as your record. It is a help, not legal advice.'|trans }}</p>
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" data-testid="ai-register-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'Module'|trans }}</th>
+                        <th>{{ 'Purpose'|trans }}</th>
+                        <th>{{ 'Audience'|trans }}</th>
+                        <th>{{ 'Provider'|trans }}</th>
+                        <th>{{ 'Model'|trans }}</th>
+                        <th>{{ 'Obligations'|trans }}</th>
+                        <th>{{ 'Status'|trans }}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr data-testid="ai-register-row" data-usage="{{ row.id }}">
+                            <td>{{ row.module }}</td>
+                            <td>{{ row.purpose }}<div class="small text-body-secondary">{{ row.id }}</div></td>
+                            <td>{{ row.audience_label }}</td>
+                            <td>{{ row.provider_label ?: '-' }}</td>
+                            <td>{{ row.model ?: '-' }}</td>
+                            <td>
+                                {% for detail in row.compliance_details %}
+                                    <div class="small"><span class="badge text-bg-{{ detail.state == 'met' ? 'success' : (detail.state == 'not_met' ? 'danger' : 'warning') }}">{{ detail.obligation == 'article_50_1' ? 'Art. 50(1)' : 'Art. 50(2)' }}</span> {{ detail.message }}</div>
+                                {% else %}
+                                    <span class="text-body-secondary small">{{ 'No transparency duty applies.'|trans }}</span>
+                                {% endfor %}
+                            </td>
+                            <td><span class="badge text-bg-{{ {met: 'success', not_met: 'danger', to_review: 'warning'}[row.compliance] ?? 'secondary' }}" data-testid="ai-register-status">{{ row.compliance_label }}</span></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="7" class="text-center text-body-secondary">{{ 'No module declares an AI usage yet.'|trans }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
