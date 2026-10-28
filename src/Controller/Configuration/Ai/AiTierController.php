@@ -33,6 +33,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Service\AiFailureExplainer;
 use Twig\Environment;
 
 /**
@@ -54,6 +55,7 @@ final class AiTierController
         private readonly FormFactoryInterface $formFactory,
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
+        private readonly AiFailureExplainer $failures,
     ) {
     }
 
@@ -83,7 +85,7 @@ final class AiTierController
                     $this->tiers->assign($tier, $form->get($tier->value)->getData());
                 }
             } catch (AiExceptionInterface|HttpExceptionInterface $refusal) {
-                $form->addError(new FormError($refusal->getMessage()));
+                $form->addError(new FormError($this->failureMessage($refusal, $request)));
 
                 return $this->render($form);
             }
@@ -113,5 +115,10 @@ final class AiTierController
             'form' => $form->createView(),
             'has_choices' => [] !== $this->tiers->choices(),
         ]));
+    }
+
+    private function failureMessage(\Throwable $refusal, Request $request): string
+    {
+        return $refusal instanceof AiExceptionInterface ? $this->failures->explain($refusal, $request->getLocale()) : $refusal->getMessage();
     }
 }

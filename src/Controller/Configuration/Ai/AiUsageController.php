@@ -31,6 +31,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Service\AiFailureExplainer;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
 
@@ -56,6 +57,7 @@ final class AiUsageController
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokens,
+        private readonly AiFailureExplainer $failures,
     ) {
     }
 
@@ -131,7 +133,7 @@ final class AiUsageController
             );
         } catch (AiExceptionInterface|HttpExceptionInterface|\InvalidArgumentException $refusal) {
             // The message is plain text of the core: the flash is escaped by the layout.
-            $this->flash->add($request, 'danger', $refusal->getMessage());
+            $this->flash->add($request, 'danger', $this->failureMessage($refusal, $request));
 
             return $back;
         }
@@ -174,5 +176,10 @@ final class AiUsageController
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    private function failureMessage(\Throwable $refusal, Request $request): string
+    {
+        return $refusal instanceof AiExceptionInterface ? $this->failures->explain($refusal, $request->getLocale()) : $refusal->getMessage();
     }
 }

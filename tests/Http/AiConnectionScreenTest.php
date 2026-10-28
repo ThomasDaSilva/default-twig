@@ -112,4 +112,24 @@ final class AiConnectionScreenTest extends WebIntegrationTestCase
     {
         return (string) $this->client->getResponse()->getContent();
     }
+
+    public function testAFailureOfTheCoreIsShownInTheLanguageOfTheAdministrator(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/connections/new?lang=fr');
+        $values = ['thelia_ai_connection[title]' => 'Mistral', 'thelia_ai_connection[code]' => 'mistral-twice', 'thelia_ai_connection[provider]' => 'mistral', 'thelia_ai_connection[api_key]' => self::KEY];
+        $this->client->submit($this->client->getCrawler()->filter('form[name="thelia_ai_connection"]')->form($values));
+        self::assertTrue($this->client->getResponse()->isRedirection());
+
+        $this->client->request('GET', '/admin/configuration/ai/connections/new?lang=fr');
+        $this->client->submit($this->client->getCrawler()->filter('form[name="thelia_ai_connection"]')->form($values));
+
+        $html = $this->html();
+        self::assertStringContainsString('Une autre connexion porte déjà ce code.', $html);
+        self::assertStringNotContainsString('Another connection already has this code.', $html);
+
+        $this->client->request('GET', '/admin/configuration/ai/connections/new?lang=en');
+        $this->client->submit($this->client->getCrawler()->filter('form[name="thelia_ai_connection"]')->form($values));
+
+        self::assertStringContainsString('Another connection already has this code.', $this->html());
+    }
 }

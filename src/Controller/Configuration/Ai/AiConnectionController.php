@@ -39,6 +39,7 @@ use Thelia\Core\Security\SecurityContext;
 use Thelia\Core\Security\User\UserInterface;
 use Thelia\Domain\Ai\AiJurisdiction;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Service\AiFailureExplainer;
 use Thelia\Model\AiConnection;
 use Thelia\Model\AiConnectionQuery;
 use Thelia\Tools\TokenProvider;
@@ -73,6 +74,7 @@ final class AiConnectionController
         private readonly SecurityContext $securityContext,
         #[Target('ai_connection_test')]
         private readonly RateLimiterFactoryInterface $testLimiter,
+        private readonly AiFailureExplainer $failures,
     ) {
     }
 
@@ -269,7 +271,7 @@ final class AiConnectionController
             try {
                 $this->connections->save($connection?->getId(), $values);
             } catch (AiExceptionInterface|HttpExceptionInterface $refusal) {
-                $form->addError(new \Symfony\Component\Form\FormError($refusal->getMessage()));
+                $form->addError(new \Symfony\Component\Form\FormError($this->failureMessage($refusal, $request)));
 
                 return $this->render($connection, $form);
             }
@@ -360,5 +362,10 @@ final class AiConnectionController
                 new RowAction(kind: 'delete', label: $this->translator->trans('Delete'), modalTarget: '#ai-connection-delete-modal', grantedAttribute: AccessManager::DELETE, grantedSubject: self::RESOURCE, dataAttributes: ['connection-id' => $id, 'connection-label' => (string) $connection->getTitle()]),
             ],
         ];
+    }
+
+    private function failureMessage(\Throwable $refusal, Request $request): string
+    {
+        return $refusal instanceof AiExceptionInterface ? $this->failures->explain($refusal, $request->getLocale()) : $refusal->getMessage();
     }
 }

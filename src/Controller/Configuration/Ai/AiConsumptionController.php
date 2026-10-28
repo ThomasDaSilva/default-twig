@@ -26,6 +26,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Service\AiFailureExplainer;
 use Thelia\Domain\Ai\Log\AiConsumptionReport;
 use Thelia\Domain\Ai\Service\AiSettings;
 use Thelia\Domain\Ai\Service\AiSettingsWriter;
@@ -54,6 +55,7 @@ final class AiConsumptionController
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokens,
+        private readonly AiFailureExplainer $failures,
     ) {
     }
 
@@ -113,7 +115,7 @@ final class AiConsumptionController
         try {
             $this->writer->setMonthlyCap('' === trim($request->request->getString('monthly_cap')) ? '0' : $request->request->getString('monthly_cap'));
         } catch (AiExceptionInterface $refusal) {
-            $this->flash->add($request, 'danger', $refusal->getMessage());
+            $this->flash->add($request, 'danger', $this->failureMessage($refusal, $request));
 
             return $back;
         }
@@ -145,5 +147,10 @@ final class AiConsumptionController
         } catch (\Throwable) {
             return false;
         }
+    }
+
+    private function failureMessage(\Throwable $refusal, Request $request): string
+    {
+        return $refusal instanceof AiExceptionInterface ? $this->failures->explain($refusal, $request->getLocale()) : $refusal->getMessage();
     }
 }
