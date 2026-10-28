@@ -231,7 +231,7 @@ final class AiConnectionController
         // The message is plain text of the provider: the flash is escaped by the layout.
         $this->flash->add($request, null === $error ? 'success' : 'danger', null === $error
             ? $this->translator->trans('The provider answered: the connection works.')
-            : $this->translator->trans('The test failed: %error%', ['%error%' => $error]));
+            : $this->translator->trans('The test failed: %error%', ['%error%' => $this->failures->explainCheckError($error, $request->getLocale())]));
 
         return $back;
     }

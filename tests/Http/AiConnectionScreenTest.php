@@ -15,11 +15,13 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Model\AiConnectionQuery;
 use Thelia\Model\ConfigQuery;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
+use Thelia\Tools\TokenProvider;
 
 /**
  * Configuration > Artificial intelligence > Connections: the key goes in by the vault and never comes back, a
@@ -131,5 +133,20 @@ final class AiConnectionScreenTest extends WebIntegrationTestCase
         $this->client->submit($this->client->getCrawler()->filter('form[name="thelia_ai_connection"]')->form($values));
 
         self::assertStringContainsString('Another connection already has this code.', $this->html());
+    }
+
+    public function testTheErrorOfAConnectionTestIsShownInTheLanguageOfTheAdministrator(): void
+    {
+        // No model is known for this provider: the test stops before any call.
+        $connection = $this->getService(AiSettingsWriter::class)->saveConnection(null, 'no-model-yet', 'No model', 'openai_compatible', 'eu', 'https://models.example.com/v1', null, null, false, true);
+
+        foreach (['fr' => 'Aucun modèle n\'est connu pour cette connexion', 'en' => 'No model is known for this connection'] as $lang => $expected) {
+            $this->client->request('POST', '/admin/configuration/ai/connections/'.$connection->getId().'/test?lang='.$lang, ['_token' => $this->getService(TokenProvider::class)->assignToken()]);
+            $this->client->followRedirect();
+
+            self::assertStringContainsString($expected, html_entity_decode($this->html()), $lang);
+        }
+
+        self::assertSame('No model is known for this connection: add one first.', AiConnectionQuery::create()->findPk($connection->getId())?->getCheckError(), 'the column keeps the English text');
     }
 }
