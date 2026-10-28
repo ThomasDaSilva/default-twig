@@ -1,0 +1,66 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Approvals'|trans }}{% endblock %}
+{% block body_testid %}ai-approvals{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Approvals'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-approvals-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'approvals' } only %}
+
+        <p class="text-body-secondary">{{ 'The AI never changes your shop by itself: it proposes, and you decide. Open a proposal to read exactly what would change before you approve it.'|trans }}</p>
+
+        {% if applying %}
+            <div class="alert alert-danger" role="alert" data-testid="ai-approvals-applying">
+                <strong>{{ 'Some changes were interrupted while being applied.'|trans }}</strong>
+                {{ 'Check in your shop whether each one was applied, then close it. Thelia never replays a change by itself.'|trans }}
+                <ul class="mb-0 mt-2">
+                    {% for row in applying %}
+                        <li><a href="{{ path('admin.configuration.ai.approvals.show', { id: row.id }) }}" data-testid="ai-approval-applying-link">{{ row.summary }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        {% endif %}
+
+        <div class="table-responsive">
+            <table class="table table-sm align-middle" data-testid="ai-approvals-table">
+                <thead>
+                    <tr>
+                        <th>{{ 'Proposal'|trans }}</th>
+                        <th>{{ 'Tool'|trans }}</th>
+                        <th>{{ 'Target'|trans }}</th>
+                        <th>{{ 'Proposed on'|trans }}</th>
+                        <th>{{ 'Expires on'|trans }}</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in pending %}
+                        <tr data-testid="ai-approval-row" data-approval="{{ row.id }}">
+                            <td>{{ row.summary }}</td>
+                            <td><code>{{ row.tool }}</code></td>
+                            <td>{{ row.target }}</td>
+                            <td>{{ row.created_at }}</td>
+                            <td>{{ row.expires_at }}</td>
+                            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ path('admin.configuration.ai.approvals.show', { id: row.id }) }}" data-testid="ai-approval-open">{{ 'Review'|trans }}</a></td>
+                        </tr>
+                    {% else %}
+                        <tr><td colspan="6" class="text-center text-body-secondary">{{ 'Nothing is waiting for your decision.'|trans }}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}

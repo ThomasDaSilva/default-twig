@@ -1,0 +1,84 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Approvals'|trans }}{% endblock %}
+{% block body_testid %}ai-approval{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.approvals.default') }}">{{ 'Approvals'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">#{{ approval.id }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% block content %}
+    <div class="container-fluid" data-testid="ai-approval-page">
+        <h1 class="h3 mb-1">{{ 'Proposed change'|trans }} #{{ approval.id }}</h1>
+        <p class="text-body-secondary">
+            <code>{{ approval.tool }}</code> · {{ 'Module'|trans }} : {{ approval.module }} · {{ 'Target'|trans }} : {{ approval.target }} ·
+            <span class="badge text-bg-{{ {pending: 'warning', applying: 'danger', applied: 'success', rejected: 'secondary', failed: 'danger', expired: 'secondary'}[approval.status] ?? 'secondary' }}" data-testid="ai-approval-status">{{ approval.status_label }}</span>
+        </p>
+
+        <div class="alert alert-warning" role="note">
+            {{ 'The summary below was written from a request of the AI. It is not enough to decide: read the arguments and the state after the change.'|trans }}
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <h2 class="h6">{{ 'Summary'|trans }}</h2>
+                <p data-testid="ai-approval-summary">{{ approval.summary }}</p>
+                <h2 class="h6">{{ 'Arguments'|trans }}</h2>
+                <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-arguments">{{ approval.arguments_json }}</pre>
+                {% if approval.amended %}
+                    <h2 class="h6">{{ 'Arguments asked by the AI, before the amendment'|trans }}</h2>
+                    <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-original-arguments">{{ approval.original_arguments_json }}</pre>
+                {% endif %}
+                <h2 class="h6">{{ 'State before'|trans }}</h2>
+                <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-before">{{ approval.before_state_json }}</pre>
+                <h2 class="h6">{{ 'State after the change'|trans }}</h2>
+                <pre class="border rounded p-2 bg-body-tertiary" data-testid="ai-approval-after">{{ approval.after_state_json }}</pre>
+                <dl class="row small mb-0">
+                    <dt class="col-sm-3">{{ 'Proposed by'|trans }}</dt><dd class="col-sm-9">{{ approval.proposed_by }}{% if approval.token_prefix %} ({{ 'token'|trans }} {{ approval.token_prefix }}){% endif %}</dd>
+                    <dt class="col-sm-3">{{ 'Proposed on'|trans }}</dt><dd class="col-sm-9">{{ approval.created_at }}</dd>
+                    <dt class="col-sm-3">{{ 'Expires on'|trans }}</dt><dd class="col-sm-9">{{ approval.expires_at }}</dd>
+                    {% if approval.decided_by %}
+                        <dt class="col-sm-3">{{ 'Decided by'|trans }}</dt><dd class="col-sm-9">{{ approval.decided_by }} {{ approval.decided_at }}</dd>
+                    {% endif %}
+                    {% if approval.decision_note %}
+                        <dt class="col-sm-3">{{ 'Note'|trans }}</dt><dd class="col-sm-9" data-testid="ai-approval-note">{{ approval.decision_note }}</dd>
+                    {% endif %}
+                    {% if approval.error %}
+                        <dt class="col-sm-3">{{ 'Why it failed'|trans }}</dt><dd class="col-sm-9" data-testid="ai-approval-error">{{ approval.error }}</dd>
+                    {% endif %}
+                </dl>
+            </div>
+        </div>
+
+        {% if approval.can_decide %}
+            <div class="d-flex flex-wrap gap-3">
+                <form method="post" action="{{ path('admin.configuration.ai.approvals.approve', { id: approval.id }) }}" data-testid="ai-approval-approve-form">
+                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    <button type="submit" class="btn btn-primary" data-testid="ai-approval-approve">{{ 'Approve and apply'|trans }}</button>
+                </form>
+                <form method="post" action="{{ path('admin.configuration.ai.approvals.reject', { id: approval.id }) }}" class="d-flex gap-2" data-testid="ai-approval-reject-form">
+                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    <input type="text" class="form-control" name="note" maxlength="255" placeholder="{{ 'Reason (optional)'|trans }}" aria-label="{{ 'Reason (optional)'|trans }}">
+                    <button type="submit" class="btn btn-outline-danger" data-testid="ai-approval-reject">{{ 'Reject'|trans }}</button>
+                </form>
+            </div>
+        {% elseif approval.is_applying %}
+            <div class="alert alert-danger" role="alert" data-testid="ai-approval-applying">
+                <p><strong>{{ 'This change was interrupted while being applied.'|trans }}</strong> {{ 'Check in your shop whether it was applied, then close it as failed. It is never replayed.'|trans }}</p>
+                <form method="post" action="{{ path('admin.configuration.ai.approvals.close', { id: approval.id }) }}" class="d-flex gap-2" data-testid="ai-approval-close-form">
+                    <input type="hidden" name="_token" value="{{ assignToken() }}">
+                    <input type="text" class="form-control" name="note" maxlength="255" required placeholder="{{ 'What did you check?'|trans }}" aria-label="{{ 'What did you check?'|trans }}">
+                    <button type="submit" class="btn btn-danger" data-testid="ai-approval-close">{{ 'Close as failed'|trans }}</button>
+                </form>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

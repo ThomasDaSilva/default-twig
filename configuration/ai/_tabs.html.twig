@@ -21,4 +21,7 @@
     <li class="nav-item">
         <a class="nav-link{{ active == 'tools' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.tools.default') }}"{{ active == 'tools' ? ' aria-current="page"' : '' }} data-testid="ai-tab-tools">{{ 'Tools'|trans }}</a>
     </li>
+    <li class="nav-item">
+        <a class="nav-link{{ active == 'approvals' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.approvals.default') }}"{{ active == 'approvals' ? ' aria-current="page"' : '' }} data-testid="ai-tab-approvals">{{ 'Approvals'|trans }}</a>
+    </li>
 </ul>
