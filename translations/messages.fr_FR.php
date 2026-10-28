@@ -3139,4 +3139,5 @@ return [
     'Applied' => 'Appliquée',
     'Rejected' => 'Refusée',
     'Revoked' => 'Révoqué',
+    'This form was already sent, or it has expired. Check the list below, then open the form again to create another token.' => 'Ce formulaire a déjà été envoyé, ou il a expiré. Vérifiez la liste ci-dessous, puis rouvrez le formulaire pour créer un autre jeton.',
 ];

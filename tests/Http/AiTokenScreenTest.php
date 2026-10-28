@@ -83,13 +83,27 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
 
     public function testATokenWithoutScopesIsRefusedUnlessItTakesAllTheRights(): void
     {
-        $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'No scope', '_token' => $this->token()]);
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'No scope', '_token' => $this->token(), 'creation_nonce' => $this->nonce()]);
         self::assertSame(0, AiToolTokenQuery::create()->count());
 
-        $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Everything', 'all_rights' => '1', '_token' => $this->token()]);
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Everything', 'all_rights' => '1', '_token' => $this->token(), 'creation_nonce' => $this->nonce()]);
         $row = AiToolTokenQuery::create()->findOne();
         self::assertNotNull($row);
         self::assertTrue((bool) $row->getAllRights());
+    }
+
+    public function testReplayingTheCreationPostCreatesNoSecondToken(): void
+    {
+        $post = $this->form();
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', $post);
+        self::assertSame(1, AiToolTokenQuery::create()->count());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', $post);
+        self::assertSame(1, AiToolTokenQuery::create()->count(), 'the same post must be read once');
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', array_replace($post, ['creation_nonce' => 'forged']));
+        self::assertSame(1, AiToolTokenQuery::create()->count());
     }
 
     public function testACreationWithoutItsTokenWritesNothing(): void
@@ -101,6 +115,7 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
 
     public function testAnAdministratorWithoutTheMcpRightCannotSeeNorCreate(): void
     {
+        $form = $this->form();
         $other = (new FixtureFactory($this->getPropelConnection()))->restrictedAdmin([AdminResources::AI => [AccessManager::VIEW, AccessManager::UPDATE]]);
         $other->eraseCredentials();
         $this->injector?->setAdmin($other);
@@ -108,7 +123,7 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
         $this->client->request('GET', '/admin/configuration/ai/tokens');
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
 
-        $this->client->request('POST', '/admin/configuration/ai/tokens/create', $this->form());
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', $form);
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
         self::assertSame(0, AiToolTokenQuery::create()->count());
     }
@@ -139,11 +154,24 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
     }
 
     /**
+     * @param array<string, mixed> $overrides
+     *
      * @return array<string, mixed>
      */
-    private function form(): array
+    private function form(array $overrides = []): array
     {
-        return ['label' => 'Desktop assistant', 'resources' => [AdminResources::PRODUCT], 'accesses' => [AccessManager::VIEW], '_token' => $this->token()];
+        return $overrides + ['label' => 'Desktop assistant', 'resources' => [AdminResources::PRODUCT], 'accesses' => [AccessManager::VIEW], '_token' => $this->token(), 'creation_nonce' => $this->nonce()];
+    }
+
+    /**
+     * The one-time value the form carries: read from the form, as a browser does.
+     */
+    private function nonce(): string
+    {
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+        self::assertSame(1, preg_match('/name="creation_nonce" value="([0-9a-f]{32})"/', $this->html(), $found));
+
+        return $found[1];
     }
 
     private function token(): string

@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTokenAdmin;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTokenCreationNonce;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -54,6 +55,7 @@ final class AiTokenController
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokenProvider,
+        private readonly AiTokenCreationNonce $creationNonce,
     ) {
     }
 
@@ -78,6 +80,12 @@ final class AiTokenController
 
         if (!$this->tokenIsValid($request)) {
             $this->flash->add($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
+
+            return $back;
+        }
+
+        if (!$this->creationNonce->consume($request, (string) $request->request->get('creation_nonce', ''))) {
+            $this->flash->add($request, 'danger', $this->translator->trans('This form was already sent, or it has expired. Check the list below, then open the form again to create another token.'));
 
             return $back;
         }
@@ -136,6 +144,7 @@ final class AiTokenController
             'rows' => $this->tokens->rows($this->adminId()),
             'created' => $created,
             'created_trifecta' => $trifecta,
+            'creation_nonce' => $this->creationNonce->issue($request),
             'mcp_enabled' => $this->tokens->mcpEnabled(),
             'host' => $request->getHost(),
             'host_allowed' => $this->tokens->hostIsAllowed($request->getHost()),

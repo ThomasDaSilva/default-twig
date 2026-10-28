@@ -84,6 +84,7 @@
                     <h2 class="h6">{{ 'Create a token'|trans }}</h2>
                     <form method="post" action="{{ path('admin.configuration.ai.tokens.create') }}" data-testid="ai-token-form">
                         <input type="hidden" name="_token" value="{{ assignToken() }}">
+                        <input type="hidden" name="creation_nonce" value="{{ creation_nonce }}" data-testid="ai-token-creation-nonce">
                         <div class="mb-3">
                             <label class="form-label" for="ai-token-label">{{ 'Name'|trans }}</label>
                             <input type="text" class="form-control" id="ai-token-label" name="label" maxlength="64" required data-testid="ai-token-label">
