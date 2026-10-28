@@ -142,8 +142,8 @@ final readonly class OrderListRowPresenter
             'status_color' => (string) ($status?->getColor() ?: self::FALLBACK_STATUS_COLOR),
             'customer_html' => $this->renderCustomer($order),
             'items_html' => $this->renderItems($orderId, $itemCounts),
-            'payment_html' => $this->renderModule($paymentTitle, 'bi-credit-card'),
-            'delivery_html' => $this->renderDelivery($order, $deliveryTitle),
+            'payment_delivery_html' => $this->renderModule($paymentTitle, 'bi-credit-card')
+                .'<div class="mt-1">'.$this->renderDelivery($order, $deliveryTitle).'</div>',
             'amount' => $this->formatAmount($order, $totals, $locale),
             'sale_unit' => $this->saleUnitTitle($order, $saleUnitTitles, $locale),
             'is_urgent' => $isUrgent,
