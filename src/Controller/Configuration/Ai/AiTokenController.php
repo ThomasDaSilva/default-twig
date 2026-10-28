@@ -107,7 +107,7 @@ final class AiTokenController
         $this->adminLogger->log(self::RESOURCE, AccessManager::CREATE, \sprintf('MCP token %s created', $created->prefix), $created->id);
 
         // Not a redirect: the token lives in this answer only, so a reload cannot show it again.
-        return $this->render($request, $created, $this->tokens->createsTrifecta($allRights, $resources, $accesses, $modules));
+        return $this->render($request, $created, $this->tokens->createsTrifecta($allRights, $resources, $accesses, $modules), $allRights);
     }
 
     #[Route('/{id}/revoke', name: 'revoke', methods: ['POST'], requirements: ['id' => '\d+'])]
@@ -139,12 +139,15 @@ final class AiTokenController
         return $back;
     }
 
-    private function render(Request $request, ?AiCreatedToolToken $created, bool $trifecta): Response
+    private function render(Request $request, ?AiCreatedToolToken $created, bool $trifecta, bool $createdWithAllRights = false): Response
     {
+        $superAdministrator = $this->tokens->isSuperAdministrator($this->adminId());
         $response = new Response($this->twig->render('@BackOfficeDefaultTwig/configuration/ai/token/index.html.twig', [
             'rows' => $this->tokens->rows($this->adminId()),
             'created' => $created,
             'created_trifecta' => $trifecta,
+            'super_administrator' => $superAdministrator,
+            'created_super_administrator_all_rights' => $createdWithAllRights && $superAdministrator,
             'creation_nonce' => $this->creationNonce->issue($request),
             'mcp_enabled' => $this->tokens->mcpEnabled(),
             'host' => $request->getHost(),

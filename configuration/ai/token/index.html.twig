@@ -35,6 +35,9 @@
                 <p class="mb-1"><strong>{{ 'Copy your token now: it is shown only once.'|trans }}</strong> {{ 'Thelia keeps only a fingerprint of it and cannot show it again.'|trans }}</p>
                 <input type="text" class="form-control font-monospace" readonly value="{{ created.token }}" aria-label="{{ 'Your token'|trans }}" data-testid="ai-token-value">
             </div>
+            {% if created_super_administrator_all_rights %}
+                <div class="alert alert-danger" role="alert" data-testid="ai-token-super-administrator-created">{{ 'This token carries all the rights of a superadministrator: it can propose every change the shop allows. Revoke it as soon as you stop using it.'|trans }}</div>
+            {% endif %}
             {% if created_trifecta %}
                 <div class="alert alert-danger" role="alert" data-testid="ai-token-trifecta">{{ 'Warning: the tools this token reaches together read private data, read untrusted content and can reach out of the shop. An attack hidden in a text the assistant reads could use them. Narrow the scopes if you can.'|trans }}</div>
             {% endif %}
@@ -113,7 +116,11 @@
                         <div class="form-check mb-3">
                             <input class="form-check-input" type="checkbox" name="all_rights" value="1" id="ai-token-all-rights" data-testid="ai-token-all-rights">
                             <label class="form-check-label" for="ai-token-all-rights">{{ 'Give this token all my rights (no scopes)'|trans }}</label>
-                            <div class="form-text text-danger">{{ 'Risky: the token will be able to propose anything you may do in the shop. Prefer scopes.'|trans }}</div>
+                            {% if super_administrator %}
+                                <div class="form-text text-danger fw-bold" data-testid="ai-token-super-administrator-warning">{{ 'You are a superadministrator: no right of yours is ever refused, so this token could propose every change of the shop, without any limit. Prefer scopes.'|trans }}</div>
+                            {% else %}
+                                <div class="form-text text-danger">{{ 'Risky: the token will be able to propose anything you may do in the shop. Prefer scopes.'|trans }}</div>
+                            {% endif %}
                         </div>
                         <button type="submit" class="btn btn-primary" data-testid="ai-token-create">{{ 'Create the token'|trans }}</button>
                     </form>

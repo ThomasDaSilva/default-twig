@@ -23,6 +23,8 @@ use Thelia\Domain\Ai\Tool\AiCreatedToolToken;
 use Thelia\Domain\Ai\Tool\Exception\AiToolTokenException;
 use Thelia\Domain\Ai\Tool\Mcp\McpAllowedHosts;
 use Thelia\Domain\Ai\Tool\Service\AiToolTokenService;
+use Thelia\Model\Admin;
+use Thelia\Model\AdminQuery;
 use Thelia\Model\AiToolToken;
 use Thelia\Model\AiToolTokenQuery;
 
@@ -90,6 +92,17 @@ final readonly class AiTokenAdmin
     public function createsTrifecta(bool $allRights, array $resources, array $accesses, array $modules): bool
     {
         return $this->tools->isLethalTrifecta($this->tools->toolsOfScopes($allRights, self::scopes($resources, $accesses, $modules)));
+    }
+
+    /**
+     * A superadministrator has no profile: no right of his is ever refused, so a token with all his rights can propose
+     * anything in the shop.
+     */
+    public function isSuperAdministrator(int $adminId): bool
+    {
+        $admin = AdminQuery::create()->findPk($adminId);
+
+        return $admin instanceof Admin && (null === $admin->getProfileId() || 0 === (int) $admin->getProfileId());
     }
 
     public function revoke(int $tokenId, int $adminId): void

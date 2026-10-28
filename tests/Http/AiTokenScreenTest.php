@@ -115,6 +115,33 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
         self::assertStringContainsString('Choose either all your rights or some scopes, not both.', $this->html());
     }
 
+    public function testASuperAdministratorIsWarnedMoreStronglyAboutAllRights(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+        self::assertStringContainsString('data-testid="ai-token-super-administrator-warning"', $this->html());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Everything', 'all_rights' => '1', '_token' => $this->token(), 'creation_nonce' => $this->nonce()]);
+        self::assertStringContainsString('data-testid="ai-token-super-administrator-created"', $this->html());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', $this->form());
+        self::assertStringNotContainsString('data-testid="ai-token-super-administrator-created"', $this->html());
+    }
+
+    public function testAnAdministratorWithAProfileGetsTheOrdinaryWarning(): void
+    {
+        $limited = (new FixtureFactory($this->getPropelConnection()))->restrictedAdmin([AdminResources::AI_MCP => [AccessManager::VIEW, AccessManager::CREATE]]);
+        $limited->eraseCredentials();
+        $this->injector?->setAdmin($limited);
+
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+
+        self::assertStringContainsString('data-testid="ai-token-all-rights"', $this->html());
+        self::assertStringNotContainsString('data-testid="ai-token-super-administrator-warning"', $this->html());
+
+        $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Everything', 'all_rights' => '1', '_token' => $this->token(), 'creation_nonce' => $this->nonce()]);
+        self::assertStringNotContainsString('data-testid="ai-token-super-administrator-created"', $this->html());
+    }
+
     public function testACreationWithoutItsTokenWritesNothing(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/tokens/create', ['label' => 'Forged', 'resources' => [AdminResources::PRODUCT], 'accesses' => [AccessManager::VIEW]]);

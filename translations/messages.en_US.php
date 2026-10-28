@@ -985,4 +985,6 @@ return [
     'Summary' => 'Summary',
     'This form was already sent, or it has expired. Check the list below, then open the form again to create another token.' => 'This form was already sent, or it has expired. Check the list below, then open the form again to create another token.',
     'Choose either all your rights or some scopes, not both. No token was created.' => 'Choose either all your rights or some scopes, not both. No token was created.',
+    'This token carries all the rights of a superadministrator: it can propose every change the shop allows. Revoke it as soon as you stop using it.' => 'This token carries all the rights of a superadministrator: it can propose every change the shop allows. Revoke it as soon as you stop using it.',
+    'You are a superadministrator: no right of yours is ever refused, so this token could propose every change of the shop, without any limit. Prefer scopes.' => 'You are a superadministrator: no right of yours is ever refused, so this token could propose every change of the shop, without any limit. Prefer scopes.',
 ];
