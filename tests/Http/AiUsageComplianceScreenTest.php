@@ -14,11 +14,12 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use Thelia\Domain\Localization\Service\LangService;
+use Psr\Log\NullLogger;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTierAdmin;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
 use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
-use Thelia\Api\State\Processor\AiTierAssignmentWriteProcessor;
 use Thelia\Domain\Ai\AiAudience;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\AiTransparency;
@@ -148,7 +149,7 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
     private function admin(): AiUsageAdmin
     {
         $settings = new AiUsageSettingRepository();
-        $translator = $this->getService(AiTextTranslator::class);
+        $translator = new AiTextTranslator(new LangService(new RequestStack(), new NullLogger()));
         $registry = new AiUsageRegistry(['screenprobe.chat' => ScreenProbeUsage::class], $settings, new AiSettings(), $translator);
         $resolver = new AiTargetResolver($registry, $settings, new AiRoutingRepository(), new AiModelCatalog(), new AiKeyVault(new AiKeyCipher('screen-test-secret')));
         $catalog = new AiModelCatalog();
@@ -158,7 +159,7 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
             new AiSettings(),
             $resolver,
             new AiSettingsWriter(new AiKeyVault(new AiKeyCipher('screen-test-secret')), new AiBaseUrlValidator(new WebhookUrlValidator()), $registry, new AiSettings()),
-            new AiTierAdmin($catalog, $this->getService(AiSettingsWriter::class), $this->getService(AiTierAssignmentWriteProcessor::class)),
+            new AiTierAdmin($catalog, $this->getService(AiSettingsWriter::class)),
             $registry,
             new AiGuardrailRunner([]),
         );

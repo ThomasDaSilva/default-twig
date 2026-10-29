@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiLabels;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiToolAdmin;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Thelia\Core\Security\AccessManager;
@@ -45,14 +46,14 @@ final class AiRegisterController
     }
 
     #[Route('', name: 'default', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
 
         $rows = [];
-        foreach ($this->usages->register() as $row) {
+        foreach ($this->usages->register($request->getLocale()) as $row) {
             $row = $this->usages->withTarget($row);
             $row['audience_label'] = $this->labels->audience((string) $row['audience']);
             $row['tier_label'] = $this->labels->tierName((string) $row['tier']);
@@ -68,13 +69,13 @@ final class AiRegisterController
     }
 
     #[Route('/export.{format}', name: 'export', methods: ['GET'], requirements: ['format' => 'csv|json'])]
-    public function export(string $format): Response
+    public function export(Request $request, string $format): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
 
-        $rows = $this->usages->register();
+        $rows = $this->usages->register($request->getLocale());
         $csv = 'csv' === $format;
 
         return new Response(

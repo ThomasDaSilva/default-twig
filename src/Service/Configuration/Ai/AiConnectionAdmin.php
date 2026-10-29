@@ -14,8 +14,6 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 
-use ApiPlatform\Metadata\Delete;
-use Thelia\Api\State\Processor\AiConnectionWriteProcessor;
 use Thelia\Domain\Ai\Service\AiConnectionTester;
 use Thelia\Domain\Ai\Service\AiSettings;
 use Thelia\Domain\Ai\Service\AiSettingsWriter;
@@ -25,14 +23,13 @@ use Thelia\Model\AiConnectionQuery;
 /**
  * Writes the AI connections of the shop through the writer of the core, which checks the code, the address and the
  * jurisdiction and seals the key in the vault: the screen cannot differ from the API. A refusal comes back as an
- * AI exception whose message the controller shows; a deletion goes through the processor of the admin API, which
- * refuses a connection a range still uses.
+ * AI exception whose message the controller shows; a deletion goes through the writer too, which refuses a
+ * connection a range still uses.
  */
 final readonly class AiConnectionAdmin
 {
     public function __construct(
         private AiSettingsWriter $writer,
-        private AiConnectionWriteProcessor $deleter,
         private AiConnectionTester $tester,
         private AiSettings $settings,
     ) {
@@ -69,7 +66,11 @@ final readonly class AiConnectionAdmin
 
     public function delete(int $id): void
     {
-        $this->deleter->process(null, new Delete(), ['id' => $id]);
+        $connection = AiConnectionQuery::create()->findPk($id);
+
+        if (null !== $connection) {
+            $this->writer->deleteConnection($connection);
+        }
     }
 
     /**

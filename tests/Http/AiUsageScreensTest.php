@@ -73,6 +73,60 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertStringContainsString('data-testid="ai-global-form"', $this->html());
     }
 
+    public function testTheUsageAndRegisterScreensAreInTheLanguageOfTheBackOffice(): void
+    {
+        foreach (['/admin/configuration/ai/usages', '/admin/configuration/ai/register', '/admin/configuration/ai/usages/'.self::USAGE] as $path) {
+            $this->client->request('GET', $path.'?lang=fr');
+            $html = (string) $this->client->getResponse()->getContent();
+
+            self::assertSame(200, $this->client->getResponse()->getStatusCode(), $path);
+            self::assertStringContainsString("Juge si le message d'un visiteur", html_entity_decode($html, \ENT_QUOTES), $path);
+            self::assertStringNotContainsString('Judges whether', $html, $path);
+        }
+    }
+
+    public function testTheRegisterTableWrapsItsCellsInsteadOfScrollingOffTheScreen(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/register');
+
+        self::assertCount(1, $this->client->getCrawler()->filter('table.bo-table-wrap[data-testid="ai-register-table"]'));
+    }
+
+    public function testTheUsageListWrapsItsTextCellsAndKeepsTheStatusInSight(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        $table = $this->client->getCrawler()->filter('table[data-testid="datatable-ai-usages-table"]');
+
+        self::assertCount(1, $table);
+        self::assertGreaterThanOrEqual(4, $table->filter('tbody tr:first-child td div.bo-datatable__wrap')->count());
+        self::assertCount(1, $table->filter('tbody tr:first-child td[data-testid="datatable-ai-usages-cell-status"]'));
+    }
+
+    public function testTheReasonAUsageDoesNotRunIsUnderItsStatusInTheList(): void
+    {
+        $cells = 'table[data-testid="datatable-ai-usages-table"] tbody td[data-testid="datatable-ai-usages-cell-status"]';
+
+        ConfigQuery::write('ai_enabled', '0');
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        $crawler = $this->client->getCrawler();
+
+        self::assertGreaterThanOrEqual(1, $crawler->filter($cells)->count());
+        self::assertCount($crawler->filter($cells)->count(), $crawler->filter($cells.' [data-testid="datatable-badge-note"]'), 'every usage is stopped by the switch, each says why');
+
+        ConfigQuery::write('ai_enabled', '1');
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        self::assertLessThan($crawler->filter($cells)->count(), $this->client->getCrawler()->filter($cells.' [data-testid="datatable-badge-note"]')->count(), 'a usage that runs says nothing');
+    }
+
+    public function testTheModelListAndTheToolListWrapTheirCells(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/models?provider=mistral');
+        self::assertGreaterThanOrEqual(1, $this->client->getCrawler()->filter('table[data-testid="datatable-ai-models-table"] td div.bo-datatable__wrap')->count());
+
+        $this->client->request('GET', '/admin/configuration/ai/tools');
+        self::assertCount(1, $this->client->getCrawler()->filter('table.bo-table-wrap[data-testid="ai-tools-table"]'));
+    }
+
     public function testAUsageIsSavedWithItsBudget(): void
     {
         $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);

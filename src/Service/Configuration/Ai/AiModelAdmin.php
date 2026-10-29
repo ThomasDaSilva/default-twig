@@ -14,15 +14,12 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 
-use ApiPlatform\Metadata\Delete;
-use ApiPlatform\Metadata\Patch;
-use ApiPlatform\Metadata\Post;
 use Propel\Runtime\ActiveQuery\Criteria;
-use Thelia\Api\Resource\AiModel as AiModelResource;
-use Thelia\Api\State\Processor\AiModelWriteProcessor;
 use Thelia\Domain\Ai\AiProvider;
 use Thelia\Domain\Ai\Catalog\AiModelCatalog;
 use Thelia\Domain\Ai\Catalog\AiModelSpecification;
+use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Model\AiModel;
 use Thelia\Model\AiModelQuery;
 
@@ -35,7 +32,7 @@ final readonly class AiModelAdmin
 {
     public function __construct(
         private AiModelCatalog $catalog,
-        private AiModelWriteProcessor $writer,
+        private AiSettingsWriter $writer,
     ) {
     }
 
@@ -110,6 +107,8 @@ final readonly class AiModelAdmin
 
     /**
      * @param array<string, mixed> $values the fields of AiModelType
+     *
+     * @throws AiExceptionInterface when the core refuses a value
      */
     public function save(array $values): void
     {
@@ -117,32 +116,34 @@ final readonly class AiModelAdmin
         $connectionId = null === ($values['connection_id'] ?? null) || '' === $values['connection_id'] ? null : (int) $values['connection_id'];
         $row = $this->row($provider, (string) $values['name'], $connectionId);
 
-        $resource = (new AiModelResource())
-            ->setProvider($provider->value)
-            ->setName((string) $values['name'])
-            ->setConnectionId($connectionId)
-            ->setTitle(null === ($values['title'] ?? null) ? null : (string) $values['title'])
-            ->setInputPrice($this->price($values['input_price'] ?? null))
-            ->setOutputPrice($this->price($values['output_price'] ?? null))
-            ->setCacheReadPrice($this->price($values['cache_read_price'] ?? null))
-            ->setCacheWritePrice($this->price($values['cache_write_price'] ?? null))
-            ->setCurrency((string) ($values['currency'] ?? 'USD'))
-            ->setContextWindow($this->integer($values['context_window'] ?? null))
-            ->setMaxOutputTokens($this->integer($values['max_output_tokens'] ?? null))
-            ->setSupportsStructuredOutput((bool) ($values['supports_structured_output'] ?? false))
-            ->setSupportsTools((bool) ($values['supports_tools'] ?? false))
-            ->setSupportsVision((bool) ($values['supports_vision'] ?? false))
-            ->setSupportsStreaming((bool) ($values['supports_streaming'] ?? false))
-            ->setActive((bool) ($values['active'] ?? true));
-
-        null === $row
-            ? $this->writer->process($resource, new Post())
-            : $this->writer->process($resource, new Patch(), ['id' => $row->getId()]);
+        $this->writer->saveModel(
+            $row,
+            $provider->value,
+            (string) $values['name'],
+            $connectionId,
+            null === ($values['title'] ?? null) ? null : (string) $values['title'],
+            $this->price($values['input_price'] ?? null),
+            $this->price($values['output_price'] ?? null),
+            $this->price($values['cache_read_price'] ?? null),
+            $this->price($values['cache_write_price'] ?? null),
+            (string) ($values['currency'] ?? 'USD'),
+            $this->integer($values['context_window'] ?? null),
+            $this->integer($values['max_output_tokens'] ?? null),
+            (bool) ($values['supports_structured_output'] ?? false),
+            (bool) ($values['supports_tools'] ?? false),
+            (bool) ($values['supports_vision'] ?? false),
+            (bool) ($values['supports_streaming'] ?? false),
+            (bool) ($values['active'] ?? true),
+        );
     }
 
     public function delete(int $id): void
     {
-        $this->writer->process(null, new Delete(), ['id' => $id]);
+        $row = AiModelQuery::create()->findPk($id);
+
+        if (null !== $row) {
+            $this->writer->deleteModel($row);
+        }
     }
 
     private function specificationOf(AiModel $row): AiModelSpecification

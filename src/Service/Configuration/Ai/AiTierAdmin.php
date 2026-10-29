@@ -14,8 +14,6 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 
-use ApiPlatform\Metadata\Delete;
-use Thelia\Api\State\Processor\AiTierAssignmentWriteProcessor;
 use Thelia\Domain\Ai\AiProvider;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\Catalog\AiModelCatalog;
@@ -37,7 +35,6 @@ final readonly class AiTierAdmin
     public function __construct(
         private AiModelCatalog $catalog,
         private AiSettingsWriter $writer,
-        private AiTierAssignmentWriteProcessor $deleter,
     ) {
     }
 
@@ -114,7 +111,7 @@ final readonly class AiTierAdmin
 
         if (null === $choice || '' === $choice) {
             if (null !== $assignment) {
-                $this->deleter->process(null, new Delete(), ['id' => $assignment->getId()]);
+                $this->writer->deleteTierAssignment($assignment);
             }
 
             return;
