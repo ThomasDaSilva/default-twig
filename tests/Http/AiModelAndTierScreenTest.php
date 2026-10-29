@@ -15,6 +15,8 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Core\Security\AccessManager;
+use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Model\AiConnection;
 use Thelia\Model\AiConnectionQuery;
 use Thelia\Model\AiModelQuery;
@@ -70,6 +72,49 @@ final class AiModelAndTierScreenTest extends WebIntegrationTestCase
         $row = AiModelQuery::create()->findOneByName('mistral-small-latest');
         self::assertNotNull($row);
         self::assertSame(0.123, (float) AiModelQuery::create()->findPk($row->getId())?->getInputPrice());
+    }
+
+    public function testAnAdministratorWhoMayOnlyUpdateCannotCreateAModelByPaddingTheProvider(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/models/edit?provider=mistral&name=mistral-small-latest');
+        $form = $this->client->getCrawler()->filter('form[name="thelia_ai_model"]')->form(['thelia_ai_model[input_price]' => '0.5']);
+        $this->client->submit($form);
+        self::assertSame(1, AiModelQuery::create()->count());
+
+        $this->loginAs([AccessManager::VIEW, AccessManager::UPDATE]);
+        $this->client->request('GET', '/admin/configuration/ai/models/edit?provider=mistral&name=mistral-small-latest');
+        $form = $this->client->getCrawler()->filter('form[name="thelia_ai_model"]')->form();
+        $form['thelia_ai_model[provider]']->setValue(' openai');
+        $this->client->submit($form);
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertSame(0, AiModelQuery::create()->filterByProvider('openai')->count());
+    }
+
+    public function testAnAdministratorWhoMayOnlyCreateCannotEditAModelByPaddingItsName(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/models/edit?provider=mistral&name=mistral-small-latest');
+        $form = $this->client->getCrawler()->filter('form[name="thelia_ai_model"]')->form(['thelia_ai_model[input_price]' => '0.5']);
+        $this->client->submit($form);
+
+        $this->loginAs([AccessManager::VIEW, AccessManager::CREATE]);
+        $this->client->request('GET', '/admin/configuration/ai/models/new?provider=mistral');
+        $form = $this->client->getCrawler()->filter('form[name="thelia_ai_model"]')->form(['thelia_ai_model[input_price]' => '9', 'thelia_ai_model[output_price]' => '9']);
+        $form['thelia_ai_model[name]']->setValue(' mistral-small-latest');
+        $this->client->submit($form);
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertSame(0.5, (float) AiModelQuery::create()->findOneByName('mistral-small-latest')?->getInputPrice());
+    }
+
+    public function testAnAdministratorWhoMayCreateAndUpdateStillSavesAModel(): void
+    {
+        $this->loginAs([AccessManager::VIEW, AccessManager::CREATE, AccessManager::UPDATE]);
+        $this->client->request('GET', '/admin/configuration/ai/models/edit?provider=mistral&name=mistral-small-latest');
+        $this->client->submit($this->client->getCrawler()->filter('form[name="thelia_ai_model"]')->form(['thelia_ai_model[input_price]' => '0.7']));
+
+        self::assertTrue($this->client->getResponse()->isRedirection());
+        self::assertSame(0.7, (float) AiModelQuery::create()->findOneByName('mistral-small-latest')?->getInputPrice());
     }
 
     public function testAModelFormWithoutItsTokenWritesNothing(): void
@@ -137,6 +182,16 @@ final class AiModelAndTierScreenTest extends WebIntegrationTestCase
 
         self::assertNotNull(AiModelQuery::create()->findPk($modelId));
         self::assertStringContainsString('still used by a range', $this->html());
+    }
+
+    /**
+     * @param list<string> $accesses
+     */
+    private function loginAs(array $accesses): void
+    {
+        $admin = (new FixtureFactory($this->getPropelConnection()))->restrictedAdmin([AdminResources::AI => $accesses]);
+        $admin->eraseCredentials();
+        $this->injector?->setAdmin($admin);
     }
 
     private function connection(string $code): AiConnection

@@ -130,9 +130,14 @@ final class AiModelController
     {
         $form = $this->form([], false);
         $form->handleRequest($request);
-        $submitted = (array) $request->request->all(self::FORM_NAME);
-        $provider = $this->providerOf((string) ($submitted['provider'] ?? ''));
-        $existing = $this->models->row($provider, (string) ($submitted['name'] ?? ''), (int) ($submitted['connection_id'] ?? 0) ?: null);
+
+        // The right depends on what the saved form will do, so it is read from the processed values (trimmed, as the
+        // service receives them), never from the raw request: " openai" and "openai" are not the same row to a raw lookup.
+        /** @var array<string, mixed> $processed */
+        $processed = (array) $form->getData();
+        $provider = $this->providerOf((string) ($processed['provider'] ?? ''));
+        $connectionId = null === ($processed['connection_id'] ?? null) || '' === $processed['connection_id'] ? null : (int) $processed['connection_id'];
+        $existing = $this->models->row($provider, (string) ($processed['name'] ?? ''), $connectionId);
 
         if ($denied = $this->access->check(self::RESOURCE, [], null === $existing ? AccessManager::CREATE : AccessManager::UPDATE)) {
             return $denied;
