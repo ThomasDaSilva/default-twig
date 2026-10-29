@@ -73,6 +73,25 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertStringContainsString('data-testid="ai-global-form"', $this->html());
     }
 
+    public function testTheUsageAndRegisterScreensAreInTheLanguageOfTheBackOffice(): void
+    {
+        foreach (['/admin/configuration/ai/usages', '/admin/configuration/ai/register', '/admin/configuration/ai/usages/'.self::USAGE] as $path) {
+            $this->client->request('GET', $path.'?lang=fr');
+            $html = (string) $this->client->getResponse()->getContent();
+
+            self::assertSame(200, $this->client->getResponse()->getStatusCode(), $path);
+            self::assertStringContainsString("Juge si le message d'un visiteur", html_entity_decode($html, \ENT_QUOTES), $path);
+            self::assertStringNotContainsString('Judges whether', $html, $path);
+        }
+    }
+
+    public function testTheRegisterTableWrapsItsCellsInsteadOfScrollingOffTheScreen(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/register');
+
+        self::assertCount(1, $this->client->getCrawler()->filter('table.bo-table-wrap[data-testid="ai-register-table"]'));
+    }
+
     public function testAUsageIsSavedWithItsBudget(): void
     {
         $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
