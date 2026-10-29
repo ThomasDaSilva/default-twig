@@ -148,7 +148,7 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
     private function admin(): AiUsageAdmin
     {
         $settings = new AiUsageSettingRepository();
-        $translator = new AiTextTranslator(new RequestStack());
+        $translator = $this->getService(AiTextTranslator::class);
         $registry = new AiUsageRegistry(['screenprobe.chat' => ScreenProbeUsage::class], $settings, new AiSettings(), $translator);
         $resolver = new AiTargetResolver($registry, $settings, new AiRoutingRepository(), new AiModelCatalog(), new AiKeyVault(new AiKeyCipher('screen-test-secret')));
         $catalog = new AiModelCatalog();
