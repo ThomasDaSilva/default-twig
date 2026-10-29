@@ -27,7 +27,6 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -35,6 +34,8 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\AiProvider;
 use Thelia\Domain\Ai\Catalog\AiModelSpecification;
+use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Exception\AiResourceInUseException;
 use Thelia\Model\AiModel;
 use Thelia\Tools\TokenProvider;
 use Twig\Environment;
@@ -143,7 +144,7 @@ final class AiModelController
 
             try {
                 $this->models->save($values);
-            } catch (HttpExceptionInterface $refusal) {
+            } catch (AiExceptionInterface $refusal) {
                 $form->addError(new FormError($refusal->getMessage()));
 
                 return $this->render($provider, $existing, $form);
@@ -183,8 +184,8 @@ final class AiModelController
 
         try {
             $this->models->delete($id);
-        } catch (HttpExceptionInterface $refusal) {
-            $this->flash->add($request, 'danger', Response::HTTP_CONFLICT === $refusal->getStatusCode()
+        } catch (AiExceptionInterface $refusal) {
+            $this->flash->add($request, 'danger', $refusal instanceof AiResourceInUseException
                 ? $this->translator->trans('This model is still used by a range. Give that range another model first (Configuration > AI > Ranges), then delete the model.')
                 : $refusal->getMessage());
 

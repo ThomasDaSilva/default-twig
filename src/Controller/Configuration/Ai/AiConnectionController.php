@@ -28,7 +28,6 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
@@ -39,6 +38,7 @@ use Thelia\Core\Security\SecurityContext;
 use Thelia\Core\Security\User\UserInterface;
 use Thelia\Domain\Ai\AiJurisdiction;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Exception\AiResourceInUseException;
 use Thelia\Domain\Ai\Service\AiFailureExplainer;
 use Thelia\Model\AiConnection;
 use Thelia\Model\AiConnectionQuery;
@@ -175,8 +175,8 @@ final class AiConnectionController
 
         try {
             $this->connections->delete($id);
-        } catch (HttpExceptionInterface $refusal) {
-            $this->flash->add($request, 'danger', Response::HTTP_CONFLICT === $refusal->getStatusCode()
+        } catch (AiExceptionInterface $refusal) {
+            $this->flash->add($request, 'danger', $refusal instanceof AiResourceInUseException
                 ? $this->translator->trans('This connection is still used by a range. Give that range another model first (Configuration > AI > Ranges), then delete the connection.')
                 : $refusal->getMessage());
 
@@ -270,7 +270,7 @@ final class AiConnectionController
 
             try {
                 $this->connections->save($connection?->getId(), $values);
-            } catch (AiExceptionInterface|HttpExceptionInterface $refusal) {
+            } catch (AiExceptionInterface $refusal) {
                 $form->addError(new \Symfony\Component\Form\FormError($this->failureMessage($refusal, $request)));
 
                 return $this->render($connection, $form);

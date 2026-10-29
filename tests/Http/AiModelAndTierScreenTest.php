@@ -121,6 +121,24 @@ final class AiModelAndTierScreenTest extends WebIntegrationTestCase
         self::assertStringContainsString('still used by a range', (string) $this->client->getResponse()->getContent());
     }
 
+    public function testAModelUsedByARangeIsNotDeleted(): void
+    {
+        $connection = $this->connection('range-model-used');
+        $this->client->request('GET', '/admin/configuration/ai/tiers');
+        $this->client->submit($this->client->getCrawler()->filter('form[name="thelia_ai_tiers"]')->form(['thelia_ai_tiers[fast]' => $connection->getId().'|mistral-small-latest']));
+        $modelId = AiTierAssignmentQuery::create()->findOneByTier('fast')?->getModelId();
+        self::assertNotNull($modelId);
+
+        $this->client->request('POST', '/admin/configuration/ai/models/delete', [
+            'model_id' => $modelId,
+            '_token' => $this->getService(TokenProvider::class)->assignToken(),
+        ]);
+        $this->client->followRedirect();
+
+        self::assertNotNull(AiModelQuery::create()->findPk($modelId));
+        self::assertStringContainsString('still used by a range', $this->html());
+    }
+
     private function connection(string $code): AiConnection
     {
         $connection = (new AiConnection())->setCode($code)->setTitle($code)->setProvider('mistral')->setJurisdiction('eu');

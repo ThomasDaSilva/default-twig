@@ -25,7 +25,6 @@ use Symfony\Component\Form\FormInterface;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -84,7 +83,7 @@ final class AiTierController
                 foreach (AiTier::cases() as $tier) {
                     $this->tiers->assign($tier, $form->get($tier->value)->getData());
                 }
-            } catch (AiExceptionInterface|HttpExceptionInterface $refusal) {
+            } catch (AiExceptionInterface $refusal) {
                 $form->addError(new FormError($this->failureMessage($refusal, $request)));
 
                 return $this->render($form);
