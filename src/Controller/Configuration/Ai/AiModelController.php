@@ -20,6 +20,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiLabels;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiModelAdmin;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiRefusalMessage;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Symfony\Component\Form\FormError;
 use Symfony\Component\Form\FormFactoryInterface;
@@ -64,6 +65,7 @@ final class AiModelController
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokens,
+        private readonly AiRefusalMessage $refusals,
     ) {
     }
 
@@ -150,7 +152,7 @@ final class AiModelController
             try {
                 $this->models->save($values);
             } catch (AiExceptionInterface $refusal) {
-                $form->addError(new FormError($refusal->getMessage()));
+                $form->addError(new FormError($this->refusals->explain($refusal, $request->getLocale())));
 
                 return $this->render($provider, $existing, $form);
             }
@@ -192,7 +194,7 @@ final class AiModelController
         } catch (AiExceptionInterface $refusal) {
             $this->flash->add($request, 'danger', $refusal instanceof AiResourceInUseException
                 ? $this->translator->trans('This model is still used by a range. Give that range another model first (Configuration > AI > Ranges), then delete the model.')
-                : $refusal->getMessage());
+                : $this->refusals->explain($refusal, $request->getLocale()));
 
             return $back;
         }

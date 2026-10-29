@@ -178,7 +178,7 @@ final class AiConnectionController
         } catch (AiExceptionInterface $refusal) {
             $this->flash->add($request, 'danger', $refusal instanceof AiResourceInUseException
                 ? $this->translator->trans('This connection is still used by a range. Give that range another model first (Configuration > AI > Ranges), then delete the connection.')
-                : $refusal->getMessage());
+                : $this->failureMessage($refusal, $request));
 
             return $back;
         }

@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration\Ai;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiRefusalMessage;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTokenAdmin;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTokenCreationNonce;
 use Symfony\Component\HttpFoundation\RedirectResponse;
@@ -57,6 +58,7 @@ final class AiTokenController
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokenProvider,
         private readonly AiTokenCreationNonce $creationNonce,
+        private readonly AiRefusalMessage $refusals,
     ) {
     }
 
@@ -99,7 +101,7 @@ final class AiTokenController
         try {
             $created = $this->tokens->create($this->adminId(), (string) $request->request->get('label', ''), $allRights, $resources, $accesses, $modules);
         } catch (AiExceptionInterface $refusal) {
-            $this->flash->add($request, 'danger', $this->creationRefusal($refusal));
+            $this->flash->add($request, 'danger', $this->creationRefusal($refusal, $request));
 
             return $back;
         }
@@ -185,13 +187,13 @@ final class AiTokenController
         return $response;
     }
 
-    private function creationRefusal(AiExceptionInterface $refusal): string
+    private function creationRefusal(AiExceptionInterface $refusal, Request $request): string
     {
         if ($refusal instanceof AiToolTokenException && AiToolTokenException::ALL_RIGHTS_WITH_SCOPES === $refusal->getCode()) {
             return $this->translator->trans('Choose either all your rights or some scopes, not both. No token was created.');
         }
 
-        return $refusal->getMessage();
+        return $this->refusals->explain($refusal, $request->getLocale());
     }
 
     /**

@@ -117,6 +117,23 @@ final class AiModelAndTierScreenTest extends WebIntegrationTestCase
         self::assertSame(0.7, (float) AiModelQuery::create()->findOneByName('mistral-small-latest')?->getInputPrice());
     }
 
+    public function testARefusalOfTheCoreIsToldInTheLanguageOfTheAdministrator(): void
+    {
+        $connection = $this->connection('refusal-conn');
+
+        $this->client->request('GET', '/admin/configuration/ai/models/new?provider=openai');
+        $form = $this->client->getCrawler()->filter('form[name="thelia_ai_model"]')->form([
+            'thelia_ai_model[name]' => 'gpt-refusal',
+            'thelia_ai_model[input_price]' => '1',
+            'thelia_ai_model[output_price]' => '1',
+        ]);
+        $form['thelia_ai_model[connection_id]']->setValue((string) $connection->getId());
+        $this->client->request('POST', '/admin/configuration/ai/models/save?lang=fr', $form->getPhpValues());
+
+        self::assertStringContainsString("Le fournisseur du modèle n'est pas celui de sa connexion.", html_entity_decode($this->html(), \ENT_QUOTES));
+        self::assertStringNotContainsString('The provider of the model is not', $this->html());
+    }
+
     public function testAModelFormWithoutItsTokenWritesNothing(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/models/save', ['thelia_ai_model' => [

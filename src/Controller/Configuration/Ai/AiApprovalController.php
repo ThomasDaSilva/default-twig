@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiApprovalAdmin;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiRefusalMessage;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -59,6 +60,7 @@ final class AiApprovalController
         private readonly UrlGeneratorInterface $urls,
         private readonly TranslatorInterface $translator,
         private readonly TokenProvider $tokens,
+        private readonly AiRefusalMessage $refusals,
     ) {
     }
 
@@ -157,7 +159,7 @@ final class AiApprovalController
         } catch (AiToolApprovalException $refusal) {
             $this->flash($request, 'danger', $this->refusal($refusal->reason));
         } catch (AiExceptionInterface $refusal) {
-            $this->flash($request, 'danger', $refusal->getMessage());
+            $this->flash($request, 'danger', $this->refusals->explain($refusal, $request->getLocale()));
         }
 
         return $back;
