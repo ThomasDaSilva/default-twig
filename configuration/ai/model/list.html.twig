@@ -39,11 +39,11 @@
             id: 'ai-models',
             columns: [
                 column('name', 'Model identifier'|trans, 'start'),
-                column('title', 'Display name'|trans, 'start', hideBelow: 'lg'),
+                column_text('title', 'Display name'|trans, 'start', hideBelow: 'lg', wrap: true),
                 column('input_price', 'Input price'|trans, 'end', hideBelow: 'md'),
                 column('output_price', 'Output price'|trans, 'end', hideBelow: 'md'),
                 column('context_window', 'Context size'|trans, 'end', hideBelow: 'xl'),
-                column('capabilities', 'Abilities'|trans, 'start', hideBelow: 'xl'),
+                column_text('capabilities', 'Abilities'|trans, 'start', hideBelow: 'xl', wrap: true),
                 column_badge('source', 'Origin'|trans, { catalog: 'secondary', shop: 'primary' }, 'start', 'source_label'),
                 column_actions('_actions', 'Actions'|trans),
             ],

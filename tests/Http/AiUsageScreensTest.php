@@ -92,6 +92,25 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertCount(1, $this->client->getCrawler()->filter('table.bo-table-wrap[data-testid="ai-register-table"]'));
     }
 
+    public function testTheUsageListWrapsItsTextCellsAndKeepsTheStatusInSight(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        $table = $this->client->getCrawler()->filter('table[data-testid="datatable-ai-usages-table"]');
+
+        self::assertCount(1, $table);
+        self::assertGreaterThanOrEqual(4, $table->filter('tbody tr:first-child td div.bo-datatable__wrap')->count());
+        self::assertCount(1, $table->filter('tbody tr:first-child td[data-testid="datatable-ai-usages-cell-status"]'));
+    }
+
+    public function testTheModelListAndTheToolListWrapTheirCells(): void
+    {
+        $this->client->request('GET', '/admin/configuration/ai/models?provider=mistral');
+        self::assertGreaterThanOrEqual(1, $this->client->getCrawler()->filter('table[data-testid="datatable-ai-models-table"] td div.bo-datatable__wrap')->count());
+
+        $this->client->request('GET', '/admin/configuration/ai/tools');
+        self::assertCount(1, $this->client->getCrawler()->filter('table.bo-table-wrap[data-testid="ai-tools-table"]'));
+    }
+
     public function testAUsageIsSavedWithItsBudget(): void
     {
         $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
