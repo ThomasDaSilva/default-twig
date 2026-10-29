@@ -79,6 +79,24 @@ final class ConfigVariablesScreenTest extends WebIntegrationTestCase
     }
 
     /**
+     * A purpose is a sentence: it breaks over several lines in its cell, instead
+     * of widening the table until the value column scrolls out of sight.
+     */
+    public function testThePurposeBreaksOverSeveralLines(): void
+    {
+        $this->client->request('GET', '/admin/configuration/variables');
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $crawler = $this->client->getCrawler();
+
+        $purposes = $crawler->filter('[data-testid="datatable-variables-cell-title"] .bo-datatable__wrap');
+        self::assertGreaterThan(0, $purposes->count(), 'The purpose cells do not break: the table widens with the longest sentence.');
+
+        $header = $crawler->filter('[data-testid="datatable-variables"] thead th')->first();
+        self::assertStringContainsString('bo-datatable__wrap-head', (string) $header->attr('class'), 'The header of the column breaks too.');
+    }
+
+    /**
      * The text of every purpose cell of the table, one per line.
      */
     private function purposes(): string
