@@ -241,9 +241,10 @@ final class ConfigController
         $rows = [];
         $editForms = [];
         $defaultLocale = $this->resolveDefaultLocale();
+        $displayLocale = $request?->getLocale() ?? $defaultLocale;
 
         foreach ($configs as $config) {
-            $rows[] = $this->configToRow($config);
+            $rows[] = $this->configToRow($config, $displayLocale, $defaultLocale);
             $editForms[$config->getId()] = $this->createEditForm($config, $defaultLocale)->createView();
         }
 
@@ -264,9 +265,13 @@ final class ConfigController
     /**
      * @return array<string, mixed>
      */
-    private function configToRow(Config $config): array
+    private function configToRow(Config $config, string $displayLocale, string $defaultLocale): array
     {
         $id = $config->getId();
+        $title = $this->titleIn($config, $displayLocale);
+        if ('' === $title && $displayLocale !== $defaultLocale) {
+            $title = $this->titleIn($config, $defaultLocale);
+        }
         $envOverridden = $config->isOverriddenInEnv();
         $secured = $envOverridden || $config->getSecured();
         $value = (string) ($config->getValue() ?? '');
@@ -297,13 +302,24 @@ final class ConfigController
 
         return [
             'id' => $id,
-            'title' => $config->getTitle(),
+            'title' => $title,
             'name' => $config->getName(),
             'value_html' => $this->renderValueCell($id, $value, $secured, $envOverridden, $config->getName()),
             'env_overridden' => $envOverridden,
             'secured' => $secured,
             '_actions' => $actions,
         ];
+    }
+
+    /**
+     * The purpose of a variable in the language of the administrator, falling back to the
+     * default language of the shop for a locale the seed left without wording.
+     */
+    private function titleIn(Config $config, string $locale): string
+    {
+        $config->setLocale($locale);
+
+        return trim((string) $config->getTitle());
     }
 
     private function renderValueCell(int $id, string $value, bool $secured, bool $envOverridden, ?string $name): string
