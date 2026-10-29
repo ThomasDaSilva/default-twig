@@ -32,7 +32,7 @@
             {{ component('BoDataTable', {
                 id: 'variables',
                 columns: [
-                    column('title', 'Purpose'|trans),
+                    column('title', 'Purpose'|trans, wrap: true),
                     column('name', 'Name'|trans, 'start', 'name'),
                     column_html('value_html', 'Value'|trans, 'start', 'value'),
                     column_actions('_actions', 'Actions'|trans),
