@@ -79,6 +79,18 @@ final class AiToolAdminTest extends TestCase
         self::assertSame(['products', 'orders'], $names($admin->toolsOfScopes(true, [])));
     }
 
+    public function testAModuleScopeReachesTheToolsOfThatModuleWhateverTheCaseOfItsCode(): void
+    {
+        $admin = $this->admin([
+            new AiToolDescriptor('probe', 'probe', 'AiProbeModule', AiToolEffect::Read, null, 'AiProbeModule', AccessManager::VIEW, ['admin'], [], true),
+        ]);
+        $names = static fn (array $tools): array => array_map(static fn (AiToolDescriptor $tool): string => $tool->name, $tools);
+
+        self::assertSame(['probe'], $names($admin->toolsOfScopes(false, [['module' => 'aiprobemodule', 'access' => AccessManager::VIEW]])));
+        self::assertSame(['probe'], $names($admin->toolsOfScopes(false, [['module' => 'AiProbeModule', 'access' => AccessManager::VIEW]])));
+        self::assertSame([], $names($admin->toolsOfScopes(false, [['module' => 'OtherModule', 'access' => AccessManager::VIEW]])));
+    }
+
     /**
      * @param list<AiToolDescriptor>      $tools
      * @param array<string, AsAiUsage>    $usages

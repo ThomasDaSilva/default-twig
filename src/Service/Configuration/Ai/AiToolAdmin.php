@@ -106,7 +106,7 @@ final readonly class AiToolAdmin
                     continue;
                 }
 
-                if ((isset($scope['resource']) && $scope['resource'] === $tool->resource) || (isset($scope['module']) && $scope['module'] === $tool->aclModule)) {
+                if ((isset($scope['resource']) && $scope['resource'] === $tool->resource) || (isset($scope['module'], $tool->aclModule) && \is_string($scope['module']) && 0 === strcasecmp($scope['module'], $tool->aclModule))) {
                     return true;
                 }
             }
