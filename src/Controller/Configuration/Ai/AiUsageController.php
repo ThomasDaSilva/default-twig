@@ -25,7 +25,6 @@ use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
@@ -66,14 +65,14 @@ final class AiUsageController
     }
 
     #[Route('', name: 'default', methods: ['GET'])]
-    public function index(): Response
+    public function index(Request $request): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
 
         $rows = [];
-        foreach ($this->usages->rows() as $row) {
+        foreach ($this->usages->rows($request->getLocale()) as $row) {
             $id = (string) $row['id'];
             $usageTools = $this->tools->toolsOfUsage($id);
             $rows[] = [
@@ -101,13 +100,13 @@ final class AiUsageController
     }
 
     #[Route('/{id}', name: 'edit', methods: ['GET'], requirements: ['id' => self::ID])]
-    public function edit(string $id): Response
+    public function edit(Request $request, string $id): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
         }
 
-        return $this->render($id);
+        return $this->render($id, $request);
     }
 
     #[Route('/{id}', name: 'save', methods: ['POST'], requirements: ['id' => self::ID])]
@@ -147,7 +146,7 @@ final class AiUsageController
                 $this->guardrailChoices($request),
                 $this->privacy($request),
             );
-        } catch (AiExceptionInterface|HttpExceptionInterface|\InvalidArgumentException $refusal) {
+        } catch (AiExceptionInterface|\InvalidArgumentException $refusal) {
             // The message is plain text of the core: the flash is escaped by the layout.
             $this->flash->add($request, 'danger', $this->failureMessage($refusal, $request));
 
@@ -160,9 +159,9 @@ final class AiUsageController
         return $back;
     }
 
-    private function render(string $id): Response
+    private function render(string $id, Request $request): Response
     {
-        $row = $this->usages->row($id);
+        $row = $this->usages->row($id, $request->getLocale());
 
         if (null === $row) {
             return new RedirectResponse($this->urls->generate(self::LIST_ROUTE));
