@@ -9,3 +9,5 @@
 {%- else -%}
     <span class="badge text-bg-{{ variant|default('secondary') }}">{{ label }}</span>
 {%- endif -%}
+{%- set note = column.options.note_key|default(null) ? row[column.options.note_key]|default('') : '' -%}
+{%- if note %}<div class="small text-body-secondary bo-datatable__wrap" data-testid="datatable-badge-note">{{ note }}</div>{% endif -%}

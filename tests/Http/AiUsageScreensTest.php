@@ -102,6 +102,22 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertCount(1, $table->filter('tbody tr:first-child td[data-testid="datatable-ai-usages-cell-status"]'));
     }
 
+    public function testTheReasonAUsageDoesNotRunIsUnderItsStatusInTheList(): void
+    {
+        $cells = 'table[data-testid="datatable-ai-usages-table"] tbody td[data-testid="datatable-ai-usages-cell-status"]';
+
+        ConfigQuery::write('ai_enabled', '0');
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        $crawler = $this->client->getCrawler();
+
+        self::assertGreaterThanOrEqual(1, $crawler->filter($cells)->count());
+        self::assertCount($crawler->filter($cells)->count(), $crawler->filter($cells.' [data-testid="datatable-badge-note"]'), 'every usage is stopped by the switch, each says why');
+
+        ConfigQuery::write('ai_enabled', '1');
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        self::assertLessThan($crawler->filter($cells)->count(), $this->client->getCrawler()->filter($cells.' [data-testid="datatable-badge-note"]')->count(), 'a usage that runs says nothing');
+    }
+
     public function testTheModelListAndTheToolListWrapTheirCells(): void
     {
         $this->client->request('GET', '/admin/configuration/ai/models?provider=mistral');

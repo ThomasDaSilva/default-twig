@@ -26,7 +26,7 @@ final readonly class Column
      * @param string               $cellAlign   bootstrap text-alignment utility, one of: 'start', 'center', 'end'
      * @param array<string, mixed> $options     Kind-specific options. Schemas per ColumnKind:
      *                                          - TOGGLE: { url_key: string|null, icon_on: string, icon_off: string } (null url_key → readonly)
-     *                                          - BADGE:  { variants: array<scalar, string> mapping row value → Bootstrap variant, label_key?: string optional row key holding the visible label, color_key?: string optional row key holding a CSS color taking precedence over variants }
+     *                                          - BADGE:  { variants: array<scalar, string> mapping row value → Bootstrap variant, label_key?: string optional row key holding the visible label, color_key?: string optional row key holding a CSS color taking precedence over variants, note_key?: string optional row key holding a short note shown under the badge in muted small text, nothing when empty }
      *                                          - RADIO:  { name: string, value_key: string, checked_when_key: string|null, label_key: string|null }
      *                                          - SELECT: { value_key: string, label_key: string|null } row checkbox feeding a bulk toolbar
      *                                          - TEXT:   { left_to_right?: bool, wrap?: bool } left_to_right isolates the value in a left-to-right run (amounts, figures);
