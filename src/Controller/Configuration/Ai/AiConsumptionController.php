@@ -75,23 +75,27 @@ final class AiConsumptionController
         }
 
         $tables = [];
-        $total = ['calls' => 0, 'cost' => 0.0];
+        $calls = 0;
+        // Costs of two currencies are never added up: one total per currency.
+        $costs = [];
 
         foreach (AiConsumptionReport::DIMENSIONS as $dimension) {
             $tables[$dimension] = $this->report->by($dimension, $from, $to);
         }
 
         foreach ($tables[AiConsumptionReport::BY_DAY] as $day) {
-            $total['calls'] += $day['calls'];
-            $total['cost'] += (float) $day['cost'];
+            $calls += $day['calls'];
+            $costs[$day['currency']] = ($costs[$day['currency']] ?? 0.0) + (float) $day['cost'];
         }
+
+        ksort($costs);
 
         return new Response($this->twig->render('@BackOfficeDefaultTwig/configuration/ai/consumption/index.html.twig', [
             'from' => $from->format('Y-m-d'),
             'to' => $to->format('Y-m-d'),
             'tables' => $tables,
-            'total_calls' => $total['calls'],
-            'total_cost' => number_format($total['cost'], 4, '.', ''),
+            'total_calls' => $calls,
+            'total_cost' => [] === $costs ? '0.0000 USD' : implode(', ', array_map(static fn (string $currency, float $cost): string => number_format($cost, 4, '.', '').' '.$currency, array_keys($costs), $costs)),
             'ai_enabled' => $this->settings->isEnabled(),
             'monthly_cap' => $this->settings->monthlyCap(),
         ]));

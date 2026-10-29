@@ -226,6 +226,26 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertGreaterThan(0, \count((new AiConsumptionReport())->by('usage', new \DateTimeImmutable('2031-05-01'), new \DateTimeImmutable('2031-05-31'))));
     }
 
+    public function testCostsInTwoCurrenciesAreShownApartAndNeverAddedUp(): void
+    {
+        foreach ([['1.25000000', 'USD'], ['0.50000000', 'EUR']] as [$cost, $currency]) {
+            (new AiUsageLog())
+                ->setUsageId('screen.chat')->setModule('screen')->setModel('screen-model')->setKind('completion')->setCost($cost)->setCurrency($currency)
+                ->setActorType('system')->setActorHash(str_repeat('a', 64))->setStatus('succeeded')
+                ->setCreatedAt(new \DateTimeImmutable('2031-05-10 12:00:00'))
+                ->save();
+        }
+
+        $this->client->request('GET', '/admin/configuration/ai/consumption?from=2031-05-01&to=2031-05-31');
+        $html = $this->html();
+
+        self::assertStringContainsString('1.25000000 USD', $html);
+        self::assertStringContainsString('0.50000000 EUR', $html);
+        self::assertStringContainsString('0.5000 EUR, 1.2500 USD', $html);
+        self::assertStringNotContainsString('1.7500', $html);
+        self::assertStringNotContainsString('Cost (US dollars)', $html);
+    }
+
     public function testAReadOnlyAdministratorSeesNoButtonAndCannotWrite(): void
     {
         $reader = (new FixtureFactory($this->getPropelConnection()))->restrictedAdmin([AdminResources::AI => [AccessManager::VIEW]]);

@@ -59,7 +59,7 @@
             <div class="col-auto"><button type="submit" class="btn btn-outline-primary" data-testid="ai-period-apply">{{ 'Show'|trans }}</button></div>
         </form>
 
-        <p class="fs-5" data-testid="ai-consumption-total">{{ 'Over this period: %calls% calls, %cost% US dollars.'|trans({ '%calls%': total_calls, '%cost%': total_cost }) }}</p>
+        <p class="fs-5" data-testid="ai-consumption-total">{{ 'Over this period: %calls% calls, %cost%.'|trans({ '%calls%': total_calls, '%cost%': total_cost }) }}</p>
 
         <div class="row g-3">
         <div class="col-lg-6">
@@ -67,10 +67,10 @@
                 <div class="card-body">
                     <h2 class="h6">{{ 'By usage'|trans }}</h2>
                     <table class="table table-sm mb-0" data-testid="ai-consumption-usage">
-                        <thead><tr><th>{{ 'Usage'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <thead><tr><th>{{ 'Usage'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost'|trans }}</th></tr></thead>
                         <tbody>
                             {% for line in tables.usage %}
-                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }} {{ line.currency }}</td></tr>
                             {% else %}
                                 <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
                             {% endfor %}
@@ -84,10 +84,10 @@
                 <div class="card-body">
                     <h2 class="h6">{{ 'By module'|trans }}</h2>
                     <table class="table table-sm mb-0" data-testid="ai-consumption-module">
-                        <thead><tr><th>{{ 'Module'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <thead><tr><th>{{ 'Module'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost'|trans }}</th></tr></thead>
                         <tbody>
                             {% for line in tables.module %}
-                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }} {{ line.currency }}</td></tr>
                             {% else %}
                                 <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
                             {% endfor %}
@@ -101,10 +101,10 @@
                 <div class="card-body">
                     <h2 class="h6">{{ 'By model'|trans }}</h2>
                     <table class="table table-sm mb-0" data-testid="ai-consumption-model">
-                        <thead><tr><th>{{ 'Model'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <thead><tr><th>{{ 'Model'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost'|trans }}</th></tr></thead>
                         <tbody>
                             {% for line in tables.model %}
-                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }} {{ line.currency }}</td></tr>
                             {% else %}
                                 <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
                             {% endfor %}
@@ -118,10 +118,10 @@
                 <div class="card-body">
                     <h2 class="h6">{{ 'By day'|trans }}</h2>
                     <table class="table table-sm mb-0" data-testid="ai-consumption-day">
-                        <thead><tr><th>{{ 'Day'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost (US dollars)'|trans }}</th></tr></thead>
+                        <thead><tr><th>{{ 'Day'|trans }}</th><th class="text-end">{{ 'Calls'|trans }}</th><th class="text-end">{{ 'Cost'|trans }}</th></tr></thead>
                         <tbody>
                             {% for line in tables.day %}
-                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }}</td></tr>
+                                <tr><td>{{ line.label }}</td><td class="text-end">{{ line.calls }}</td><td class="text-end">{{ line.cost }} {{ line.currency }}</td></tr>
                             {% else %}
                                 <tr><td colspan="3" class="text-center text-body-secondary">{{ 'Nothing over this period.'|trans }}</td></tr>
                             {% endfor %}
