@@ -1011,4 +1011,10 @@ return [
     'The price changed since the proposal.' => 'The price changed since the proposal.',
     'The price could not be stored exactly: nothing was changed.' => 'The price could not be stored exactly: nothing was changed.',
     'The shop has no default currency.' => 'The shop has no default currency.',
+    'Switch off the MCP server' => 'Switch off the MCP server',
+    'Switch on the MCP server' => 'Switch on the MCP server',
+    'Every assistant that uses a token is refused at once, until you switch the server on again.' => 'Every assistant that uses a token is refused at once, until you switch the server on again.',
+    'The assistants that hold a valid token can reach the tools of your shop. Every change they propose still waits for your approval.' => 'The assistants that hold a valid token can reach the tools of your shop. Every change they propose still waits for your approval.',
+    'Revoke the token' => 'Revoke the token',
+    'The assistant that uses this token is refused at the next request. This cannot be undone: create a new token to give it access again.' => 'The assistant that uses this token is refused at the next request. This cannot be undone: create a new token to give it access again.',
 ];

@@ -186,6 +186,25 @@ final class AiTokenScreenTest extends WebIntegrationTestCase
         self::assertFalse($settings->mcpEnabled());
     }
 
+    public function testSwitchingTheMcpServerAndRevokingATokenAskForConfirmationFirst(): void
+    {
+        $admin = (new FixtureFactory($this->getPropelConnection()))->admin();
+        $row = (new AiToolToken())->setAdminId($admin->getId())->setLabel('Confirmed')->setTokenHash(str_repeat('b', 64))->setTokenPrefix('thelia_mcp_efgh')->setAllRights(1)->setExpiresAt(new \DateTimeImmutable('+30 days'));
+        $row->save();
+        $admin->eraseCredentials();
+        $this->injector?->setAdmin($admin);
+
+        $this->client->request('GET', '/admin/configuration/ai/tokens');
+        $page = $this->client->getCrawler();
+
+        self::assertSame('button', $page->filter('[data-testid="ai-mcp-switch-button"]')->attr('type'));
+        self::assertCount(1, $page->filter('#ai-mcp-switch-modal form[data-testid="ai-mcp-switch-confirm-form"]'));
+        self::assertCount(0, $page->filter('[data-testid="ai-mcp-switch"] form'), 'the switch alone posts nothing');
+        self::assertSame('button', $page->filter('[data-testid="ai-token-revoke"]')->attr('type'));
+        self::assertCount(1, $page->filter('#ai-token-revoke-modal-'.$row->getId().' form[action$="/'.$row->getId().'/revoke"]'));
+        self::assertCount(0, $page->filter('tr[data-token="'.$row->getId().'"] > td > form'), 'the revoke button alone posts nothing');
+    }
+
     public function testTheMcpSwitchNeedsItsTokenAndTheRightToUpdateTheAiSettings(): void
     {
         $this->client->request('POST', '/admin/configuration/ai/tokens/mcp', ['enabled' => '1']);

@@ -24,16 +24,28 @@
         <p class="text-body-secondary">{{ 'An MCP token lets an AI assistant outside your shop (a desktop assistant, a development tool) use the tools of your shop in your name. It can never do more than you can, and everything it proposes still waits for an approval. Create one token per assistant and revoke it when you stop using it.'|trans }}</p>
 
         {% if is_granted('UPDATE', 'admin.configuration.ai') %}
-            <form method="post" action="{{ path('admin.configuration.ai.tokens.mcp') }}" class="card card-body mb-3" data-testid="ai-mcp-switch">
-                <input type="hidden" name="_token" value="{{ assignToken() }}">
-                <input type="hidden" name="enabled" value="{{ mcp_enabled ? '0' : '1' }}">
+            <div class="card card-body mb-3" data-testid="ai-mcp-switch">
                 <div class="d-flex flex-wrap align-items-center gap-3">
                     <strong>{{ 'MCP server enabled'|trans }}</strong>
                     {% if mcp_enabled %}<span class="badge text-bg-success">{{ 'Active'|trans }}</span>{% endif %}
-                    <button type="submit" class="btn btn-sm {{ mcp_enabled ? 'btn-outline-danger' : 'btn-outline-primary' }}" data-testid="ai-mcp-switch-button">{{ (mcp_enabled ? 'Switch off' : 'Switch on')|trans }}</button>
+                    <button type="button" class="btn btn-sm {{ mcp_enabled ? 'btn-outline-danger' : 'btn-outline-primary' }}" data-bs-toggle="modal" data-bs-target="#ai-mcp-switch-modal" data-testid="ai-mcp-switch-button">{{ (mcp_enabled ? 'Switch off' : 'Switch on')|trans }}</button>
                 </div>
                 <div class="form-text">{{ 'Switching it on opens /api/mcp to the assistants that hold a valid token. Nothing else changes: every change they propose still waits for your approval.'|trans }}</div>
-            </form>
+            </div>
+            {% component 'BoConfirmDialog' with {
+                id: 'ai-mcp-switch-modal',
+                title: mcp_enabled ? 'Switch off the MCP server' : 'Switch on the MCP server',
+                formAction: path('admin.configuration.ai.tokens.mcp'),
+                variant: mcp_enabled ? 'danger' : 'primary',
+                confirmLabel: mcp_enabled ? 'Switch off' : 'Switch on',
+                confirmIcon: 'bi-power',
+                testid: 'ai-mcp-switch-confirm',
+            } %}
+                {% block body %}
+                    <p class="mb-0">{{ (mcp_enabled ? 'Every assistant that uses a token is refused at once, until you switch the server on again.' : 'The assistants that hold a valid token can reach the tools of your shop. Every change they propose still waits for your approval.')|trans }}</p>
+                    <input type="hidden" name="enabled" value="{{ mcp_enabled ? '0' : '1' }}">
+                {% endblock %}
+            {% endcomponent %}
         {% endif %}
 
         {% if not mcp_enabled %}
@@ -80,10 +92,7 @@
                             <td><span class="badge text-bg-{{ row.state == 'active' ? 'success' : 'secondary' }}">{{ row.state_label }}</span></td>
                             <td class="text-end">
                                 {% if row.state == 'active' %}
-                                    <form method="post" action="{{ path('admin.configuration.ai.tokens.revoke', { id: row.id }) }}">
-                                        <input type="hidden" name="_token" value="{{ assignToken() }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger" data-testid="ai-token-revoke">{{ 'Revoke'|trans }}</button>
-                                    </form>
+                                    <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal" data-bs-target="#ai-token-revoke-modal-{{ row.id }}" data-testid="ai-token-revoke">{{ 'Revoke'|trans }}</button>
                                 {% endif %}
                             </td>
                         </tr>
@@ -93,6 +102,19 @@
                 </tbody>
             </table>
         </div>
+        {% for row in rows %}
+            {% if row.state == 'active' %}
+                {% component 'BoConfirmDialog' with {
+                    id: 'ai-token-revoke-modal-' ~ row.id,
+                    title: 'Revoke the token',
+                    formAction: path('admin.configuration.ai.tokens.revoke', { id: row.id }),
+                    message: 'The assistant that uses this token is refused at the next request. This cannot be undone: create a new token to give it access again.',
+                    confirmLabel: 'Revoke',
+                    confirmIcon: 'bi-x-circle',
+                    testid: 'ai-token-revoke-confirm',
+                } %}{% endcomponent %}
+            {% endif %}
+        {% endfor %}
 
         {% if can_create %}
             <div class="card">

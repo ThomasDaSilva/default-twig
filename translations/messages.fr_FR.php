@@ -3167,4 +3167,10 @@ return [
     'The price changed since the proposal.' => 'Le prix a changé depuis la proposition.',
     'The price could not be stored exactly: nothing was changed.' => 'Le prix n\'a pas pu être enregistré exactement : rien n\'a été modifié.',
     'The shop has no default currency.' => 'La boutique n\'a pas de devise par défaut.',
+    'Switch off the MCP server' => 'Couper le serveur MCP',
+    'Switch on the MCP server' => 'Activer le serveur MCP',
+    'Every assistant that uses a token is refused at once, until you switch the server on again.' => 'Tous les assistants qui utilisent un jeton sont refusés aussitôt, jusqu\'à ce que vous réactiviez le serveur.',
+    'The assistants that hold a valid token can reach the tools of your shop. Every change they propose still waits for your approval.' => 'Les assistants qui détiennent un jeton valide peuvent atteindre les outils de votre boutique. Chaque modification qu\'ils proposent attend toujours votre validation.',
+    'Revoke the token' => 'Révoquer le jeton',
+    'The assistant that uses this token is refused at the next request. This cannot be undone: create a new token to give it access again.' => 'L\'assistant qui utilise ce jeton est refusé dès la requête suivante. Cette action est irréversible : créez un nouveau jeton pour lui redonner accès.',
 ];
