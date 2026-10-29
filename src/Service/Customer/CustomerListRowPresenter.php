@@ -70,9 +70,8 @@ final readonly class CustomerListRowPresenter
             'id' => $customerId,
             'ref' => (string) ($customer->getRef() ?: '-'),
             'ref_html' => $this->renderRef($customerId, (string) ($customer->getRef() ?: '-')),
-            'name_html' => $this->renderName($customerId, $firstname, $lastname, $email),
+            'name_html' => $this->renderName($customerId, $firstname, $lastname, $email, $countryFlag, $countryTitle),
             'phone_html' => $this->renderPhone($phone),
-            'country_html' => $this->renderCountry($countryFlag, $countryTitle),
             'orders_html' => $this->renderOrders($customerId, $orderCount),
             'total_spent_html' => $this->renderTotalSpent($totalSpent, $orderCount, $locale),
             'last_order_html' => $this->renderLastOrder($lastOrderAt),
@@ -97,7 +96,7 @@ final readonly class CustomerListRowPresenter
         );
     }
 
-    private function renderName(int $customerId, string $firstname, string $lastname, string $email): string
+    private function renderName(int $customerId, string $firstname, string $lastname, string $email, string $countryFlag, string $countryTitle): string
     {
         $fullName = trim($firstname.' '.$lastname);
         if ($fullName === '') {
@@ -106,8 +105,18 @@ final readonly class CustomerListRowPresenter
 
         $href = $this->urls->generate(self::EDIT_ROUTE, ['customer_id' => $customerId]);
 
+        // The flag stands before the name, as in the order list; the country name stays reachable on hover.
+        $flag = $countryFlag === ''
+            ? ''
+            : \sprintf(
+                '<span class="bo-customer-country" data-bs-toggle="tooltip" title="%s">%s</span> ',
+                htmlspecialchars($countryTitle),
+                htmlspecialchars($countryFlag),
+            );
+
         return \sprintf(
-            '<div class="bo-customer-name"><div class="fw-semibold"><a href="%s" class="text-decoration-none" data-testid="bo-customer-name-link">%s</a></div><div class="text-muted small text-truncate">%s</div></div>',
+            '<div class="bo-customer-name"><div class="fw-semibold">%s<a href="%s" class="text-decoration-none" data-testid="bo-customer-name-link">%s</a></div><div class="text-muted small text-truncate">%s</div></div>',
+            $flag,
             htmlspecialchars($href),
             htmlspecialchars($fullName),
             htmlspecialchars($email),
@@ -121,24 +130,6 @@ final readonly class CustomerListRowPresenter
         }
 
         return \sprintf('<span class="bo-customer-phone">%s</span>', htmlspecialchars($phone));
-    }
-
-    private function renderCountry(string $flag, string $title): string
-    {
-        if ($title === '' && $flag === '') {
-            return '<span class="text-muted">-</span>';
-        }
-
-        // The flag alone keeps the column narrow; the country name stays reachable on hover.
-        if ($flag === '') {
-            return \sprintf('<span class="bo-customer-country">%s</span>', htmlspecialchars($title));
-        }
-
-        return \sprintf(
-            '<span class="bo-customer-country" data-bs-toggle="tooltip" title="%s">%s</span>',
-            htmlspecialchars($title),
-            $flag,
-        );
     }
 
     private function renderOrders(int $customerId, int $count): string
