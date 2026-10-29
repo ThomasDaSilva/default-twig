@@ -62,6 +62,16 @@ final class AiConnectionScreenTest extends WebIntegrationTestCase
         self::assertStringContainsString('data-testid="ai-connections-page"', $this->html());
     }
 
+    public function testTheEnvironmentVariableFieldTellsWhichNamesAreAccepted(): void
+    {
+        foreach (['en' => 'It must start with THELIA_AI_ and end with _KEY or _TOKEN', 'fr' => 'Elle doit commencer par THELIA_AI_ et finir par _KEY ou _TOKEN'] as $lang => $sentence) {
+            $this->client->request('GET', '/admin/configuration/ai/connections/new?lang='.$lang);
+
+            self::assertStringContainsString($sentence, $this->html(), $lang);
+            self::assertStringContainsString('MISTRAL_API_KEY', $this->html(), $lang);
+        }
+    }
+
     public function testTheKeyIsStoredEncryptedAndNeverRenderedAgain(): void
     {
         $this->client->request('GET', '/admin/configuration/ai/connections/new');

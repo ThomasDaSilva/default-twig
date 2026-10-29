@@ -2855,7 +2855,7 @@ return [
     'API key' => 'Clé d\'API',
     'Letters, digits and underscores only.' => 'Lettres, chiffres et tirets bas uniquement.',
     'Environment variable holding the key' => 'Variable d\'environnement contenant la clé',
-    'Optional, for a server that keeps its secrets out of the database: the name of the variable. When it is set, it wins over the saved key.' => 'Facultatif, pour un serveur qui garde ses secrets hors de la base : le nom de la variable. Quand elle est renseignée, elle prime sur la clé enregistrée.',
+    'Optional, for a server that keeps its secrets out of the database: the name of the variable. It must start with THELIA_AI_ and end with _KEY or _TOKEN. The usual variable of the provider (ANTHROPIC_API_KEY, MISTRAL_API_KEY, OPENAI_API_KEY) is accepted too, only for the default address of that provider. When it is set, it wins over the saved key.' => 'Facultatif, pour un serveur qui garde ses secrets hors de la base : le nom de la variable. Elle doit commencer par THELIA_AI_ et finir par _KEY ou _TOKEN. La variable habituelle du fournisseur (ANTHROPIC_API_KEY, MISTRAL_API_KEY, OPENAI_API_KEY) est aussi acceptée, uniquement pour l\'adresse par défaut de ce fournisseur. Quand elle est renseignée, elle prime sur la clé enregistrée.',
     'The server is on a private network' => 'Le serveur est sur un réseau privé',
     'Tick only for a server of your own network (for example Ollama). Otherwise addresses of a private network are refused.' => 'À cocher seulement pour un serveur de votre propre réseau (par exemple Ollama). Sinon les adresses d\'un réseau privé sont refusées.',
     'Connection in use' => 'Connexion utilisée',

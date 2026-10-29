@@ -91,7 +91,7 @@ final class AiConnectionType extends AbstractType
                 'required' => false,
                 'constraints' => [new Length(max: 255), new Regex('/^[A-Za-z_][A-Za-z0-9_]*$/', $this->translator->trans('Letters, digits and underscores only.'))],
                 'label' => $this->translator->trans('Environment variable holding the key'),
-                'help' => $this->translator->trans('Optional, for a server that keeps its secrets out of the database: the name of the variable. When it is set, it wins over the saved key.'),
+                'help' => $this->translator->trans('Optional, for a server that keeps its secrets out of the database: the name of the variable. It must start with THELIA_AI_ and end with _KEY or _TOKEN. The usual variable of the provider (ANTHROPIC_API_KEY, MISTRAL_API_KEY, OPENAI_API_KEY) is accepted too, only for the default address of that provider. When it is set, it wins over the saved key.'),
             ])
             ->add('allow_private_network', CheckboxType::class, [
                 'required' => false,
