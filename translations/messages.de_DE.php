@@ -1108,7 +1108,7 @@ return [
     'redefines translations for your website only.' => 'definiert Übersetzungen nur für Ihre Website neu.',
     'Reference' => 'Referenz',
     'Reference, customer name or email' => 'Referenz, Kundenname oder E-Mail',
-    'Reference, name or email' => 'Referenz, Name oder E-Mail',
+    'Reference, name, email or phone' => 'Referenz, Name, E-Mail oder Telefon',
     'Refresh the active status of every sale according to its dates.' => 'Den Aktivstatus jeder Aktion entsprechend ihrer Daten aktualisieren.',
     'Registered' => 'Registriert',
     'Refund' => 'Erstattung',

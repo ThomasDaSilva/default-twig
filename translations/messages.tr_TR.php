@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'çevirileri yalnızca web siteniz için yeniden tanımlar.',
     'Reference' => 'referans',
     'Reference, customer name or email' => 'Referans, müşteri adı veya e-posta',
-    'Reference, name or email' => 'Referans, ad veya e-posta',
+    'Reference, name, email or phone' => 'Referans, ad, e-posta veya telefon',
     'Refresh the active status of every sale according to its dates.' => 'Her kampanyanın aktif durumunu tarihlerine göre yenileyin.',
     'Registered' => 'Kayıtlı',
     'Registered between' => 'Arasında kayıtlı',

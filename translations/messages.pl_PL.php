@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'redefiniuje tłumaczenia wyłącznie dla Twojej witryny.',
     'Reference' => 'Referencja',
     'Reference, customer name or email' => 'Referencja, imię i nazwisko klienta lub e-mail',
-    'Reference, name or email' => 'Referencja, imię i nazwisko lub e-mail',
+    'Reference, name, email or phone' => 'Referencja, imię i nazwisko, e-mail lub telefon',
     'Refresh the active status of every sale according to its dates.' => 'Odśwież status aktywności każdej promocji zgodnie z jej datami.',
     'Registered' => 'Zarejestrowany',
     'Registered between' => 'Zarejestrowany między',

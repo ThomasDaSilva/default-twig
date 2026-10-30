@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'επαναπροσδιορίζει τις μεταφράσεις μόνο για τον ιστότοπό σας.',
     'Reference' => 'Αναφορά',
     'Reference, customer name or email' => 'Αναφορά, όνομα πελάτη ή email',
-    'Reference, name or email' => 'Αναφορά, όνομα ή email',
+    'Reference, name, email or phone' => 'Αναφορά, όνομα, email ή τηλέφωνο',
     'Refresh the active status of every sale according to its dates.' => 'Ανανέωση της ενεργής κατάστασης κάθε προσφοράς βάσει των ημερομηνιών της.',
     'Registered' => 'Εγγεγραμμένος',
     'Registered between' => 'Εγγεγραμμένος μεταξύ',

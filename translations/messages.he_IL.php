@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'מגדיר מחדש תרגומים עבור האתר שלך בלבד.',
     'Reference' => 'מק"ט',
     'Reference, customer name or email' => 'מק"ט, שם לקוח או אימייל',
-    'Reference, name or email' => 'מק"ט, שם או אימייל',
+    'Reference, name, email or phone' => 'מק"ט, שם, אימייל או טלפון',
     'Refresh the active status of every sale according to its dates.' => 'רענן את הסטטוס הפעיל של כל מבצע בהתאם לתאריכיו.',
     'Registered' => 'רשום',
     'Registered between' => 'רשום בין',

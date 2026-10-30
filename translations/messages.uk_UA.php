@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'перевизначає переклади лише для вашого сайту.',
     'Reference' => 'Артикул',
     'Reference, customer name or email' => 'Артикул, ім\'я клієнта або email',
-    'Reference, name or email' => 'Артикул, ім\'я або email',
+    'Reference, name, email or phone' => 'Артикул, ім\'я, email або телефон',
     'Refresh the active status of every sale according to its dates.' => 'Оновити статус активності кожної акції відповідно до її дат.',
     'Registered' => 'Зареєстрований',
     'Registered between' => 'Зареєстрований між',

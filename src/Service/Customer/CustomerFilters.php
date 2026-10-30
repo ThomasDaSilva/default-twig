@@ -333,8 +333,16 @@ final readonly class CustomerFilters
             ->condition('search_ref', CustomerTableMap::COL_REF.' LIKE ?', $needle, \PDO::PARAM_STR)
             ->condition('search_email', CustomerTableMap::COL_EMAIL.' LIKE ?', $needle, \PDO::PARAM_STR)
             ->condition('search_firstname', CustomerTableMap::COL_FIRSTNAME.' LIKE ?', $needle, \PDO::PARAM_STR)
-            ->condition('search_lastname', CustomerTableMap::COL_LASTNAME.' LIKE ?', $needle, \PDO::PARAM_STR)
-            ->combine(['search_ref', 'search_email', 'search_firstname', 'search_lastname'], 'OR');
+            ->condition('search_lastname', CustomerTableMap::COL_LASTNAME.' LIKE ?', $needle, \PDO::PARAM_STR);
+        $conditions = ['search_ref', 'search_email', 'search_firstname', 'search_lastname'];
+
+        $phoneDigits = CustomerPhoneSearch::digits($this->search, CustomerPhoneSearch::SEARCH_BOX_MINIMUM_DIGITS);
+        if ($phoneDigits !== null) {
+            $query->condition('search_phone', CustomerPhoneSearch::clause(), CustomerPhoneSearch::pattern($phoneDigits), \PDO::PARAM_STR);
+            $conditions[] = 'search_phone';
+        }
+
+        $query->combine($conditions, 'OR');
     }
 
     private function applyNewsletter(CustomerQuery $query): void
@@ -400,12 +408,15 @@ final readonly class CustomerFilters
             return;
         }
 
-        $needle = '%'.$this->phone.'%';
-        $query->where(
-            'EXISTS (SELECT 1 FROM address a WHERE a.customer_id = '.CustomerTableMap::COL_ID
-                .' AND (a.phone LIKE ? OR a.cellphone LIKE ?))',
-            [$needle, $needle],
-        );
+        $digits = CustomerPhoneSearch::digits($this->phone);
+        if ($digits === null) {
+            // Not a phone number: no customer has it.
+            $query->where('1 = 0');
+
+            return;
+        }
+
+        $query->where(CustomerPhoneSearch::clause(), CustomerPhoneSearch::pattern($digits), \PDO::PARAM_STR);
     }
 
     /**

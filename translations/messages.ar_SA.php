@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'يعيد تعريف الترجمات لموقعك الإلكتروني فقط.',
     'Reference' => 'مرجع',
     'Reference, customer name or email' => 'المرجع أو اسم العميل أو البريد الإلكتروني',
-    'Reference, name or email' => 'المرجع أو الاسم أو البريد الإلكتروني',
+    'Reference, name, email or phone' => 'المرجع أو الاسم أو البريد الإلكتروني أو الهاتف',
     'Refresh the active status of every sale according to its dates.' => 'تحديث الحالة النشطة لكل تخفيض وفقاً لتواريخه.',
     'Registered' => 'مسجّل',
     'Registered between' => 'مسجّل بين',

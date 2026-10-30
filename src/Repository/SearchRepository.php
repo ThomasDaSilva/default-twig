@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Repository;
 
+use BackOfficeDefaultTwigBundle\Service\Customer\CustomerPhoneSearch;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
@@ -122,12 +123,19 @@ final readonly class SearchRepository
     /** @return ObjectCollection<int, Customer> */
     public function findCustomers(string $term): ObjectCollection
     {
-        /** @var ObjectCollection<int, Customer> $result */
-        $result = CustomerQuery::create()
+        $query = CustomerQuery::create()
             ->filterByFirstname('%'.$term.'%', Criteria::LIKE)
             ->_or()->filterByLastname('%'.$term.'%', Criteria::LIKE)
             ->_or()->filterByEmail('%'.$term.'%', Criteria::LIKE)
-            ->_or()->filterByRef('%'.$term.'%', Criteria::LIKE)
+            ->_or()->filterByRef('%'.$term.'%', Criteria::LIKE);
+
+        $phoneDigits = CustomerPhoneSearch::digits($term, CustomerPhoneSearch::SEARCH_BOX_MINIMUM_DIGITS);
+        if ($phoneDigits !== null) {
+            $query->_or()->where(CustomerPhoneSearch::clause(), CustomerPhoneSearch::pattern($phoneDigits), \PDO::PARAM_STR);
+        }
+
+        /** @var ObjectCollection<int, Customer> $result */
+        $result = $query
             ->limit(self::SEARCH_LIMIT)
             ->find();
 

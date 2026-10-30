@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'csak az Ön webhelyéhez adja meg újra a fordításokat.',
     'Reference' => 'Azonosító',
     'Reference, customer name or email' => 'Hivatkozási szám, vásárló neve vagy e-mail',
-    'Reference, name or email' => 'Hivatkozási szám, név vagy e-mail',
+    'Reference, name, email or phone' => 'Hivatkozási szám, név, e-mail vagy telefon',
     'Refresh the active status of every sale according to its dates.' => 'Minden akció aktív státuszának frissítése a dátumok alapján.',
     'Registered' => 'Regisztrált',
     'Registered between' => 'Regisztrálva (között)',

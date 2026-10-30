@@ -1714,7 +1714,7 @@ return [
     'Reference / transaction' => 'Référence / transaction',
     'Reference or title' => 'Référence ou titre',
     'Reference, customer name or email' => 'Référence, nom du client ou email',
-    'Reference, name or email' => 'Référence, nom ou e-mail',
+    'Reference, name, email or phone' => 'Référence, nom, e-mail ou téléphone',
     'Refresh the active status of every sale according to its dates.' => 'Actualiser le statut actif de chaque promotion selon ses dates.',
     'Refunded' => 'Remboursé',
     'Refused' => 'Refusé',

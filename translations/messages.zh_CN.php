@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => '仅为您的网站重新定义翻译。',
     'Reference' => '参考编号',
     'Reference, customer name or email' => '参考编号、客户姓名或邮箱',
-    'Reference, name or email' => '参考编号、姓名或邮箱',
+    'Reference, name, email or phone' => '参考编号、姓名、邮箱或电话',
     'Refresh the active status of every sale according to its dates.' => '根据日期刷新所有促销活动的有效状态。',
     'Registered' => '已注册',
     'Registered between' => '注册时间范围',

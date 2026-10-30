@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'mendefinisikan ulang terjemahan khusus untuk situs web Anda.',
     'Reference' => 'Referensi',
     'Reference, customer name or email' => 'Referensi, nama pelanggan atau email',
-    'Reference, name or email' => 'Referensi, nama atau email',
+    'Reference, name, email or phone' => 'Referensi, nama, email atau telepon',
     'Refresh the active status of every sale according to its dates.' => 'Perbarui status aktif setiap promo sesuai tanggalnya.',
     'Registered' => 'Terdaftar',
     'Registered between' => 'Terdaftar antara',

@@ -1102,7 +1102,7 @@ return [
     'redefines translations for your website only.' => 'předdefinuje překlady pouze pro váš web.',
     'Reference' => 'Reference',
     'Reference, customer name or email' => 'Reference, jméno zákazníka nebo e-mail',
-    'Reference, name or email' => 'Reference, jméno nebo e-mail',
+    'Reference, name, email or phone' => 'Reference, jméno, e-mail nebo telefon',
     'Refresh the active status of every sale according to its dates.' => 'Obnovit aktivní stav každé akce podle jejích dat.',
     'Registered' => 'Registrován',
     'Registered between' => 'Registrován v rozmezí',

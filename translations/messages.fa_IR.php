@@ -1101,7 +1101,7 @@ return [
     'redefines translations for your website only.' => 'ترجمه‌ها را فقط برای وب‌سایت شما بازتعریف می‌کند.',
     'Reference' => 'مرجع',
     'Reference, customer name or email' => 'مرجع، نام مشتری یا ایمیل',
-    'Reference, name or email' => 'مرجع، نام یا ایمیل',
+    'Reference, name, email or phone' => 'مرجع، نام، ایمیل یا تلفن',
     'Refresh the active status of every sale according to its dates.' => 'وضعیت فعال هر حراج را بر اساس تاریخ‌هایش به‌روزرسانی کنید.',
     'Registered' => 'ثبت‌نام کرده',
     'Registered between' => 'ثبت‌نام بین',
