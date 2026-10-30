@@ -35,6 +35,9 @@ final class BackOfficeTranslationTest extends TestCase
         '#^src/(Controller|Service/Admin)/(.+/)?(DataTransfer|BackgroundJobs)/.+\\.php$#',
     ];
 
+    /** Words a front office theme translates in the shared `messages` domain. */
+    private const FRONT_WORDS = ['Register'];
+
     /** The texts each catalogue lacks, as measured when it was last changed. */
     private const KNOWN_GAPS = [
         'ar_SA' => 1373,
@@ -91,6 +94,25 @@ final class BackOfficeTranslationTest extends TestCase
     public function testTheTextsNamedByConstantsAreTranslated(string $locale): void
     {
         self::assertSame([], self::missingFrom($locale, [AdminFailureMessage::SERVER_ERROR, ExportPeriod::INVALID_DATES]));
+    }
+
+    /**
+     * The back office and the front office theme share the `messages` domain, and the
+     * catalogue of the back office is read last: a generic word it translates replaces
+     * the translation of the shop on every page ("Register" became "Registre" on the
+     * sign-up page of a French shop). The back office names such a text by a key of its own.
+     */
+    public function testTheCataloguesLeaveTheWordsOfTheShopToTheFrontTheme(): void
+    {
+        $translated = [];
+
+        foreach (glob(self::root().'/translations/messages.*.php') ?: [] as $file) {
+            foreach (array_intersect(self::FRONT_WORDS, array_keys(require $file)) as $word) {
+                $translated[] = basename($file).': '.$word;
+            }
+        }
+
+        self::assertSame([], $translated);
     }
 
     /**

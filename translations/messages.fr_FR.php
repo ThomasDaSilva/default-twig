@@ -2981,7 +2981,7 @@ return [
     'About the budget' => 'À propos du budget',
     'Amounts are in US dollars, as the AI companies bill them. Your shop pays the provider directly.' => 'Les montants sont en dollars US, comme les facturent les sociétés d\'IA. Votre boutique paie directement le fournisseur.',
     'Register of AI usages' => 'Registre des usages de l\'IA',
-    'Register' => 'Registre',
+    'AI usage register' => 'Registre',
     'Export as CSV' => 'Exporter en CSV',
     'Export as JSON' => 'Exporter en JSON',
     'This is the list of the artificial intelligence your shop runs: what for, who it talks to, which company and model process the data, and whether each usage meets its duties under Article 50 of the European AI regulation. Keep an export as your record. It is a help, not legal advice.' => 'Voici la liste de l\'intelligence artificielle que fait tourner votre boutique : pour quoi faire, à qui elle s\'adresse, quelle société et quel modèle traitent les données, et si chaque usage remplit ses obligations au titre de l\'article 50 du règlement européen sur l\'IA. Gardez un export comme trace. C\'est une aide, pas un avis juridique.',

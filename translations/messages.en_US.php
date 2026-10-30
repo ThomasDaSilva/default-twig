@@ -811,7 +811,7 @@ return [
     'About the budget' => 'About the budget',
     'Amounts are in US dollars, as the AI companies bill them. Your shop pays the provider directly.' => 'Amounts are in US dollars, as the AI companies bill them. Your shop pays the provider directly.',
     'Register of AI usages' => 'Register of AI usages',
-    'Register' => 'Register',
+    'AI usage register' => 'Register',
     'Export as CSV' => 'Export as CSV',
     'Export as JSON' => 'Export as JSON',
     'This is the list of the artificial intelligence your shop runs: what for, who it talks to, which company and model process the data, and whether each usage meets its duties under Article 50 of the European AI regulation. Keep an export as your record. It is a help, not legal advice.' => 'This is the list of the artificial intelligence your shop runs: what for, who it talks to, which company and model process the data, and whether each usage meets its duties under Article 50 of the European AI regulation. Keep an export as your record. It is a help, not legal advice.',
