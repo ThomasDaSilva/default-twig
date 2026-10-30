@@ -115,7 +115,7 @@ final class CustomerPhoneSearchTest extends IntegrationTestCase
     {
         $customer = $this->customerWithPhones(cellphone: $this->stored());
 
-        $found = new SearchRepository(new OrderAccess(new AdminSaleUnitScope()))->findCustomers($this->typed('06 %s %s %s %s'));
+        $found = (new SearchRepository(new OrderAccess(new AdminSaleUnitScope())))->findCustomers($this->typed('06 %s %s %s %s'));
 
         self::assertContains((int) $customer->getId(), array_map(static fn (Customer $row): int => (int) $row->getId(), iterator_to_array($found)));
     }
