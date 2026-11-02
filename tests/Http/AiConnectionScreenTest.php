@@ -72,6 +72,16 @@ final class AiConnectionScreenTest extends WebIntegrationTestCase
         }
     }
 
+    public function testTheEnvironmentVariableFieldTellsWhereTheKeyIsSent(): void
+    {
+        foreach (['en' => 'the same address must also be set on the server, in the variable of the same name ending with _BASE_URL', 'fr' => 'la même adresse doit aussi être renseignée sur le serveur, dans la variable du même nom terminée par _BASE_URL'] as $lang => $sentence) {
+            $this->client->request('GET', '/admin/configuration/ai/connections/new?lang='.$lang);
+
+            self::assertStringContainsString($sentence, $this->html(), $lang);
+            self::assertStringContainsString('THELIA_AI_X_BASE_URL', $this->html(), $lang);
+        }
+    }
+
     public function testTheKeyIsStoredEncryptedAndNeverRenderedAgain(): void
     {
         $this->client->request('GET', '/admin/configuration/ai/connections/new');
