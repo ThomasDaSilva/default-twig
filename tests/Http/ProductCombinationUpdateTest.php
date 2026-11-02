@@ -20,9 +20,11 @@ use Thelia\Model\Currency;
 use Thelia\Model\CurrencyQuery;
 use Thelia\Model\Map\ProductPriceTableMap;
 use Thelia\Model\Map\ProductSaleElementsTableMap;
+use Thelia\Model\Map\ProductTableMap;
 use Thelia\Model\Product;
 use Thelia\Model\ProductPrice;
 use Thelia\Model\ProductPriceQuery;
+use Thelia\Model\ProductQuery;
 use Thelia\Model\ProductSaleElements;
 use Thelia\Model\ProductSaleElementsQuery;
 use Thelia\Test\FixtureFactory;
@@ -132,6 +134,40 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         $price = $this->storedPrice($pse);
         self::assertSame(25.0, (float) $price->getPrice(), 'A price the form did not send keeps its stored value.');
         self::assertSame(20.0, (float) $price->getPromoPrice(), 'A sale price the form did not send keeps its stored value.');
+    }
+
+    public function testTheTaxRuleOfAProductWithCombinationsCanBeChangedFromTheGrid(): void
+    {
+        $this->loginFullAdmin();
+        [$product, $pse] = $this->productWithACombination();
+        $otherRule = $this->factory->taxRule(['isDefault' => false]);
+        self::assertNotSame($product->getTaxRuleId(), $otherRule->getId());
+
+        $crawler = $this->client->request('GET', '/admin/products/combinations/tab?product_id='.$product->getId());
+        $select = $crawler->filter('form[data-testid="combinations-form"] select[name="tax_rule"]');
+        self::assertSame(1, $select->count(), 'The grid form offers a choice of the tax rule.');
+        self::assertSame(
+            (string) $product->getTaxRuleId(),
+            $select->filter('option[selected]')->attr('value'),
+            'The current tax rule of the product is selected.',
+        );
+        self::assertSame(1, $select->filter(\sprintf('option[value="%d"]', $otherRule->getId()))->count());
+
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
+            'product_id' => $product->getId(),
+            'tax_rule' => $otherRule->getId(),
+            'product_sale_element_id' => [$pse->getId()],
+            'reference' => [$pse->getRef()],
+            'quantity' => [7],
+        ]);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        ProductTableMap::clearInstancePool();
+        self::assertSame(
+            $otherRule->getId(),
+            ProductQuery::create()->findPk($product->getId(), $this->getPropelConnection())?->getTaxRuleId(),
+        );
     }
 
     public function testTheGridSavesTheAmountsInTheCurrencyItDisplays(): void

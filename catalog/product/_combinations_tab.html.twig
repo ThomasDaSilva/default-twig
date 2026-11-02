@@ -35,8 +35,21 @@
                 <form method="post" action="{{ path('admin.product.combination.update') }}" data-testid="combinations-form">
                     <input type="hidden" name="_token" value="{{ assignToken() }}">
                     <input type="hidden" name="product_id" value="{{ product.id }}">
-                    <input type="hidden" name="tax_rule" value="{{ tax_rule_id }}">
                     <input type="hidden" name="currency" value="{{ currency.id }}">
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label required" for="combinations-tax-rule">
+                                <span class="bo-form-label__text">{{ 'Tax rule'|trans }}</span><span class="bo-form-label__required" aria-hidden="true">*</span>
+                            </label>
+                            <select class="form-select" id="combinations-tax-rule" name="tax_rule" required data-testid="combinations-tax-rule">
+                                <option value="">{{ 'Select a tax rule'|trans }}</option>
+                                {% for rule in tax_rules %}
+                                    <option value="{{ rule.id }}" {% if rule.id == tax_rule_id %}selected{% endif %}>{{ rule.title }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
 
                     {% if available_currencies|default([])|length > 1 and not currency.is_default %}
                         <div class="form-check form-switch mb-2" data-testid="combinations-use-exchange-rate-wrapper">
@@ -200,7 +213,9 @@
 
                         <div class="row g-3 mb-3">
                             <div class="col-md-6">
-                                <label class="form-label" for="default_pse_tax_rule">{{ 'Tax rule'|trans }}</label>
+                                <label class="form-label required" for="default_pse_tax_rule">
+                                    <span class="bo-form-label__text">{{ 'Tax rule'|trans }}</span><span class="bo-form-label__required" aria-hidden="true">*</span>
+                                </label>
                                 <select class="form-select" id="default_pse_tax_rule" name="tax_rule" required
                                         data-bo-pse-price-with-tax-target="taxRule">
                                     <option value="">{{ 'Select a tax rule'|trans }}</option>
