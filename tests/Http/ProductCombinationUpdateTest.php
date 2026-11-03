@@ -170,6 +170,33 @@ final class ProductCombinationUpdateTest extends WebIntegrationTestCase
         );
     }
 
+    public function testTheTaxRuleChosenInTheGridIsSavedWhenEveryRowIsLeftUnpriced(): void
+    {
+        $this->loginFullAdmin();
+        [$product] = $this->productWithACombination();
+        $unpriced = $this->unpricedCombinationOf($product);
+        $otherRule = $this->factory->taxRule(['isDefault' => false]);
+
+        $this->client->request('POST', self::COMBINATIONS_URL, [
+            '_token' => $this->tokenOf($product, 'combinations-form'),
+            'product_id' => $product->getId(),
+            'tax_rule' => $otherRule->getId(),
+            'product_sale_element_id' => [$unpriced->getId()],
+            'reference' => [$unpriced->getRef()],
+            'quantity' => [9],
+            'price' => [''],
+            'sale_price' => [''],
+        ]);
+
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+        ProductTableMap::clearInstancePool();
+        self::assertSame(
+            $otherRule->getId(),
+            ProductQuery::create()->findPk($product->getId(), $this->getPropelConnection())?->getTaxRuleId(),
+            'A grid whose rows are all left unpriced still saves the tax rule.',
+        );
+    }
+
     public function testTheGridSavesTheAmountsInTheCurrencyItDisplays(): void
     {
         $this->loginFullAdmin();

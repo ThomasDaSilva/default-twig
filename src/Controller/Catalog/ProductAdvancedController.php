@@ -619,6 +619,11 @@ final class ProductAdvancedController
             $currency = $this->defaultCurrencyId();
         }
         $taxRule = (int) $form->get('tax_rule', (int) $product->getTaxRuleId());
+        // The tax rule belongs to the product, not to a row: saved here, it is kept even
+        // when every row is left unpriced and the grid dispatches no update at all.
+        if ($taxRule > 0 && $taxRule !== (int) $product->getTaxRuleId()) {
+            $product->setTaxRuleId($taxRule)->save();
+        }
         $useExchangeRate = (int) $form->get('use_exchange_rate', 0);
         $defaultPse = (int) $form->get('default_pse', 0);
 
