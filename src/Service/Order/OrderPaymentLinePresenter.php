@@ -97,6 +97,13 @@ final readonly class OrderPaymentLinePresenter
         $expired = PaymentTransactionType::VOID->value === $type
             && PaymentTransactionState::SUCCEEDED->value === $state
             && PaymentTransactionRecorder::REASON_EXPIRED === $line->getErrorCode();
+        // A refund the journal deduced from the refunded status alone carries a marker, not
+        // an answer of the provider: nothing failed, nothing to show in red.
+        $deducedFromStatus = PaymentTransactionType::REFUND->value === $type
+            && PaymentTransactionState::SUCCEEDED->value === $state
+            && \defined(PaymentTransactionRecorder::class.'::REASON_REFUNDED_STATUS')
+            && PaymentTransactionRecorder::REASON_REFUNDED_STATUS === $line->getErrorCode();
+        $noError = $expired || $deducedFromStatus;
 
         return [
             'id' => (int) $line->getId(),
@@ -114,9 +121,9 @@ final readonly class OrderPaymentLinePresenter
             'parent_id' => $line->getParentId(),
             'actor' => $this->actorOf($line, $locale),
             'actor_type' => (string) $line->getActorType(),
-            // The lapse is said by the label: it is no failure to show in red.
-            'error_code' => $expired ? null : $line->getErrorCode(),
-            'error_message' => $expired ? null : $line->getErrorMessage(),
+            // The lapse is said by the label, the deduced refund by its type: neither is a failure to show in red.
+            'error_code' => $noError ? null : $line->getErrorCode(),
+            'error_message' => $noError ? null : $line->getErrorMessage(),
             'created_at' => $line->getCreatedAt(),
         ];
     }
