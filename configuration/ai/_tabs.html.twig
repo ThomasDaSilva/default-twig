@@ -1,6 +1,9 @@
 {# @var active string #}
 <ul class="nav nav-tabs mb-3" data-testid="ai-tabs">
     <li class="nav-item">
+        <a class="nav-link{{ active == 'setup' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.setup.default') }}"{{ active == 'setup' ? ' aria-current="page"' : '' }} data-testid="ai-tab-setup">{{ 'Getting started'|trans }}</a>
+    </li>
+    <li class="nav-item">
         <a class="nav-link{{ active == 'connections' ? ' active' : '' }}" href="{{ path('admin.configuration.ai.default') }}"{{ active == 'connections' ? ' aria-current="page"' : '' }} data-testid="ai-tab-connections">{{ 'Connections'|trans }}</a>
     </li>
     <li class="nav-item">
@@ -30,3 +33,17 @@
         </li>
     {% endif %}
 </ul>
+{% if active != 'setup' %}
+    {% set ai_pending = ai_setup_pending_count() %}
+    {% if ai_pending > 0 %}
+        <div class="alert alert-warning py-2 small" role="status" data-testid="ai-setup-notice">
+            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+            {% if ai_pending == 1 %}
+                {{ 'The AI setup is not finished: 1 feature cannot work.'|trans }}
+            {% else %}
+                {{ 'The AI setup is not finished: %count% features cannot work.'|trans({ '%count%': ai_pending }) }}
+            {% endif %}
+            <a href="{{ path('admin.configuration.ai.setup.default') }}" class="alert-link">{{ 'See the getting started page'|trans }}</a>
+        </div>
+    {% endif %}
+{% endif %}

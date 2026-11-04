@@ -1,0 +1,260 @@
+{% extends '@BackOfficeDefaultTwig/base.html.twig' %}
+
+{% block title %}{{ 'Artificial intelligence'|trans }} - {{ 'Getting started'|trans }}{% endblock %}
+{% block body_testid %}ai-setup{% endblock %}
+
+{% block breadcrumb %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('admin.home') }}">{{ 'Home'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="/admin/configuration">{{ 'Configuration'|trans }}</a></li>
+            <li class="breadcrumb-item"><a href="{{ path('admin.configuration.ai.default') }}">{{ 'Artificial intelligence'|trans }}</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ 'Getting started'|trans }}</li>
+        </ol>
+    </nav>
+{% endblock %}
+
+{% macro step_header(number, title, done, testid) %}
+    <div class="card-header d-flex align-items-center gap-2">
+        <span class="badge rounded-pill {{ done ? 'text-bg-success' : 'text-bg-secondary' }}" aria-hidden="true">{% if done %}<i class="bi bi-check-lg"></i>{% else %}{{ number }}{% endif %}</span>
+        <h2 class="h6 mb-0">{{ title }}</h2>
+        <span class="badge ms-auto {{ done ? 'text-bg-success' : 'text-bg-warning' }}" data-testid="{{ testid }}" data-state="{{ done ? 'done' : 'todo' }}">{{ done ? 'Done'|trans : 'To do'|trans }}</span>
+    </div>
+{% endmacro %}
+
+{% macro model_select(tier, choices) %}
+    <label class="visually-hidden" for="ai-setup-tier-{{ tier.tier }}">{{ tier.label }}</label>
+    <select class="form-select" id="ai-setup-tier-{{ tier.tier }}" name="tier[{{ tier.tier }}]" data-testid="ai-setup-tier-{{ tier.tier }}">
+        <option value="">{{ 'Choose a model'|trans }}</option>
+        {% for group, models in choices %}
+            <optgroup label="{{ group }}">
+                {% for label, value in models %}<option value="{{ value }}"{{ value == tier.selected ? ' selected' : '' }}>{{ label }}</option>{% endfor %}
+            </optgroup>
+        {% endfor %}
+    </select>
+{% endmacro %}
+
+{% block content %}
+    {% set can_edit = is_granted('UPDATE', 'admin.configuration.ai') %}
+    {% set connection = guide.connection %}
+    {% set models = guide.models %}
+    {% set features = guide.features %}
+    {% import _self as ui %}
+    <div class="container-fluid" data-testid="ai-setup-page">
+        <h1 class="h3 mb-3">{{ 'Artificial intelligence'|trans }}</h1>
+
+        {% include '@BackOfficeDefaultTwig/configuration/ai/_tabs.html.twig' with { active: 'setup' } only %}
+
+        <div class="mb-4" data-testid="ai-setup-intro">
+            <p class="text-body-secondary mb-2">{{ 'For an AI feature of one of your modules to work, three things must be in place: a connection to an AI provider, a model for the range the feature uses, and, for a feature that talks to your visitors, a monthly budget. Follow the steps below, each one is done on this page.'|trans }}</p>
+            <div class="d-flex align-items-center gap-3">
+                <strong class="text-nowrap" data-testid="ai-setup-progress">{{ '%done% of %total% steps done'|trans({ '%done%': guide.done, '%total%': guide.total }) }}</strong>
+                <div class="progress flex-grow-1" role="progressbar" aria-label="{{ 'Progress of the AI setup'|trans }}" aria-valuenow="{{ guide.done }}" aria-valuemin="0" aria-valuemax="{{ guide.total }}">
+                    <div class="progress-bar bg-success" style="width: {{ (guide.done * 100 / guide.total)|round }}%"></div>
+                </div>
+            </div>
+        </div>
+
+        {% if guide.complete %}
+            <div class="alert alert-success" role="status" data-testid="ai-setup-complete">
+                <i class="bi bi-check-circle" aria-hidden="true"></i> {{ 'Everything is ready: your AI features can run.'|trans }}
+            </div>
+        {% endif %}
+
+        {# Step 1 #}
+        <div class="card mb-3" id="ai-setup-step-1" data-testid="ai-setup-step-1">
+            {{ ui.step_header(1, 'Connect an AI provider'|trans, connection.done, 'ai-setup-step-1-state') }}
+            <div class="card-body">
+                <p class="text-body-secondary">{{ 'A provider is the company that runs the AI models. Your shop pays it directly, and it needs the key it gave you to answer your shop. Without a connection, no AI feature can work.'|trans }}</p>
+
+                {% for item in connection.connections %}
+                    <div class="d-flex flex-wrap align-items-center gap-2 mb-2" data-testid="ai-setup-connection">
+                        <strong>{{ item.title }}</strong>
+                        {% if item.provider != item.title %}<span class="text-body-secondary">{{ item.provider }}</span>{% endif %}
+                        {% if not item.active %}<span class="badge text-bg-secondary">{{ 'Not in use'|trans }}</span>{% endif %}
+                        {% if item.status == 'worked' %}
+                            <span class="badge text-bg-success" data-testid="ai-setup-connection-status" data-state="worked">{{ 'Worked on %date%'|trans({ '%date%': item.checked_at }) }}</span>
+                        {% elseif item.status == 'failed' %}
+                            <span class="badge text-bg-danger" data-testid="ai-setup-connection-status" data-state="failed">{{ 'Failed on %date%'|trans({ '%date%': item.checked_at }) }}</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary" data-testid="ai-setup-connection-status" data-state="never">{{ 'Never tested'|trans }}</span>
+                        {% endif %}
+                        {% if can_edit %}
+                            <form method="post" action="{{ path('admin.configuration.ai.setup.test', { id: item.id }) }}" class="d-inline">
+                                <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                <input type="hidden" name="usage" value="{{ usage }}">
+                                <button type="submit" class="btn btn-outline-secondary btn-sm" data-testid="ai-setup-connection-test">{{ 'Test it again'|trans }}</button>
+                            </form>
+                        {% endif %}
+                        <a href="{{ path('admin.configuration.ai.connections.edit', { id: item.id }) }}" class="small">{{ 'Advanced settings'|trans }}</a>
+                    </div>
+                    {% if item.error %}
+                        <div class="alert alert-danger py-2 small" role="alert" data-testid="ai-setup-connection-error">
+                            <strong>{{ 'The provider did not accept this connection.'|trans }}</strong> {{ item.error }}
+                            <br>{{ 'Check the key below, type it again to replace it, and save.'|trans }}
+                        </div>
+                    {% endif %}
+                {% endfor %}
+
+                {% if not connection.done %}
+                    {% if can_edit %}
+                        <form method="post" action="{{ path('admin.configuration.ai.setup.connection') }}" class="row g-3 mt-1" data-testid="ai-setup-connection-form">
+                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                            <input type="hidden" name="usage" value="{{ usage }}">
+                            <div class="col-md-5">
+                                <label class="form-label" for="ai-setup-provider">{{ 'Provider'|trans }}</label>
+                                <select class="form-select" id="ai-setup-provider" name="provider" data-testid="ai-setup-provider">
+                                    {% for provider in connection.providers %}
+                                        <option value="{{ provider.value }}"{{ provider.disabled ? ' disabled' : '' }}>{{ provider.label }} · {{ provider.european_union ? 'hosted in the European Union'|trans : 'hosted outside the European Union'|trans }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">{{ 'Mistral AI processes your data in the European Union. Other providers (Scaleway, OVHcloud, your own server) are in the advanced settings.'|trans }}</div>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label" for="ai-setup-api-key">{{ 'API key'|trans }}</label>
+                                <input type="password" class="form-control" id="ai-setup-api-key" name="api_key" autocomplete="new-password" required data-testid="ai-setup-api-key">
+                                <div class="form-text">{{ 'Paste the key given by the provider. It is stored encrypted and never shown again.'|trans }}</div>
+                            </div>
+                            <div class="col-md-2 d-flex align-items-start align-items-md-center">
+                                <button type="submit" class="btn btn-primary w-100" data-testid="ai-setup-connection-save"><i class="bi bi-plug" aria-hidden="true"></i> {{ 'Save and test'|trans }}</button>
+                            </div>
+                        </form>
+                    {% endif %}
+                    <p class="small mt-2 mb-0"><a href="{{ path('admin.configuration.ai.connections.new') }}" data-testid="ai-setup-advanced-connection">{{ 'Advanced settings'|trans }}</a></p>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Step 2 #}
+        <div class="card mb-3" id="ai-setup-step-2" data-testid="ai-setup-step-2">
+            {{ ui.step_header(2, 'Choose a model for each range'|trans, models.done, 'ai-setup-step-2-state') }}
+            <div class="card-body">
+                <p class="text-body-secondary">{{ 'An AI feature never asks for a precise model, it asks for a range: fast, standard or advanced. Here you choose, once, which model serves each range. Change it later and every feature follows.'|trans }}</p>
+
+                {% if not models.available %}
+                    <p class="mb-0" data-testid="ai-setup-models-blocked">{{ 'Connect a provider first (step 1): its models are then offered here.'|trans }}</p>
+                {% else %}
+                    <form method="post" action="{{ path('admin.configuration.ai.setup.models') }}" data-testid="ai-setup-models-form">
+                        <input type="hidden" name="_token" value="{{ assignToken() }}">
+                        <input type="hidden" name="usage" value="{{ usage }}">
+                        <fieldset{{ can_edit ? '' : ' disabled' }}>
+                            {% for tier in models.required %}
+                                <div class="row g-2 mb-3" data-testid="ai-setup-tier-row" data-tier="{{ tier.tier }}" data-state="{{ tier.done ? 'done' : 'todo' }}">
+                                    <div class="col-lg-5">
+                                        <strong>{{ tier.label }}</strong>
+                                        <div class="form-text mt-0">{{ tier.help }}</div>
+                                        {% if tier.used_by %}
+                                            <div class="form-text mt-0">{{ 'Used by:'|trans }}</div>
+                                            <ul class="form-text mt-0 mb-0 ps-3">{% for purpose in tier.used_by %}<li>{{ purpose }}</li>{% endfor %}</ul>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-lg-7">
+                                        {{ ui.model_select(tier, models.choices) }}
+                                        {% if tier.suggested %}<div class="form-text" data-testid="ai-setup-suggestion">{{ 'Suggested for this range. Nothing is saved until you confirm.'|trans }}</div>{% endif %}
+                                    </div>
+                                </div>
+                            {% endfor %}
+
+                            {% if models.optional %}
+                                <details class="mb-3" data-testid="ai-setup-optional">
+                                    <summary class="mb-2">{{ 'Optional: the ranges no feature uses yet'|trans }}</summary>
+                                    {% for tier in models.optional %}
+                                        <div class="row g-2 mb-3" data-testid="ai-setup-tier-row" data-tier="{{ tier.tier }}" data-state="{{ tier.done ? 'done' : 'todo' }}">
+                                            <div class="col-lg-5">
+                                                <strong>{{ tier.label }}</strong>
+                                                <div class="form-text mt-0">{{ tier.help }}</div>
+                                            </div>
+                                            <div class="col-lg-7">{{ ui.model_select(tier, models.choices) }}</div>
+                                        </div>
+                                    {% endfor %}
+                                </details>
+                            {% endif %}
+
+                            {% if can_edit %}
+                                <button type="submit" class="btn btn-primary" data-testid="ai-setup-models-save"><i class="bi bi-check2" aria-hidden="true"></i> {{ models.done ? 'Save'|trans : 'Use these models'|trans }}</button>
+                            {% endif %}
+                        </fieldset>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
+        {# Step 3 #}
+        <div class="card mb-3" id="ai-setup-step-3" data-testid="ai-setup-step-3">
+            {{ ui.step_header(3, 'Turn on the features of your modules'|trans, features.done, 'ai-setup-step-3-state') }}
+            <div class="card-body pb-0">
+                <p class="text-body-secondary">{{ 'A feature runs when AI is allowed in the shop, a model serves its range and, if it talks to your visitors, it has a monthly budget. What is missing is written next to each feature.'|trans }}</p>
+            </div>
+            {% if not features.ai_enabled and features.rows %}
+                <div class="card-body pt-0">
+                    <div class="alert alert-warning mb-0" role="alert" data-testid="ai-setup-global-off">
+                        <p class="mb-2">{{ 'AI is switched off for the whole shop, so no feature can run.'|trans }}</p>
+                        {% if can_edit %}
+                            <form method="post" action="{{ path('admin.configuration.ai.setup.enable') }}">
+                                <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                <input type="hidden" name="usage" value="{{ usage }}">
+                                <button type="submit" class="btn btn-primary btn-sm" data-testid="ai-setup-enable">{{ 'Allow AI in the shop again'|trans }}</button>
+                            </form>
+                        {% else %}
+                            <a href="{{ path('admin.configuration.ai.consumption.default') }}">{{ 'Open the Consumption tab'|trans }}</a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+            {% if features.rows is empty %}
+                <div class="card-body pt-0">
+                    <p class="mb-0" data-testid="ai-setup-no-feature">{{ 'No module offers an AI feature yet. Install one, then come back here.'|trans }}</p>
+                </div>
+            {% else %}
+                <ul class="list-group list-group-flush">
+                    {% for row in features.rows %}
+                        <li class="list-group-item{{ row.focused ? ' list-group-item-warning' : '' }}" id="{{ row.html_id }}" data-testid="ai-setup-feature" data-usage="{{ row.id }}" data-state="{{ row.ready ? 'ready' : (row.reason ?? 'ready') }}"{% if row.focused %} data-controller="bo-scroll-into-view"{% endif %}>
+                            <div class="d-flex flex-wrap align-items-start gap-2">
+                                <div class="flex-grow-1">
+                                    <strong>{{ row.purpose }}</strong>
+                                    <div class="small text-body-secondary">{{ row.module }} · {{ row.audience }} · {{ row.tier }}</div>
+                                </div>
+                                {% if row.ready %}
+                                    <span class="badge text-bg-success" data-testid="ai-setup-feature-state">{{ 'Ready'|trans }}</span>
+                                {% else %}
+                                    <span class="badge text-bg-warning" data-testid="ai-setup-feature-state">{{ 'To finish'|trans }}</span>
+                                {% endif %}
+                            </div>
+
+                            {% if row.reason == 'global_off' %}
+                                <p class="mt-2 mb-0" data-testid="ai-setup-missing-global-off">{{ 'Waiting for AI to be allowed in the shop (see above).'|trans }}</p>
+                            {% elseif row.reason == 'switched_off' %}
+                                <div class="mt-2" data-testid="ai-setup-missing-switched-off">
+                                    <p class="mb-2">{{ 'You switched this feature off.'|trans }}</p>
+                                    <a href="{{ path('admin.configuration.ai.usages.edit', { id: row.id }) }}">{{ 'Open the feature to switch it back on'|trans }}</a>
+                                </div>
+                            {% elseif row.reason == 'no_model' %}
+                                <div class="mt-2" data-testid="ai-setup-missing-no-model">
+                                    <p class="mb-2">{{ 'No model serves this feature yet: choose one for "%range%" in step 2.'|trans({ '%range%': row.tier }) }}</p>
+                                    <a href="#ai-setup-step-2">{{ 'Go to step 2'|trans }}</a>
+                                </div>
+                            {% elseif row.reason == 'no_budget' %}
+                                <div class="mt-2" data-testid="ai-setup-missing-no-budget">
+                                    <p class="mb-2">{{ 'This feature talks to your visitors, so it needs a monthly budget before it starts. The budget protects you from a surprise bill: when the month has used this amount, the feature stops until the next month and nothing more is spent.'|trans }}</p>
+                                    {% if can_edit %}
+                                        <form method="post" action="{{ path('admin.configuration.ai.setup.budget') }}" class="row g-2 align-items-end">
+                                            <input type="hidden" name="_token" value="{{ assignToken() }}">
+                                            <input type="hidden" name="usage_id" value="{{ row.id }}">
+                                            <div class="col-sm-6 col-md-4">
+                                                <label class="form-label" for="ai-setup-budget-{{ row.html_id }}">{{ 'Monthly budget (US dollars)'|trans }}</label>
+                                                <input type="text" class="form-control" id="ai-setup-budget-{{ row.html_id }}" name="monthly_budget" inputmode="decimal" placeholder="10" required data-testid="ai-setup-budget">
+                                            </div>
+                                            <div class="col-auto">
+                                                <button type="submit" class="btn btn-primary" data-testid="ai-setup-budget-save"><i class="bi bi-check2" aria-hidden="true"></i> {{ 'Save'|trans }}</button>
+                                            </div>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </div>
+    </div>
+{% endblock %}
