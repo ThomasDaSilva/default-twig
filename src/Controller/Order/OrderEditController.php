@@ -21,6 +21,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderEditContextBuilder;
 use Symfony\Component\DependencyInjection\Attribute\Target;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -63,6 +64,8 @@ final class OrderEditController
         private readonly OrderEditContextBuilder $context,
         #[Target('order_edit')]
         private readonly RateLimiterFactoryInterface $limiter,
+        #[Target('order_edit_preview')]
+        private readonly RateLimiterFactoryInterface $previewLimiter,
         private readonly ?OrderEditor $editor = null,
     ) {
     }
@@ -128,6 +131,55 @@ final class OrderEditController
         return $back;
     }
 
+    #[Route('/admin/order/{order_id}/edit/preview', name: 'admin.order.edit.preview', methods: ['POST'], requirements: ['order_id' => '\d+'])]
+    public function preview(Request $request, int $order_id): Response
+    {
+        if (null === $this->editor) {
+            throw new NotFoundHttpException();
+        }
+
+        if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return $denied;
+        }
+
+        $order = $this->orderRepository->findById($order_id);
+
+        if (null === $order) {
+            throw new NotFoundHttpException();
+        }
+
+        $this->orderAccess->assertReaches($order);
+
+        try {
+            $this->tokens->checkToken((string) $request->request->get('_token', ''));
+        } catch (\Throwable) {
+            return new JsonResponse(['error' => $this->translator->trans('Invalid security token, please try again.')], Response::HTTP_FORBIDDEN);
+        }
+
+        $adminUser = $this->securityContext->getAdminUser();
+
+        if (!$this->previewLimiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
+            return new JsonResponse(['error' => $this->translator->trans('Too many order edits in a row. Try again in a few minutes.')], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        try {
+            $preview = $this->editor->simulate($order, $this->readEdit($request, $order));
+        } catch (OrderEditRefusedException $refusal) {
+            return new JsonResponse(['error' => $this->refusalMessage($refusal->refusal)], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (StockShortageException $shortage) {
+            return new JsonResponse(['error' => $this->translator->trans('Not enough stock for product %ref%: the order was not edited.', ['%ref%' => (string) $shortage->productReference])], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (\Throwable $throwable) {
+            Tlog::getInstance()->error(\sprintf('Order %d edit preview failed: %s', $order_id, JobFailureMessage::forLog($throwable)));
+
+            return new JsonResponse(['error' => $this->translator->trans('The order could not be edited. See the system log for the details.')], Response::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+        return new JsonResponse([
+            'before' => get_object_vars($preview->before),
+            'after' => get_object_vars($preview->after),
+        ]);
+    }
+
     private function readEdit(Request $request, Order $order): OrderEdit
     {
         $current = $this->context->snapshot($order);
@@ -139,16 +191,20 @@ final class OrderEditController
 
         $removed = [];
         foreach ($request->request->all('remove') as $lineId => $flag) {
-            if ('1' === (string) $flag && isset($currentLines[(int) $lineId])) {
-                $removed[] = (int) $lineId;
+            if ('1' !== (string) $flag) {
+                continue;
             }
+
+            $this->assertLineBelongs((int) $lineId, $currentLines);
+            $removed[] = (int) $lineId;
         }
 
         $quantities = [];
         foreach ($request->request->all('quantity') as $lineId => $submitted) {
             $id = (int) $lineId;
+            $this->assertLineBelongs($id, $currentLines);
 
-            if (!isset($currentLines[$id]) || \in_array($id, $removed, true) || !$this->differs((string) $submitted, $currentLines[$id]['quantity'])) {
+            if (\in_array($id, $removed, true) || !$this->differs((string) $submitted, $currentLines[$id]['quantity'])) {
                 continue;
             }
 
@@ -159,8 +215,9 @@ final class OrderEditController
         $prices = [];
         foreach ($request->request->all('price') as $lineId => $submitted) {
             $id = (int) $lineId;
+            $this->assertLineBelongs($id, $currentLines);
 
-            if (!isset($currentLines[$id]) || \in_array($id, $removed, true) || !$this->differs((string) $submitted, $currentLines[$id]['price'])) {
+            if (\in_array($id, $removed, true) || !$this->differs((string) $submitted, $currentLines[$id]['price'])) {
                 continue;
             }
 
@@ -178,6 +235,16 @@ final class OrderEditController
             untaxedPostage: $this->differs($postage, $current['edit_postage']) ? $this->sent($postage) : null,
             expectedState: (string) $request->request->get('expected_state', ''),
         );
+    }
+
+    /**
+     * @param array<int, mixed> $currentLines
+     */
+    private function assertLineBelongs(int $lineId, array $currentLines): void
+    {
+        if (!isset($currentLines[$lineId])) {
+            throw new OrderEditRefusedException(OrderEditRefusal::UnknownLine, (string) $lineId);
+        }
     }
 
     private function amount(string $submitted): ?string

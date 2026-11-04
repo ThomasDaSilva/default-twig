@@ -40,3 +40,8 @@ framework:
             policy: 'sliding_window'
             limit: 30
             interval: '15 minutes'
+        # The preview of an edit writes nothing but runs the whole tax and stock computation under a row lock: one call per field left, so more room than the edit itself.
+        order_edit_preview:
+            policy: 'sliding_window'
+            limit: 120
+            interval: '15 minutes'

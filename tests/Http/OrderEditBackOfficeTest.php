@@ -171,7 +171,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $this->client->followRedirect();
 
         self::assertStringContainsString('A price must be a positive amount', $this->html());
-        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPrice(), 0.0001);
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
     }
 
     public function testOnlyTheCheckedBoxRemovesALine(): void
@@ -243,7 +243,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         ]);
 
         self::assertSame(403, $this->client->getResponse()->getStatusCode());
-        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPrice(), 0.0001);
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
     }
 
     public function testTheTokenIsReadFromTheBodyOnly(): void
@@ -258,7 +258,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $this->client->followRedirect();
 
         self::assertStringContainsString('Invalid security token', $this->html());
-        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPrice(), 0.0001);
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
 
         $this->client->request('POST', $this->editUrl($order), [
             'price' => [(string) $first->getId() => '99'],
@@ -266,7 +266,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $this->client->followRedirect();
 
         self::assertStringContainsString('Invalid security token', $this->html());
-        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPrice(), 0.0001);
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
     }
 
     public function testAnOrderChangedSinceTheEditorWasOpenedRefusesTheEdit(): void
@@ -285,7 +285,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
 
         self::assertStringContainsString('The order changed since you opened it.', $this->html());
         OrderProductTableMap::clearInstancePool();
-        self::assertEqualsWithDelta(11.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPrice(), 0.0001);
+        self::assertEqualsWithDelta(11.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
     }
 
     public function testAnOrderWhoseStatusForbidsEditingIsNotOfferedAndRefused(): void
@@ -305,7 +305,140 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $this->client->followRedirect();
 
         self::assertStringContainsString('The status of this order does not allow editing it.', $this->html());
-        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $line->getId()]->getPrice(), 0.0001);
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $line->getId()]->getPromoPrice(), 0.0001);
+    }
+
+    public function testThePreviewAnnouncesTheTotalsOfTheEditAndWritesNothing(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+        $stateBefore = $this->stateOf($order);
+
+        $this->client->request('POST', $this->previewUrl($order), [
+            '_token' => $fields['_token'],
+            'expected_state' => $fields['expected_state'],
+            'price' => [(string) $first->getId() => '20'],
+        ]);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $answer = json_decode((string) $this->client->getResponse()->getContent(), true, 512, \JSON_THROW_ON_ERROR);
+
+        $keys = ['goods', 'discount', 'postage', 'tax', 'total'];
+        self::assertSame($keys, array_keys($answer['before']));
+        self::assertSame($keys, array_keys($answer['after']));
+        self::assertEqualsWithDelta(50.0, (float) $answer['before']['goods'], 0.011, '3 x 10 + 20, before the edit.');
+        self::assertEqualsWithDelta(80.0, (float) $answer['after']['goods'], 0.011, '3 x 20 + 20, after the edit.');
+        self::assertEqualsWithDelta((float) $answer['before']['postage'], (float) $answer['after']['postage'], 0.0001, 'A price edit leaves the postage alone.');
+        self::assertEqualsWithDelta((float) $answer['after']['goods'] - (float) $answer['after']['discount'] + (float) $answer['after']['postage'], (float) $answer['after']['total'], 0.011);
+
+        OrderProductTableMap::clearInstancePool();
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
+        self::assertSame($stateBefore, $this->stateOf($order), 'The preview wrote nothing.');
+        self::assertSame(0, OrderHistoryQuery::create()->filterByOrderId($order->getId())->filterByEventType(OrderHistoryEventType::ORDER_EDITED->value)->count());
+    }
+
+    public function testThePreviewExplainsARefusalInJson(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+
+        $this->client->request('POST', $this->previewUrl($order), [
+            '_token' => $fields['_token'],
+            'expected_state' => $fields['expected_state'],
+            'discount' => '99999',
+        ]);
+
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        self::assertSame(
+            'The discount must be a positive amount that the order covers.',
+            json_decode((string) $this->client->getResponse()->getContent(), true)['error'] ?? null,
+        );
+    }
+
+    public function testThePreviewNeedsTheTokenInTheBodyAndTheEditPermission(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $token = $this->tokenOf($this->sheetUrl($order));
+
+        $this->client->request('POST', $this->previewUrl($order).'?_token='.rawurlencode($token), ['price' => [(string) $first->getId() => '20']]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode(), 'A token in the URL is not read.');
+
+        $restricted = $this->factory->restrictedAdmin([AdminResources::ORDER => [AccessManager::VIEW, AccessManager::UPDATE]]);
+        $restricted->eraseCredentials();
+        $this->injector->setAdmin($restricted);
+
+        $this->client->request('POST', $this->previewUrl($order), ['_token' => $token, 'price' => [(string) $first->getId() => '20']]);
+        self::assertSame(403, $this->client->getResponse()->getStatusCode(), 'The preview is no open tax calculator.');
+    }
+
+    public function testALineOfAnotherOrderRefusesTheWholeEditEvenWithALegitimateChange(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        [, $foreign] = $this->editableOrder();
+
+        $this->client->request('POST', $this->editUrl($order), [
+            ...$this->fieldsOf($this->sheetUrl($order)),
+            'price' => [(string) $foreign->getId() => '99'],
+            'discount' => '3',
+        ]);
+        $this->client->followRedirect();
+
+        OrderProductTableMap::clearInstancePool();
+        self::assertStringContainsString('One of the lines does not belong to this order.', $this->html());
+        self::assertStringNotContainsString('The order has been edited.', $this->html());
+        self::assertEqualsWithDelta(10.0, (float) OrderProductQuery::create()->findPk($foreign->getId())->getPromoPrice(), 0.0001);
+        self::assertEqualsWithDelta(0.0, (float) $this->reloaded($order)->getDiscount(), 0.0001, 'The legitimate change of the same request is not applied either.');
+    }
+
+    public function testTheEditStopsWhenTheAdministratorHasEditedTooOften(): void
+    {
+        $admin = $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $limiter = $this->getService('limiter.order_edit');
+        \assert($limiter instanceof RateLimiterFactoryInterface);
+        $bucket = $limiter->create($admin->getUsername());
+        $bucket->consume(30);
+
+        $this->client->request('POST', $this->editUrl($order), [
+            ...$this->fieldsOf($this->sheetUrl($order)),
+            'price' => [(string) $first->getId() => '99'],
+        ]);
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('Too many order edits in a row.', $this->html());
+        OrderProductTableMap::clearInstancePool();
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
+    }
+
+    public function testAnEditWithoutTheStateTokenIsRefused(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+
+        $this->client->request('POST', $this->editUrl($order), [
+            '_token' => $fields['_token'],
+            'price' => [(string) $first->getId() => '99'],
+        ]);
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('The order changed since you opened it.', $this->html());
+        OrderProductTableMap::clearInstancePool();
+        self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
+    }
+
+    private function previewUrl(Order $order): string
+    {
+        return '/admin/order/'.$order->getId().'/edit/preview';
+    }
+
+    private function stateOf(Order $order): string
+    {
+        return $this->getService(OrderEditor::class)->stateOf(OrderQuery::create()->findPk($order->getId()));
     }
 
     private function loginFullAdmin(): Admin
@@ -314,9 +447,11 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $admin->eraseCredentials();
         $this->injector->setAdmin($admin);
 
-        $limiter = $this->getService('limiter.order_edit');
-        \assert($limiter instanceof RateLimiterFactoryInterface);
-        $limiter->create($admin->getUsername())->reset();
+        foreach (['limiter.order_edit', 'limiter.order_edit_preview'] as $id) {
+            $limiter = $this->getService($id);
+            \assert($limiter instanceof RateLimiterFactoryInterface);
+            $limiter->create($admin->getUsername())->reset();
+        }
 
         return $admin;
     }
