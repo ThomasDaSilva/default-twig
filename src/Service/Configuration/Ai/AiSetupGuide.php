@@ -56,8 +56,14 @@ final readonly class AiSetupGuide
         ],
     ];
 
+    /**
+     * The connection that serves the feature failed its last test. Only the setup says it: the Usages tab keeps
+     * its own reasons, which are the ones of the registry and the model.
+     */
+    public const string REASON_CONNECTION_FAILED = 'connection_failed';
+
     /** What stops a feature from running for good, as opposed to a switch the merchant turned off on purpose. */
-    private const array BLOCKING_REASONS = [AiUsageAdmin::REASON_GLOBAL_OFF, AiUsageAdmin::REASON_NO_MODEL, AiUsageAdmin::REASON_NO_BUDGET];
+    private const array BLOCKING_REASONS = [AiUsageAdmin::REASON_GLOBAL_OFF, AiUsageAdmin::REASON_NO_MODEL, self::REASON_CONNECTION_FAILED, AiUsageAdmin::REASON_NO_BUDGET];
 
     private const string SYSTEM_AUDIENCE = 'system';
 
@@ -81,11 +87,11 @@ final readonly class AiSetupGuide
 
     /**
      * How many features cannot run until the merchant does something: the master switch is off, no model serves
-     * them, or they talk to visitors without a budget. A feature the merchant switched off is not counted.
+     * them, the connection that serves them failed its test, or they talk to visitors without a budget. A feature the merchant switched off is not counted.
      */
     public function pendingCount(?string $locale = null): int
     {
-        return \count(array_filter($this->features($locale), static fn (array $row): bool => \in_array($row['inactive_reason'], self::BLOCKING_REASONS, true)));
+        return \count(array_filter($this->features($locale), static fn (array $row): bool => \in_array($row['setup_reason'], self::BLOCKING_REASONS, true)));
     }
 
     /**
@@ -137,13 +143,30 @@ final readonly class AiSetupGuide
     }
 
     /**
-     * The rows of the features of the modules, without the ones Thelia keeps for itself.
+     * The rows of the features of the modules, without the ones Thelia keeps for itself, each with `setup_reason`:
+     * the reason of the Usages tab, or the failed connection that serves it when that comes before the budget.
      *
      * @return list<array<string, mixed>>
      */
     private function features(?string $locale): array
     {
-        return array_values(array_filter($this->usages->rows($locale), static fn (array $row): bool => self::SYSTEM_AUDIENCE !== $row['audience']));
+        $features = array_values(array_filter($this->usages->rows($locale), static fn (array $row): bool => self::SYSTEM_AUDIENCE !== $row['audience']));
+
+        return array_map(function (array $row): array {
+            $row['setup_reason'] = $row['inactive_reason'];
+            $row['failed_connection'] = null;
+
+            if (null === $row['inactive_reason'] || AiUsageAdmin::REASON_NO_BUDGET === $row['inactive_reason']) {
+                $connection = $this->usages->servingConnection((string) $row['id']);
+
+                if (null !== $connection && null !== $connection->getCheckedAt() && '' !== (string) $connection->getCheckError()) {
+                    $row['setup_reason'] = self::REASON_CONNECTION_FAILED;
+                    $row['failed_connection'] = (string) $connection->getTitle();
+                }
+            }
+
+            return $row;
+        }, $features);
     }
 
     /**
@@ -235,7 +258,7 @@ final readonly class AiSetupGuide
      */
     private function needsARange(array $row): bool
     {
-        return AiUsageAdmin::REASON_SWITCHED_OFF !== $row['inactive_reason'] && null === $this->usages->pinnedChoiceOf((string) $row['id']);
+        return AiUsageAdmin::REASON_SWITCHED_OFF !== $row['setup_reason'] && null === $this->usages->pinnedChoiceOf((string) $row['id']);
     }
 
     /**
@@ -265,7 +288,7 @@ final readonly class AiSetupGuide
      */
     private function featureView(array $row, ?string $focusedUsage): array
     {
-        $reason = $row['inactive_reason'];
+        $reason = $row['setup_reason'];
 
         return [
             'id' => (string) $row['id'],
@@ -275,6 +298,7 @@ final readonly class AiSetupGuide
             'audience' => $this->labels->audience((string) $row['audience']),
             'tier' => $this->labels->tierName((string) $row['tier']),
             'reason' => $reason,
+            'failed_connection' => $row['failed_connection'],
             'ready' => null === $reason,
             'blocked' => \in_array($reason, self::BLOCKING_REASONS, true),
             'budget' => $row['budget'],

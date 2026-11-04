@@ -27,6 +27,8 @@ use Thelia\Domain\Ai\Service\AiRateLimiter;
 use Thelia\Domain\Ai\Service\AiSettings;
 use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Domain\Ai\Service\AiUsageRegister;
+use Thelia\Model\AiConnection;
+use Thelia\Model\AiConnectionQuery;
 use Thelia\Model\AiModelQuery;
 use Thelia\Model\AiUsageSettingQuery;
 
@@ -292,6 +294,18 @@ final readonly class AiUsageAdmin
         }
 
         return true;
+    }
+
+    /**
+     * The connection the usage would call now, the pinned one or the one of its range; null when nothing serves it.
+     */
+    public function servingConnection(string $usageId): ?AiConnection
+    {
+        try {
+            return AiConnectionQuery::create()->findPk($this->targets->resolve($usageId)->connectionId);
+        } catch (AiExceptionInterface) {
+            return null;
+        }
     }
 
     /**

@@ -3222,4 +3222,6 @@ return [
     'The connection was saved, but the test failed: %error%' => 'La connexion est enregistrée, mais le test a échoué : %error%',
     'Used by:' => 'Utilisée par :',
     'Waiting for AI to be allowed in the shop (see above).' => 'En attente que l\'IA soit autorisée dans la boutique (voir ci-dessus).',
+    'The connection "%connection%" failed its last test: fix the key in step 1.' => 'La connexion « %connection% » a échoué à son dernier test : corrigez la clé à l\'étape 1.',
+    'Go to step 1' => 'Aller à l\'étape 1',
 ];

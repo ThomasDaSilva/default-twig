@@ -233,6 +233,11 @@
                                     <p class="mb-2">{{ 'No model serves this feature yet: choose one for "%range%" in step 2.'|trans({ '%range%': row.tier }) }}</p>
                                     <a href="#ai-setup-step-2">{{ 'Go to step 2'|trans }}</a>
                                 </div>
+                            {% elseif row.reason == 'connection_failed' %}
+                                <div class="mt-2" data-testid="ai-setup-missing-connection-failed">
+                                    <p class="mb-2">{{ 'The connection "%connection%" failed its last test: fix the key in step 1.'|trans({ '%connection%': row.failed_connection }) }}</p>
+                                    <a href="#ai-setup-step-1">{{ 'Go to step 1'|trans }}</a>
+                                </div>
                             {% elseif row.reason == 'no_budget' %}
                                 <div class="mt-2" data-testid="ai-setup-missing-no-budget">
                                     <p class="mb-2">{{ 'This feature talks to your visitors, so it needs a monthly budget before it starts. The budget protects you from a surprise bill: when the month has used this amount, the feature stops until the next month and nothing more is spent.'|trans }}</p>

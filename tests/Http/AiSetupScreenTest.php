@@ -219,6 +219,48 @@ final class AiSetupScreenTest extends WebIntegrationTestCase
         self::assertSame(0, $this->getService(AiSetupGuide::class)->pendingCount());
     }
 
+    public function testAFeatureServedByAConnectionThatFailedItsTestIsNotReadyAndPointsAtTheFirstStep(): void
+    {
+        $connection = $this->connectAndAssignEveryRange();
+        $this->getService(AiUsageAdmin::class)->save(self::USAGE, true, null, '10', null, true, true);
+        $unused = $this->getService(AiSettingsWriter::class)->saveConnection(null, 'openai-test', 'OpenAI', 'openai', null, null, null, null, false, true);
+        $unused->setCheckedAt(new \DateTimeImmutable())->setCheckError('Unauthorized')->save();
+
+        $this->assertPageRenders(self::PAGE);
+        self::assertSame('ready', $this->client->getCrawler()->filter(self::ROW)->attr('data-state'), 'a connection no range uses does not matter, and one never tested is fine');
+
+        $connection->setCheckedAt(new \DateTimeImmutable())->setCheckError('Unauthorized')->save();
+
+        $this->assertPageRenders(self::PAGE);
+        $row = $this->client->getCrawler()->filter(self::ROW);
+        self::assertSame('connection_failed', $row->attr('data-state'));
+        self::assertStringContainsString('The connection "Mistral" failed its last test', $row->text());
+        self::assertSame('#ai-setup-step-1', $row->filter('a')->attr('href'));
+        self::assertSame('todo', $this->client->getCrawler()->filter('[data-testid="ai-setup-step-3-state"]')->attr('data-state'));
+        self::assertGreaterThanOrEqual(1, $this->getService(AiSetupGuide::class)->pendingCount());
+
+        $this->assertPageRenders('/admin/configuration/ai/tiers');
+        self::assertCount(1, $this->client->getCrawler()->filter('[data-testid="ai-setup-notice"]'));
+
+        $usages = $this->getService(AiUsageAdmin::class)->row(self::USAGE);
+        self::assertNotNull($usages);
+        self::assertNull($usages['inactive_reason'], 'the Usages tab keeps the reasons of the registry and of the model');
+
+        $connection->setCheckError(null)->save();
+        $this->assertPageRenders(self::PAGE);
+        self::assertSame('ready', $this->client->getCrawler()->filter(self::ROW)->attr('data-state'), 'a test that worked clears it');
+    }
+
+    public function testTheFailedConnectionComesBeforeTheMissingBudget(): void
+    {
+        $connection = $this->connectAndAssignEveryRange();
+        $connection->setCheckedAt(new \DateTimeImmutable())->setCheckError('Unauthorized')->save();
+
+        $this->assertPageRenders(self::PAGE);
+
+        self::assertSame('connection_failed', $this->client->getCrawler()->filter(self::ROW)->attr('data-state'));
+    }
+
     public function testTheUsageParameterPointsAtTheRowOfThatFeature(): void
     {
         $this->assertPageRenders(self::PAGE.'?usage='.self::USAGE);

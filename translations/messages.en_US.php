@@ -1066,4 +1066,6 @@ return [
     'The connection was saved, but the test failed: %error%' => 'The connection was saved, but the test failed: %error%',
     'Used by:' => 'Used by:',
     'Waiting for AI to be allowed in the shop (see above).' => 'Waiting for AI to be allowed in the shop (see above).',
+    'The connection "%connection%" failed its last test: fix the key in step 1.' => 'The connection "%connection%" failed its last test: fix the key in step 1.',
+    'Go to step 1' => 'Go to step 1',
 ];
