@@ -52,6 +52,7 @@ final class OrderEditController
     private const RESOURCE = AdminResources::ORDER_EDIT;
     private const DETAIL_ROUTE = 'admin.order.update.view';
     private const SCALE = 6;
+    private const MAX_ADDED_LINES = 50;
     private const AMOUNT_PATTERN = '/^\d{1,10}(\.\d{1,6})?$/D';
 
     public function __construct(
@@ -111,6 +112,12 @@ final class OrderEditController
             return $back;
         }
 
+        if ($this->addsTooMany($request)) {
+            $this->flash->add($request, 'danger', $this->tooManyAddedMessage());
+
+            return $back;
+        }
+
         try {
             $this->editor->edit($order, $this->readEdit($request, $order));
         } catch (OrderEditRefusedException $refusal) {
@@ -164,6 +171,10 @@ final class OrderEditController
 
         if (!$this->previewLimiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
             return new JsonResponse(['error' => $this->translator->trans('Too many order edits in a row. Try again in a few minutes.')], Response::HTTP_TOO_MANY_REQUESTS);
+        }
+
+        if ($this->addsTooMany($request)) {
+            return new JsonResponse(['error' => $this->tooManyAddedMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
@@ -252,8 +263,8 @@ final class OrderEditController
             $prices[$id] = $this->sent((string) $submitted);
         }
 
-        $discount = (string) $request->request->get('discount', $current['edit_discount']);
-        $postage = (string) $request->request->get('postage', $current['edit_postage']);
+        $discount = $this->blankAsZero((string) $request->request->get('discount', $current['edit_discount']));
+        $postage = $this->blankAsZero((string) $request->request->get('postage', $current['edit_postage']));
 
         return new OrderEdit(
             addedLines: $this->readAddedLines($request),
@@ -264,6 +275,16 @@ final class OrderEditController
             untaxedPostage: $this->differs($postage, $current['edit_postage']) ? $this->sent($postage) : null,
             expectedState: (string) $request->request->get('expected_state', ''),
         );
+    }
+
+    private function addsTooMany(Request $request): bool
+    {
+        return \count($request->request->all('add')) > self::MAX_ADDED_LINES;
+    }
+
+    private function tooManyAddedMessage(): string
+    {
+        return $this->translator->trans('At most %max% products can be added at once.', ['%max%' => self::MAX_ADDED_LINES]);
     }
 
     /**
@@ -299,6 +320,11 @@ final class OrderEditController
         if (!isset($currentLines[$lineId])) {
             throw new OrderEditRefusedException(OrderEditRefusal::UnknownLine, (string) $lineId);
         }
+    }
+
+    private function blankAsZero(string $submitted): string
+    {
+        return '' === trim($submitted) ? '0' : $submitted;
     }
 
     private function amount(string $submitted): ?string

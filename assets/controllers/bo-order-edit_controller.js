@@ -55,6 +55,8 @@ export default class extends Controller {
     }
 
     abandon() {
+        this.previewSequence++;
+        this.searchSequence++;
         this.previewRequest?.abort();
         this.searchRequest?.abort();
         clearTimeout(this.searchTimer);
@@ -133,7 +135,6 @@ export default class extends Controller {
             return;
         }
 
-        this.updateSubmit(false);
         const controller = new AbortController();
         this.previewRequest = controller;
 
@@ -153,6 +154,16 @@ export default class extends Controller {
 
             if (!response.ok) {
                 this.clearTotals();
+
+                // The preview has its own budget: running out of it must not forbid saving what the edit limiter still allows.
+                if (response.status === 429) {
+                    this.showError(answer.error || '');
+                    this.updateSubmit(true);
+
+                    return;
+                }
+
+                this.updateSubmit(false);
 
                 // Numerically equal to the stored values ("10" for "10.0"): nothing to announce.
                 if (answer.refusal === 'nothing_to_edit') {
@@ -174,6 +185,7 @@ export default class extends Controller {
             }
 
             this.clearTotals();
+            this.updateSubmit(false);
             this.showError(this.formTarget.dataset.previewFailed || String(error));
         }
     }
@@ -348,6 +360,7 @@ export default class extends Controller {
     removeAdded(event) {
         event.currentTarget.closest('tr').remove();
         this.addedWrapperTarget.hidden = this.addedTarget.children.length === 0;
+        this.searchTarget.focus();
         this.preview();
     }
 }

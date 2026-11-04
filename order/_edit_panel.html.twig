@@ -24,9 +24,9 @@
             <input type="hidden" name="_token" value="{{ token }}">
             <input type="hidden" name="expected_state" value="{{ edit_state }}">
 
-            <p class="text-muted small">{{ 'Prices and postage are entered without tax, the discount with tax. The taxes and the stock follow the changes.'|trans }}</p>
+            <p class="small">{{ 'Prices and postage are entered without tax, the discount with tax. The taxes and the stock follow the changes.'|trans }}</p>
             {% if edit_paid %}
-                <p class="text-muted small" data-testid="order-edit-paid-note">{{ 'This order is paid: its lines can be changed but not removed.'|trans }}</p>
+                <p class="small" data-testid="order-edit-paid-note">{{ 'This order is paid: its lines can be changed but not removed.'|trans }}</p>
             {% endif %}
 
             <div class="alert alert-danger py-2" role="alert" hidden data-bo-order-edit-target="error" data-testid="order-edit-error"></div>
@@ -44,7 +44,7 @@
                 </div>
             </div>
 
-            <div class="table-responsive mb-2">
+            <div class="table-responsive mb-2" tabindex="0" role="region" aria-label="{{ 'Order items'|trans }}">
                 <table class="table table-sm align-middle mb-0">
                     <caption class="visually-hidden">{{ 'Order items'|trans }}</caption>
                     <thead>
@@ -62,7 +62,7 @@
                             <tr>
                                 <td>
                                     <div class="fw-semibold">{{ line.title }}</div>
-                                    {% if line.ref %}<div class="small text-body-secondary"><code>{{ line.ref }}</code></div>{% endif %}
+                                    {% if line.ref %}<div class="small"><code class="text-body">{{ line.ref }}</code></div>{% endif %}
                                 </td>
                                 {% if line.editable %}
                                     <td class="text-center" style="max-width: 8rem;">
@@ -91,7 +91,7 @@
                             </tr>
                             {% if not line.editable %}
                                 <tr>
-                                    <td colspan="{{ edit_paid ? 3 : 4 }}" class="small pt-0 text-body-secondary" data-testid="order-edit-locked-{{ line.id }}">
+                                    <td colspan="{{ edit_paid ? 3 : 4 }}" class="small pt-0" data-testid="order-edit-locked-{{ line.id }}">
                                         {% if line.locked_reason == 'in_use' %}
                                             {{ 'Shipped or returned: this line cannot be edited.'|trans }}
                                         {% else %}
@@ -120,10 +120,10 @@
                        data-bo-order-edit-target="search" data-action="input->bo-order-edit#searchTyped"
                        data-testid="order-edit-search">
             </div>
-            <p class="small text-body-secondary mb-2" role="status" hidden data-bo-order-edit-target="searchStatus" data-testid="order-edit-search-status"></p>
+            <p class="small mb-2" role="status" hidden data-bo-order-edit-target="searchStatus" data-testid="order-edit-search-status"></p>
             <ul class="list-group mb-3" hidden data-bo-order-edit-target="results" data-testid="order-edit-results"></ul>
 
-            <div class="table-responsive mb-3" hidden data-bo-order-edit-target="addedWrapper">
+            <div class="table-responsive mb-3" hidden tabindex="0" role="region" aria-label="{{ 'Added products'|trans }}" data-bo-order-edit-target="addedWrapper">
                 <table class="table table-sm align-middle mb-0" data-testid="order-edit-added">
                     <caption class="visually-hidden">{{ 'Added products'|trans }}</caption>
                     <thead>
@@ -138,7 +138,7 @@
                 </table>
             </div>
 
-            <div class="table-responsive" aria-live="polite">
+            <div class="table-responsive" tabindex="0" role="region" aria-label="{{ 'Totals of the order'|trans }}" aria-live="polite">
                 <table class="table table-sm mb-0" data-testid="order-edit-totals">
                     <caption class="visually-hidden">{{ 'Totals of the order'|trans }}</caption>
                     <thead>
@@ -177,11 +177,11 @@
     </div>
 
     <template data-bo-order-edit-target="addedTemplate">
-        <tr data-bo-order-edit-target="addedRow" data-testid="order-edit-added-row">
+        <tr data-testid="order-edit-added-row">
             <td>
                 <input type="hidden" data-field="pse">
                 <div class="fw-semibold" data-slot="title"></div>
-                <div class="small text-body-secondary" data-slot="detail"></div>
+                <div class="small" data-slot="detail"></div>
             </td>
             <td class="text-center" style="max-width: 8rem;">
                 <label class="visually-hidden" data-slot="quantity-label">{{ 'Quantity'|trans }}</label>
@@ -203,7 +203,7 @@
         <li class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
             <span>
                 <span class="fw-semibold" data-slot="title"></span>
-                <span class="small text-body-secondary d-block" data-slot="detail"></span>
+                <span class="small d-block" data-slot="detail"></span>
             </span>
             <button type="button" class="btn btn-outline-primary btn-sm flex-shrink-0" data-action="bo-order-edit#addProduct">
                 <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add'|trans }}

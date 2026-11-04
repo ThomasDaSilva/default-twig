@@ -555,6 +555,60 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         self::assertSame('nothing_to_edit', json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR)['refusal']);
     }
 
+    public function testMoreThanFiftyAddedLinesAreRefusedBeforeTheCoreIsAsked(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+        $added = array_fill(0, 51, ['pse' => '1', 'quantity' => '1', 'price' => '']);
+
+        $this->client->request('POST', $this->previewUrl($order), ['_token' => $fields['_token'], 'expected_state' => $fields['expected_state'], 'add' => $added]);
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        self::assertStringContainsString('At most 50 products', $this->html());
+
+        $this->client->request('POST', $this->editUrl($order), [...$fields, 'add' => $added]);
+        $this->client->followRedirect();
+        self::assertStringContainsString('At most 50 products', $this->html());
+        self::assertCount(2, $this->linesOf($order));
+    }
+
+    public function testTheSearchLeavesOutBundlesAndReadsTheTermLiterally(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        $bundle = $this->searchableProduct('Quuxel bundle', 1);
+        $bundle->setIsBundle(1)->save();
+        $this->searchableProduct('Quuxel_a', 1);
+        $this->searchableProduct('QuuxelXa', 1);
+
+        $this->client->request('GET', $this->searchUrl($order), ['q' => 'Quuxel']);
+        $titles = array_column(json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR), 'title');
+        self::assertNotContains('Quuxel bundle', $titles, 'The core refuses a bundle as an added line.');
+
+        $this->client->request('GET', $this->searchUrl($order), ['q' => 'Quuxel_a']);
+        self::assertSame(['Quuxel_a'], array_column(json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR), 'title'), 'An underscore is not a wildcard.');
+
+        $this->client->request('GET', $this->searchUrl($order), ['q' => 'Q']);
+        self::assertSame([], json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR), 'One character searches nothing, whatever the client does.');
+    }
+
+    public function testABlankDiscountIsReadAsZeroInsteadOfRefusingTheEdit(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+
+        $this->client->request('POST', $this->editUrl($order), [
+            ...$this->fieldsOf($this->sheetUrl($order)),
+            'discount' => '',
+            'postage' => ' ',
+            'price' => [(string) $first->getId() => '12'],
+        ]);
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('The order has been edited.', $this->html());
+        self::assertEqualsWithDelta(0.0, (float) $this->reloaded($order)->getDiscount(), 0.0001);
+    }
+
     private function searchUrl(Order $order): string
     {
         return '/admin/order/'.$order->getId().'/edit/search';

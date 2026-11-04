@@ -3556,4 +3556,5 @@ return [
     'No product found.' => 'Aucun produit trouvé.',
     'This order can no longer be edited: an invoice has been issued for it.' => 'Cette commande ne peut plus être modifiée : une facture a été émise.',
     'This order can no longer be edited: its status does not allow it.' => 'Cette commande ne peut plus être modifiée : son statut ne le permet pas.',
+    'At most %max% products can be added at once.' => 'Au plus %max% produits peuvent être ajoutés à la fois.',
 ];

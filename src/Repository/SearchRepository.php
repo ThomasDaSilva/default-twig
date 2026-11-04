@@ -33,6 +33,7 @@ use Thelia\Model\FolderQuery;
 use Thelia\Model\Order;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\Product;
+use Thelia\Model\ProductI18nQuery;
 use Thelia\Model\ProductQuery;
 use Thelia\Model\ProductSaleElementsQuery;
 
@@ -73,19 +74,25 @@ final readonly class SearchRepository
     {
         $term = trim($term);
 
-        if ('' === $term) {
+        if (mb_strlen($term) < 2) {
             return [];
         }
 
+        $pattern = '%'.addcslashes($term, '%_\\').'%';
+
+        $titleIds = ProductI18nQuery::create()
+            ->filterByLocale($locale)
+            ->filterByTitle($pattern, Criteria::LIKE)
+            ->select(['Id'])
+            ->find()
+            ->toArray();
+
         $products = ProductQuery::create()
             ->filterByVisible(1)
-            ->useProductI18nQuery(null, Criteria::LEFT_JOIN)
-                ->filterByLocale($locale)
-            ->endUse()
-            ->condition('byTitle', 'product_i18n.title LIKE ?', '%'.$term.'%')
-            ->condition('byRef', 'product.ref LIKE ?', '%'.$term.'%')
+            ->filterByIsBundle(0)
+            ->condition('byTitle', 'product.id IN ?', $titleIds ?: [0])
+            ->condition('byRef', 'product.ref LIKE ?', $pattern)
             ->where(['byTitle', 'byRef'], Criteria::LOGICAL_OR)
-            ->distinct()
             ->limit($limit)
             ->find();
 

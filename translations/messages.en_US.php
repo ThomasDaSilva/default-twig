@@ -1390,4 +1390,5 @@ return [
     'No product found.' => 'No product found.',
     'This order can no longer be edited: an invoice has been issued for it.' => 'This order can no longer be edited: an invoice has been issued for it.',
     'This order can no longer be edited: its status does not allow it.' => 'This order can no longer be edited: its status does not allow it.',
+    'At most %max% products can be added at once.' => 'At most %max% products can be added at once.',
 ];
