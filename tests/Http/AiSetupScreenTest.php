@@ -121,6 +121,10 @@ final class AiSetupScreenTest extends WebIntegrationTestCase
         $admin->save(self::USAGE, true, 'standard', null, $pinned, false, true, ['requests_per_minute' => 7, 'max_output_tokens' => 900]);
         $before = AiUsageSettingQuery::create()->findOneByUsageId(self::USAGE);
         self::assertNotNull($before);
+        // Propel hands back the same object after the request: what the usage held is read now.
+        $pinnedModelId = $before->getPinnedModelId();
+        $pinnedConnectionId = $before->getPinnedConnectionId();
+        self::assertNotNull($pinnedModelId, 'the usage is pinned to a model before the budget is set');
 
         $this->client->request('POST', self::PAGE.'/budget', ['usage_id' => self::USAGE, 'monthly_budget' => '12,5', '_token' => $this->token()]);
 
@@ -131,8 +135,8 @@ final class AiSetupScreenTest extends WebIntegrationTestCase
         self::assertSame(12.5, (float) $after->getMonthlyBudget());
         self::assertTrue((bool) $after->getEnabled());
         self::assertSame('standard', $after->getTier());
-        self::assertSame($before->getPinnedModelId(), $after->getPinnedModelId());
-        self::assertSame($before->getPinnedConnectionId(), $after->getPinnedConnectionId());
+        self::assertSame($pinnedModelId, $after->getPinnedModelId());
+        self::assertSame($pinnedConnectionId, $after->getPinnedConnectionId());
         self::assertFalse((bool) $after->getTransparencyNotice(), 'the notice the merchant turned off stays off');
         self::assertTrue((bool) $after->getProvenanceMark());
         self::assertSame(7, $after->getRequestsPerMinute());
