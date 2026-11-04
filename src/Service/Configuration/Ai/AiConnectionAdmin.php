@@ -43,6 +43,11 @@ final readonly class AiConnectionAdmin
         return array_values(AiConnectionQuery::create()->orderById()->find()->getArrayCopy());
     }
 
+    public function find(int $id): ?AiConnection
+    {
+        return AiConnectionQuery::create()->findPk($id);
+    }
+
     /**
      * @param array<string, mixed> $values the fields of AiConnectionType
      */
@@ -62,6 +67,46 @@ final readonly class AiConnectionAdmin
             (bool) ($values['allow_private_network'] ?? false),
             (bool) ($values['active'] ?? true),
         );
+    }
+
+    /**
+     * The connection of a provider with its key, as the first step of the setup asks for it: the code is the
+     * one of the provider, and a connection that already has it for that provider is given the new key and put
+     * back in use instead of a second one being made.
+     *
+     * @param string $provider a provider whose address and place of hosting Thelia knows (AiProvider value)
+     *
+     * @throws \Thelia\Domain\Ai\Exception\AiExceptionInterface when the core refuses a value
+     */
+    public function connect(string $provider, string $title, #[\SensitiveParameter] string $apiKey): AiConnection
+    {
+        $same = AiConnectionQuery::create()->filterByCode($provider)->findOne();
+
+        if (null !== $same && $same->getProvider() === $provider) {
+            $this->save($same->getId(), [
+                'code' => $same->getCode(),
+                'title' => $same->getTitle(),
+                'provider' => $provider,
+                'jurisdiction' => $same->getJurisdiction(),
+                'base_url' => $same->getBaseUrl(),
+                'api_key' => $apiKey,
+                'api_key_env' => $same->getApiKeyEnv(),
+                'allow_private_network' => (bool) $same->getAllowPrivateNetwork(),
+                'active' => true,
+            ]);
+
+            return AiConnectionQuery::create()->findPk($same->getId()) ?? $same;
+        }
+
+        $code = $provider;
+
+        for ($suffix = 2; null !== AiConnectionQuery::create()->findOneByCode($code); ++$suffix) {
+            $code = $provider.'-'.$suffix;
+        }
+
+        $this->save(null, ['code' => $code, 'title' => $title, 'provider' => $provider, 'api_key' => $apiKey, 'active' => true]);
+
+        return AiConnectionQuery::create()->findOneByCode($code) ?? throw new \LogicException('The connection that was just saved is missing.');
     }
 
     public function delete(int $id): void
