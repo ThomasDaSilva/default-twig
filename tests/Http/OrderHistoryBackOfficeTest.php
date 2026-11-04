@@ -117,6 +117,34 @@ final class OrderHistoryBackOfficeTest extends WebIntegrationTestCase
         );
     }
 
+    /**
+     * The stock movement a status change applied is on its line, with the action that chose it;
+     * a line without it (written before, or by a change that moved nothing) stays as it was.
+     */
+    public function testTheStockMovementOfAStatusChangeReadsOnItsLine(): void
+    {
+        $this->loginFullAdmin();
+        $order = $this->factory->order(null, ['statusCode' => OrderStatus::CODE_PAID]);
+
+        $putBack = $this->entry($order, OrderHistoryEventType::STATUS_CHANGED->value, [
+            'payload' => ['from' => OrderStatus::CODE_PAID, 'to' => OrderStatus::CODE_CANCELED, 'stock' => 'increase', 'stock_action_id' => 42],
+        ]);
+        $left = $this->entry($order, OrderHistoryEventType::STATUS_CHANGED->value, [
+            'payload' => ['from' => OrderStatus::CODE_NOT_PAID, 'to' => OrderStatus::CODE_PAID, 'stock' => 'none', 'stock_action_id' => null],
+        ]);
+        $plain = $this->entry($order, OrderHistoryEventType::STATUS_CHANGED->value, [
+            'payload' => ['from' => OrderStatus::CODE_PAID, 'to' => OrderStatus::CODE_PROCESSING],
+        ]);
+
+        $this->assertPageRenders($this->sheetUrl($order));
+        $html = $this->html();
+
+        self::assertMatchesRegularExpression('/order-history-entry-'.$putBack->getId().'.*?Stock put back by action #42/s', $html);
+        self::assertMatchesRegularExpression('/order-history-entry-'.$left->getId().'.*?Stock left as it is/s', $html);
+        self::assertStringNotContainsString('Stock left as it is by action', $html);
+        self::assertStringContainsString('order-history-entry-'.$plain->getId(), $html);
+    }
+
     public function testAnEntryOfAnUnknownTypeStillReadsOnTheTimeline(): void
     {
         $this->loginFullAdmin();
