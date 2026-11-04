@@ -3,6 +3,7 @@
 <div class="d-flex flex-wrap gap-2 justify-content-between align-items-center mb-3">
     <p class="text-muted small mb-0">
         {{ 'Actions run in this order once the status is saved. One that fails is recorded below and does not undo the status change, and the next actions still run.'|trans }}
+        {{ 'A stock action is applied with the status change instead: when the stock cannot follow, the status change is refused.'|trans }}
     </p>
     {% if can_edit and action_type_choices|length > 0 %}
         <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#order-status-action-create-modal" data-testid="order-status-action-create-button">
@@ -17,7 +18,7 @@
         column('position', 'Run order'|trans, 'center', hideBelow: 'md'),
         column('trigger', 'Trigger'|trans, 'start'),
         column_html('type_html', 'Action'|trans, 'start'),
-        column('summary', 'Settings'|trans, 'start', hideBelow: 'lg'),
+        column('summary', 'Settings'|trans, 'start', hideBelow: 'lg', wrap: true),
         column_html('failures_html', 'Failures'|trans, 'center'),
         column_toggle('active', 'Active'|trans, can_edit ? 'toggle_url' : null),
         column_actions('_actions', 'Actions'|trans),

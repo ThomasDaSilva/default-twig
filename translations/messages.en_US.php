@@ -1224,4 +1224,5 @@ return [
     'Leave the stock as it is' => 'Leave the stock as it is',
     'Only for the orders paid with' => 'Only for the orders paid with',
     'Only for the orders delivered by' => 'Only for the orders delivered by',
+    'A stock action is applied with the status change instead: when the stock cannot follow, the status change is refused.' => 'A stock action is applied with the status change instead: when the stock cannot follow, the status change is refused.',
 ];
