@@ -102,7 +102,9 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $lines = $this->linesOf($order);
         self::assertSame([(int) $first->getId()], array_keys($lines), 'The removed line is gone.');
         self::assertEqualsWithDelta(2.0, (float) $lines[(int) $first->getId()]->getQuantity(), 0.0001);
-        self::assertEqualsWithDelta(12.5, (float) $lines[(int) $first->getId()]->getPrice(), 0.0001, 'A French decimal comma is read.');
+        self::assertEqualsWithDelta(12.5, (float) $lines[(int) $first->getId()]->getPromoPrice(), 0.0001, 'A French decimal comma is read.');
+        self::assertSame(1, (int) $lines[(int) $first->getId()]->getWasInPromo(), 'The corrected price is carried as a promotional price.');
+        self::assertEqualsWithDelta(10.0, (float) $lines[(int) $first->getId()]->getPrice(), 0.0001, 'The catalogue price is kept.');
         self::assertEqualsWithDelta(3.0, (float) $this->reloaded($order)->getDiscount(), 0.0001);
 
         self::assertSame(
