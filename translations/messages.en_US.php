@@ -1017,4 +1017,5 @@ return [
     'The assistants that hold a valid token can reach the tools of your shop. Every change they propose still waits for your approval.' => 'The assistants that hold a valid token can reach the tools of your shop. Every change they propose still waits for your approval.',
     'Revoke the token' => 'Revoke the token',
     'The assistant that uses this token is refused at the next request. This cannot be undone: create a new token to give it access again.' => 'The assistant that uses this token is refused at the next request. This cannot be undone: create a new token to give it access again.',
+    'No model serves this usage: choose one for "%range%" (Ranges tab).' => 'No model serves this usage: choose one for "%range%" (Ranges tab).',
 ];

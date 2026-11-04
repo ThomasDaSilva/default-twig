@@ -120,8 +120,15 @@ final readonly class AiLabels
         });
     }
 
-    public function inactiveReason(string $reason): string
+    /**
+     * @param string|null $tier the range of the usage, to say which one needs a model
+     */
+    public function inactiveReason(string $reason, ?string $tier = null): string
     {
+        if (AiUsageAdmin::REASON_NO_MODEL === $reason) {
+            return $this->translator->trans('No model serves this usage: choose one for "%range%" (Ranges tab).', ['%range%' => null === $tier ? '' : $this->tierName($tier)]);
+        }
+
         return $this->translator->trans(match ($reason) {
             AiUsageAdmin::REASON_GLOBAL_OFF => 'AI is switched off for the whole shop (Consumption tab).',
             AiUsageAdmin::REASON_SWITCHED_OFF => 'You switched this usage off.',

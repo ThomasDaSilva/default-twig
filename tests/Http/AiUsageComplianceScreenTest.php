@@ -87,8 +87,14 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
         $row = $admin->row('screenprobe.chat');
         self::assertNotNull($row);
         self::assertFalse($row['active']);
-        self::assertSame(AiUsageAdmin::REASON_NO_BUDGET, $row['inactive_reason']);
+        self::assertSame(AiUsageAdmin::REASON_NO_MODEL, $row['inactive_reason'], 'no model serves the range of the usage yet');
         self::assertSame('met', $row['compliance']);
+
+        $this->giveTheFastRangeAModel();
+
+        $row = $admin->row('screenprobe.chat');
+        self::assertNotNull($row);
+        self::assertSame(AiUsageAdmin::REASON_NO_BUDGET, $row['inactive_reason']);
 
         $admin->save('screenprobe.chat', true, null, '5', null, false, true);
 
@@ -163,5 +169,12 @@ final class AiUsageComplianceScreenTest extends WebIntegrationTestCase
             $registry,
             new AiGuardrailRunner([]),
         );
+    }
+
+    private function giveTheFastRangeAModel(): void
+    {
+        $writer = $this->getService(AiSettingsWriter::class);
+        $connection = $writer->saveConnection(null, 'mistral-test', 'Mistral', 'mistral', null, null, null, null, false, true);
+        (new AiTierAdmin(new AiModelCatalog(), $writer))->assign(AiTier::Fast, $connection->getId().'|mistral-small-latest');
     }
 }

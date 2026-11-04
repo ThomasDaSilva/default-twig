@@ -14,7 +14,11 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Tests\Http;
 
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiTierAdmin;
+use BackOfficeDefaultTwigBundle\Service\Configuration\Ai\AiUsageAdmin;
 use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
+use Thelia\Domain\Ai\AiTier;
+use Thelia\Domain\Ai\Service\AiSettingsWriter;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Domain\Ai\Log\AiConsumptionReport;
@@ -114,8 +118,34 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
         self::assertCount($crawler->filter($cells)->count(), $crawler->filter($cells.' [data-testid="datatable-badge-note"]'), 'every usage is stopped by the switch, each says why');
 
         ConfigQuery::write('ai_enabled', '1');
+        $this->giveTheFastRangeAModel();
         $this->client->request('GET', '/admin/configuration/ai/usages');
         self::assertLessThan($crawler->filter($cells)->count(), $this->client->getCrawler()->filter($cells.' [data-testid="datatable-badge-note"]')->count(), 'a usage that runs says nothing');
+    }
+
+    public function testAUsageNoModelServesIsNotRunningAndNamesTheRangeThatNeedsOne(): void
+    {
+        $admin = $this->getService(AiUsageAdmin::class);
+
+        $row = $admin->row(self::USAGE);
+        self::assertNotNull($row);
+        self::assertTrue($row['active'], 'the registry only reads the switches and the budget');
+        self::assertSame(AiUsageAdmin::REASON_NO_MODEL, $row['inactive_reason'], 'nothing serves the usage');
+
+        $this->client->request('GET', '/admin/configuration/ai/usages');
+        $html = html_entity_decode((string) $this->client->getResponse()->getContent(), \ENT_QUOTES);
+        self::assertStringContainsString('No model serves this usage: choose one for "Fast and economical range"', $html);
+
+        $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
+        self::assertStringContainsString('No model serves this usage', html_entity_decode((string) $this->client->getResponse()->getContent(), \ENT_QUOTES));
+
+        $this->giveTheFastRangeAModel();
+
+        $row = $admin->row(self::USAGE);
+        self::assertNotNull($row);
+        self::assertNull($row['inactive_reason'], 'a model of the range serves it now');
+        $this->client->request('GET', '/admin/configuration/ai/usages/'.self::USAGE);
+        self::assertStringNotContainsString('No model serves this usage', html_entity_decode((string) $this->client->getResponse()->getContent(), \ENT_QUOTES));
     }
 
     public function testTheModelListAndTheToolListWrapTheirCells(): void
@@ -270,5 +300,11 @@ final class AiUsageScreensTest extends WebIntegrationTestCase
     private function html(): string
     {
         return (string) $this->client->getResponse()->getContent();
+    }
+
+    private function giveTheFastRangeAModel(): void
+    {
+        $connection = $this->getService(AiSettingsWriter::class)->saveConnection(null, 'mistral-test', 'Mistral', 'mistral', null, null, null, null, false, true);
+        $this->getService(AiTierAdmin::class)->assign(AiTier::Fast, $connection->getId().'|mistral-small-latest');
     }
 }

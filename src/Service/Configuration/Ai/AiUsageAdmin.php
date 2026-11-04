@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Configuration\Ai;
 use Thelia\Domain\Ai\AiTier;
 use Thelia\Domain\Ai\AiUsageRegistryInterface;
 use Thelia\Domain\Ai\Exception\AiExceptionInterface;
+use Thelia\Domain\Ai\Exception\InactiveAiUsageException;
 use Thelia\Domain\Ai\Gateway\AiGateway;
 use Thelia\Domain\Ai\Guardrail\AiGuardrailRunner;
 use Thelia\Domain\Ai\Guardrail\GuardrailMode;
@@ -40,6 +41,7 @@ final readonly class AiUsageAdmin
     public const string REASON_GLOBAL_OFF = 'global_off';
     public const string REASON_SWITCHED_OFF = 'switched_off';
     public const string REASON_NO_BUDGET = 'no_budget';
+    public const string REASON_NO_MODEL = 'no_model';
 
     public const string SECTION_GENERAL = 'general';
     public const string SECTION_GUARDRAILS = 'guardrails';
@@ -248,23 +250,48 @@ final readonly class AiUsageAdmin
     }
 
     /**
-     * The reason a usage does not run, as a code the screen words; null when it runs.
+     * The reason a usage does not run, as a code the screen words; null when it runs. The reasons come in the order
+     * the merchant can fix them: the master switch, the switch of the usage, the model, then the budget.
      *
      * @param array<string, mixed> $row
      */
     public function inactiveReason(array $row): ?string
     {
-        if (true === $row['active']) {
-            return null;
-        }
+        $usageId = (string) $row['id'];
 
         if (!$this->settings->isEnabled()) {
             return self::REASON_GLOBAL_OFF;
         }
 
-        $setting = AiUsageSettingQuery::create()->findOneByUsageId((string) $row['id']);
+        $setting = AiUsageSettingQuery::create()->findOneByUsageId($usageId);
 
-        return null !== $setting && !$setting->getEnabled() ? self::REASON_SWITCHED_OFF : self::REASON_NO_BUDGET;
+        if (null !== $setting && !$setting->getEnabled()) {
+            return self::REASON_SWITCHED_OFF;
+        }
+
+        // The register already resolved the target of the usage: it gives where the data goes when one serves it.
+        if (null === ($row['jurisdiction'] ?? null) && !$this->isServedByAModel($usageId)) {
+            return self::REASON_NO_MODEL;
+        }
+
+        return true === $row['active'] ? null : self::REASON_NO_BUDGET;
+    }
+
+    /**
+     * Whether a model of an active connection serves the usage, through its range or the model pinned to it.
+     * The registry says a usage is active without looking: it only reads the switches and the budget.
+     */
+    public function isServedByAModel(string $usageId): bool
+    {
+        try {
+            $this->targets->resolve($usageId);
+        } catch (InactiveAiUsageException) {
+            return false;
+        } catch (AiExceptionInterface) {
+            // A model serves it but its key cannot be read: that is the business of the connection, not of the model.
+        }
+
+        return true;
     }
 
     /**
