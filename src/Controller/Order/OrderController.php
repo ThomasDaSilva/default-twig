@@ -24,6 +24,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\ForcedStatusChangeLog;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderBulkStatusPlanner;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderDetailContextBuilder;
+use BackOfficeDefaultTwigBundle\Service\Order\OrderEditContextBuilder;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilterPresenter;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderFilters;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderHistoryContextBuilder;
@@ -101,6 +102,7 @@ final class OrderController
         private readonly OrderShipmentContextBuilder $shipmentContextBuilder,
         private readonly OrderSaleUnits $orderSaleUnits,
         private readonly OrderAccess $orderAccess,
+        private readonly OrderEditContextBuilder $editContext,
     ) {
     }
 
@@ -155,6 +157,7 @@ final class OrderController
             $this->returnContextBuilder->build($order, $locale),
             $this->historyContextBuilder->build($order, $historyPage, $locale),
             $this->shipmentContextBuilder->build($order, $locale),
+            $this->editContext->build($order),
             [
                 'order' => $order,
                 'sale_unit_title' => $this->orderSaleUnits->titleOf($order, $locale),

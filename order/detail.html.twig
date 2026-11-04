@@ -93,6 +93,11 @@
                         <i class="bi bi-download" aria-hidden="true"></i>
                     </a>
                 </div>
+                {% if can_edit_order|default(false) %}
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#order-edit-modal" data-testid="order-edit-btn">
+                        <i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Edit order'|trans }}
+                    </button>
+                {% endif %}
                 {% if cancel_status_id > 0 and not is_canceled and can_cancel %}
                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#order-cancel-modal" data-testid="order-cancel-btn">
                         <i class="bi bi-x-circle" aria-hidden="true"></i> {{ 'Cancel order'|trans }}
@@ -684,6 +689,18 @@
             order: order,
             returnable_lines: returnable_lines,
             return_reasons: return_reasons,
+            token: token,
+        } only %}
+    {% endif %}
+
+    {% if can_edit_order|default(false) %}
+        {% include '@BackOfficeDefaultTwig/order/_edit_modal.html.twig' with {
+            order: order,
+            edit_lines: edit_lines,
+            edit_discount: edit_discount,
+            edit_postage: edit_postage,
+            edit_state: edit_state,
+            edit_paid: edit_paid,
             token: token,
         } only %}
     {% endif %}
