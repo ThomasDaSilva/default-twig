@@ -60,7 +60,7 @@ final readonly class OrderStatusActionWriter
             ->setTriggerType($trigger->value)
             ->setFromStatusId(OrderStatusActionTrigger::TRANSITION === $trigger ? $fromStatusId : null)
             ->setActionType($type)
-            ->setDecodedPayload($service->normalizePayload($payload))
+            ->setDecodedPayload($service->normalizePayload($this->withoutEmptySelections($payload)))
             ->setPosition($lastPosition + 1)
             ->setActive(true);
         $action->save();
@@ -117,5 +117,37 @@ final readonly class OrderStatusActionWriter
         }
 
         $this->runner->reset();
+    }
+
+    /**
+     * A field posted as a list (a multiple choice) keeps its non-empty values only, and is
+     * left out when nothing is selected: an empty selection means no limit, not a limit on nothing.
+     *
+     * @param array<string, mixed> $payload
+     *
+     * @return array<string, mixed>
+     */
+    private function withoutEmptySelections(array $payload): array
+    {
+        foreach ($payload as $name => $value) {
+            if (!\is_array($value)) {
+                continue;
+            }
+
+            $codes = array_values(array_filter(
+                array_map(static fn (mixed $code): string => \is_scalar($code) ? trim((string) $code) : '', $value),
+                static fn (string $code): bool => '' !== $code,
+            ));
+
+            if ([] === $codes) {
+                unset($payload[$name]);
+
+                continue;
+            }
+
+            $payload[$name] = $codes;
+        }
+
+        return $payload;
     }
 }

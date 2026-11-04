@@ -227,15 +227,41 @@ final readonly class OrderHistoryEntryPresenter
         $toCode = $this->readString($payload, 'to');
         $to = $statusTitles[$toCode] ?? $toCode;
 
-        if ('' === $fromCode) {
-            return $this->trans('Status set to %to%', ['%to%' => $to], $locale);
+        $summary = '' === $fromCode
+            ? $this->trans('Status set to %to%', ['%to%' => $to], $locale)
+            : $this->trans(
+                'Status changed from %from% to %to%',
+                ['%from%' => $statusTitles[$fromCode] ?? $fromCode, '%to%' => $to],
+                $locale,
+            );
+
+        $stock = $this->summarizeStockMovement($payload, $locale);
+
+        return '' === $stock ? $summary : $summary.' · '.$stock;
+    }
+
+    /**
+     * What the status change did to the stock, when the line says so: put back, taken out
+     * or left as it is by a stock action. A line without it (an older one) says nothing.
+     *
+     * @param array<string, mixed> $payload
+     */
+    private function summarizeStockMovement(array $payload, string $locale): string
+    {
+        $stock = match ($this->readString($payload, 'stock')) {
+            'increase' => $this->trans('Stock put back', [], $locale),
+            'decrease' => $this->trans('Stock taken out', [], $locale),
+            'none' => $this->trans('Stock left as it is', [], $locale),
+            default => '',
+        };
+
+        if ('' === $stock) {
+            return '';
         }
 
-        return $this->trans(
-            'Status changed from %from% to %to%',
-            ['%from%' => $statusTitles[$fromCode] ?? $fromCode, '%to%' => $to],
-            $locale,
-        );
+        $actionId = $this->readString($payload, 'stock_action_id');
+
+        return '' === $actionId ? $stock : $stock.' '.$this->trans('by action #%action%', ['%action%' => $actionId], $locale);
     }
 
     /**

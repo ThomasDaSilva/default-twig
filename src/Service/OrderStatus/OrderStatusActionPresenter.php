@@ -34,6 +34,7 @@ final readonly class OrderStatusActionPresenter
     public function __construct(
         private OrderStatusActionRegistry $registry,
         private TranslatorInterface $translator,
+        private StockRules $stockRules,
     ) {
     }
 
@@ -91,11 +92,12 @@ final readonly class OrderStatusActionPresenter
     }
 
     /**
-     * @param array<int, string> $statusTitles localized titles by status id
+     * @param array<int, string> $statusTitles       localized titles by status id
+     * @param array<int, int>    $overriddenActions  stock actions that never apply => the action that wins over them
      *
      * @return array<string, mixed>
      */
-    public function row(OrderStatusAction $action, array $statusTitles, int $failures): array
+    public function row(OrderStatusAction $action, array $statusTitles, int $failures, array $overriddenActions = []): array
     {
         $type = $action->getActionType();
         $installed = $this->registry->has($type);
@@ -110,7 +112,35 @@ final readonly class OrderStatusActionPresenter
             'summary' => $this->summary($action),
             'active' => (bool) $action->getActive(),
             'failures' => $failures,
+            'warnings' => $this->warnings($action, $overriddenActions),
         ];
+    }
+
+    /**
+     * @param array<int, int> $overriddenActions
+     *
+     * @return list<string>
+     */
+    private function warnings(OrderStatusAction $action, array $overriddenActions): array
+    {
+        if (AdjustStockAction::getType() !== $action->getActionType()) {
+            return [];
+        }
+
+        $warnings = [];
+        $winner = $overriddenActions[(int) $action->getId()] ?? null;
+
+        if (null !== $winner) {
+            $warnings[] = $this->translator->trans('Never applies: action #%action%, placed before, always wins.', ['%action%' => $winner]);
+        }
+
+        $missing = $this->stockRules->missingModules($action);
+
+        if ([] !== $missing) {
+            $warnings[] = $this->translator->trans('Ignored modules (gone or switched off): %modules%', ['%modules%' => implode(', ', $missing)]);
+        }
+
+        return $warnings;
     }
 
     private function fieldLabel(string $label): string
@@ -146,8 +176,11 @@ final readonly class OrderStatusActionPresenter
                 continue;
             }
 
-            $value = (string) $payload[$field->name];
-            $parts[] = $this->fieldLabel($field->label).' : '.($field->choices[$value] ?? null ? $this->fieldLabel($field->choices[$value]) : $value);
+            $values = array_map(
+                fn (mixed $value): string => ($field->choices[(string) $value] ?? null) ? $this->fieldLabel($field->choices[(string) $value]) : (string) $value,
+                \is_array($payload[$field->name]) ? $payload[$field->name] : [$payload[$field->name]],
+            );
+            $parts[] = $this->fieldLabel($field->label).' : '.implode(', ', $values);
         }
 
         return implode(', ', $parts);

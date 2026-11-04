@@ -121,6 +121,11 @@ final class OrderRepository
         return OrderQuery::create()->findPk($orderId);
     }
 
+    public function findByReference(string $reference): ?Order
+    {
+        return OrderQuery::create()->findOneByRef($reference);
+    }
+
     /**
      * What a bulk status change needs to decide: the identifier, the reference to
      * name a skipped order with, and the status the graph starts from. Three
