@@ -139,6 +139,7 @@ final class OrderStatusController
             ...$this->actionsContext->build(
                 $status,
                 $locale,
+                $this->access->canView(AdminResources::ORDER),
                 $request->query->has('simulate_ref') ? (string) $request->query->get('simulate_ref') : null,
                 $request->query->has('simulate_status') ? $request->query->getInt('simulate_status') : null,
             ),

@@ -44,7 +44,7 @@ final readonly class OrderStatusActionsContextBuilder
     /**
      * @return array<string, mixed>
      */
-    public function build(OrderStatus $status, string $locale, ?string $simulatedReference = null, ?int $simulatedStatusId = null): array
+    public function build(OrderStatus $status, string $locale, bool $canReadOrders = false, ?string $simulatedReference = null, ?int $simulatedStatusId = null): array
     {
         $statusId = (int) $status->getId();
         $statuses = $this->statusRepository->findLocalized($locale);
@@ -86,14 +86,14 @@ final readonly class OrderStatusActionsContextBuilder
             'action_recent_failures' => $this->actionRepository->findRecentFailures($statusId),
             'actions_create_url' => $this->urls->generate('admin.order-status.actions.create', ['order_status_id' => $statusId]),
             'actions_move_url' => $this->urls->generate('admin.order-status.actions.move'),
-            'stock_simulation' => $this->simulation($statuses, $statusId, $simulatedReference, $simulatedStatusId),
+            'stock_simulation' => $canReadOrders ? $this->simulation($statuses, $statusId, $simulatedReference, $simulatedStatusId) : null,
         ];
     }
 
     /**
      * The "what would the stock do" form: the order reference, the status to move it to
      * (this one by default) and, once asked, the answer or the reason there is none.
-     * Nothing is written. Null on a core that cannot simulate.
+     * Nothing is written. Only built for an administrator who may read orders; null on a core that cannot simulate.
      *
      * @param array<int, OrderStatus> $statuses
      *
