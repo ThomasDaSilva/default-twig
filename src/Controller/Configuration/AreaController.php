@@ -21,6 +21,7 @@ use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
 use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeFormat;
 use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeLog;
+use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeRuleDraft;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\ListSort;
 use BackOfficeDefaultTwigBundle\UiComponents\DataTable\RowAction;
 use Propel\Runtime\ActiveQuery\Criteria;
@@ -69,6 +70,7 @@ final class AreaController
         private readonly CountryStateProvider $countryStates,
         private readonly TokenProvider $tokens,
         private readonly AdminLogger $adminLogger,
+        private readonly ZipCodeRuleDraft $zipCodeRuleDraft,
     ) {
     }
 
@@ -138,7 +140,7 @@ final class AreaController
     }
 
     #[Route('/update/{area_id}', name: 'update.view', methods: ['GET'], requirements: ['area_id' => '\d+'])]
-    public function updateView(int $area_id): Response
+    public function updateView(int $area_id, Request $request): Response
     {
         if ($denied = $this->access->check(self::RESOURCE, [], AccessManager::VIEW)) {
             return $denied;
@@ -172,6 +174,7 @@ final class AreaController
             'zip_code_rules' => $zipCodeRules,
             'zip_code_rules_unformatted_countries' => $this->countriesWithoutZipCodeFormat($zipCodeRules, $zoneCountries),
             'zone_countries' => $zoneCountries,
+            'zip_code_rule_draft' => $this->zipCodeRuleDraft->takeBack($request, (int) $area->getId()),
         ]));
     }
 

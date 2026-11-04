@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Tests\Http;
 use BackOfficeDefaultTwigBundle\Controller\Configuration\AreaZipCodeRuleController;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
+use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeRuleDraft;
 use Propel\Runtime\Exception\InvalidArgumentException as PropelInvalidArgumentException;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -27,6 +28,8 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Model\Area;
 use Thelia\Model\ConfigQuery;
+use Thelia\Model\CountryArea;
+use Thelia\Model\CountryQuery;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\WebIntegrationTestCase;
 use Thelia\Tests\Support\BackOffice\AdminSessionInjector;
@@ -148,6 +151,46 @@ final class ZipCodeRulesOnAnOlderCoreTest extends WebIntegrationTestCase
         $this->assertTheAddingFlashes($this->area(), new \InvalidArgumentException('Internal detail of a fault'), 'The postal code rule could not be saved. Try again later.');
     }
 
+    /**
+     * The zone page the refusal leads back to shows the rule as it was typed, to be
+     * corrected rather than typed again, and only once.
+     */
+    public function testARefusedRuleComesBackInTheFormToBeCorrected(): void
+    {
+        if (!class_exists(self::RULE_QUERY)) {
+            self::markTestSkipped('The zone page shows no postal code card on a core without postal code rules.');
+        }
+
+        $area = $this->area();
+        $countryId = (int) CountryQuery::create()->findOneByIsoalpha2('FR')?->getId();
+        (new CountryArea())->setAreaId($area->getId())->setCountryId($countryId)->save($this->getPropelConnection());
+        $this->controllerWith(new ServiceLocator(['writer' => static fn (): object => new class {
+            public function add(int $areaId, string $pattern, bool $excluded, ?int $countryId): never
+            {
+                throw new \InvalidArgumentException('Refused');
+            }
+        }]));
+        $token = $this->token($area);
+
+        $this->client->request('POST', '/admin/configuration/shipping_configuration/'.$area->getId().'/zip-code-rules', [
+            'pattern' => '75020...75001 <b>',
+            'excluded' => '0',
+            'country_id' => (string) $countryId,
+            '_token' => $token,
+        ]);
+        $this->client->followRedirect();
+
+        $form = $this->client->getCrawler()->filter('[data-testid="shipping-configuration-zip-code-rule-form"]');
+        self::assertSame('75020...75001 <b>', $form->filter('#zip-code-rule-pattern')->attr('value'));
+        self::assertSame('0', $form->filter('#zip-code-rule-excluded option[selected]')->attr('value'));
+        self::assertSame((string) $countryId, $form->filter('#zip-code-rule-country option[selected]')->attr('value'));
+
+        $this->client->request('GET', '/admin/configuration/shipping_configuration/update/'.$area->getId());
+        $form = $this->client->getCrawler()->filter('[data-testid="shipping-configuration-zip-code-rule-form"]');
+        self::assertSame('', (string) $form->filter('#zip-code-rule-pattern')->attr('value'));
+        self::assertCount(0, $form->filter('option[selected]'));
+    }
+
     private function skipUnlessTheCoreTellsItsRefusalsApart(): void
     {
         if (!class_exists(self::INVALID_RULE)) {
@@ -231,6 +274,7 @@ final class ZipCodeRulesOnAnOlderCoreTest extends WebIntegrationTestCase
             $this->getService(TokenProvider::class),
             $this->getService(AdminLogger::class),
             $this->getService(LoggerInterface::class),
+            $this->getService(ZipCodeRuleDraft::class),
         ));
     }
 

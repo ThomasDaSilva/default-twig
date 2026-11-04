@@ -162,20 +162,20 @@
                     <input type="hidden" name="_token" value="{{ assignToken() }}">
                     <div class="col-md-4">
                         <label class="form-label" for="zip-code-rule-pattern">{{ 'Postal codes'|trans }}</label>
-                        <input type="text" class="form-control form-control-sm" id="zip-code-rule-pattern" name="pattern" maxlength="50" required placeholder="20*">
+                        <input type="text" class="form-control form-control-sm" id="zip-code-rule-pattern" name="pattern" maxlength="50" required placeholder="20*"{% if zip_code_rule_draft %} value="{{ zip_code_rule_draft.pattern }}"{% endif %}>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" for="zip-code-rule-excluded">{{ 'Rule'|trans }}</label>
                         <select class="form-select form-select-sm" id="zip-code-rule-excluded" name="excluded">
-                            <option value="1">{{ 'Excluded'|trans }}</option>
-                            <option value="0">{{ 'Included'|trans }}</option>
+                            <option value="1"{% if zip_code_rule_draft and zip_code_rule_draft.excluded %} selected{% endif %}>{{ 'Excluded'|trans }}</option>
+                            <option value="0"{% if zip_code_rule_draft and not zip_code_rule_draft.excluded %} selected{% endif %}>{{ 'Included'|trans }}</option>
                         </select>
                     </div>
                     <div class="col-md-3">
                         <label class="form-label" for="zip-code-rule-country">{{ 'Country'|trans }}</label>
                         <select class="form-select form-select-sm" id="zip-code-rule-country" name="country_id">
-                            <option value="0">{{ 'Every country of the zone'|trans }}</option>
-                            {% for id, title in zone_countries %}<option value="{{ id }}">{{ title }}</option>{% endfor %}
+                            <option value="0"{% if zip_code_rule_draft and zip_code_rule_draft.country_id == 0 %} selected{% endif %}>{{ 'Every country of the zone'|trans }}</option>
+                            {% for id, title in zone_countries %}<option value="{{ id }}"{% if zip_code_rule_draft and zip_code_rule_draft.country_id == id %} selected{% endif %}>{{ title }}</option>{% endfor %}
                         </select>
                     </div>
                     <div class="col-md-2">

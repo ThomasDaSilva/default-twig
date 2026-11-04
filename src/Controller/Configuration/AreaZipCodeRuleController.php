@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Controller\Configuration;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
 use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeLog;
+use BackOfficeDefaultTwigBundle\Service\Shipping\ZipCodeRuleDraft;
 use Propel\Runtime\Exception\ExceptionInterface as PropelError;
 use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
@@ -60,6 +61,7 @@ final class AreaZipCodeRuleController
         private readonly TokenProvider $tokens,
         private readonly AdminLogger $adminLogger,
         private readonly LoggerInterface $logger,
+        private readonly ZipCodeRuleDraft $draft,
     ) {
     }
 
@@ -87,10 +89,12 @@ final class AreaZipCodeRuleController
             // message is the database layer's, not a sentence for the merchant.
             $this->logger->error('Postal code rule not saved.', ['exception' => $exception, 'area_id' => $area_id]);
             $this->flash($request, 'danger', 'The postal code rule could not be saved. Try again later.');
+            $this->draft->keep($request, $area_id);
 
             return $this->backToTheZone($area_id);
         } catch (\InvalidArgumentException $exception) {
             $this->flash($request, 'danger', $this->refusalOf($exception, $area_id));
+            $this->draft->keep($request, $area_id);
 
             return $this->backToTheZone($area_id);
         }
