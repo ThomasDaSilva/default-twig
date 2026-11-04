@@ -18,6 +18,8 @@ use BackOfficeDefaultTwigBundle\Service\Customer\CustomerPhoneSearch;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use Propel\Runtime\ActiveQuery\Criteria;
 use Propel\Runtime\Collection\ObjectCollection;
+use Thelia\Model\AttributeAvQuery;
+use Thelia\Model\AttributeCombinationQuery;
 use Thelia\Model\Brand;
 use Thelia\Model\BrandQuery;
 use Thelia\Model\Category;
@@ -32,6 +34,7 @@ use Thelia\Model\Order;
 use Thelia\Model\OrderQuery;
 use Thelia\Model\Product;
 use Thelia\Model\ProductQuery;
+use Thelia\Model\ProductSaleElementsQuery;
 
 final readonly class SearchRepository
 {
@@ -58,6 +61,104 @@ final readonly class SearchRepository
             ->find();
 
         return $result;
+    }
+
+    /**
+     * The combinations an order can be given a line for: those of the visible products whose
+     * title or reference contains the term, which is what the order editor of the core accepts.
+     *
+     * @return list<array{pse_id: int, product_ref: string, title: string, pse_ref: string, combination: string, stock: string}>
+     */
+    public function findSellableCombinations(string $term, string $locale, int $limit = 20): array
+    {
+        $term = trim($term);
+
+        if ('' === $term) {
+            return [];
+        }
+
+        $products = ProductQuery::create()
+            ->filterByVisible(1)
+            ->useProductI18nQuery(null, Criteria::LEFT_JOIN)
+                ->filterByLocale($locale)
+            ->endUse()
+            ->condition('byTitle', 'product_i18n.title LIKE ?', '%'.$term.'%')
+            ->condition('byRef', 'product.ref LIKE ?', '%'.$term.'%')
+            ->where(['byTitle', 'byRef'], Criteria::LOGICAL_OR)
+            ->distinct()
+            ->limit($limit)
+            ->find();
+
+        $titles = [];
+        foreach ($products as $product) {
+            $product->setLocale($locale);
+            $titles[(int) $product->getId()] = ['ref' => (string) $product->getRef(), 'title' => (string) $product->getTitle()];
+        }
+
+        if ([] === $titles) {
+            return [];
+        }
+
+        $elements = ProductSaleElementsQuery::create()
+            ->filterByProductId(array_keys($titles), Criteria::IN)
+            ->orderByProductId()
+            ->orderByIsDefault(Criteria::DESC)
+            ->orderById()
+            ->find()
+            ->getArrayCopy();
+
+        $labels = $this->combinationLabels(array_map(static fn ($pse): int => (int) $pse->getId(), $elements), $locale);
+
+        $rows = [];
+        foreach (\array_slice($elements, 0, $limit * 5) as $pse) {
+            $productId = (int) $pse->getProductId();
+            $rows[] = [
+                'pse_id' => (int) $pse->getId(),
+                'product_ref' => $titles[$productId]['ref'],
+                'title' => $titles[$productId]['title'],
+                'pse_ref' => (string) $pse->getRef(),
+                'combination' => $labels[(int) $pse->getId()] ?? '',
+                'stock' => rtrim(rtrim(number_format((float) $pse->getQuantity(), 6, '.', ''), '0'), '.') ?: '0',
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param list<int> $productSaleElementsIds
+     *
+     * @return array<int, string>
+     */
+    private function combinationLabels(array $productSaleElementsIds, string $locale): array
+    {
+        if ([] === $productSaleElementsIds) {
+            return [];
+        }
+
+        $combinations = AttributeCombinationQuery::create()
+            ->filterByProductSaleElementsId($productSaleElementsIds, Criteria::IN)
+            ->find();
+
+        $valueIds = [];
+        foreach ($combinations as $combination) {
+            $valueIds[] = (int) $combination->getAttributeAvId();
+        }
+
+        $titles = [];
+        if ([] !== $valueIds) {
+            foreach (AttributeAvQuery::create()->filterById($valueIds, Criteria::IN)->find() as $value) {
+                $value->setLocale($locale);
+                $titles[(int) $value->getId()] = (string) $value->getTitle();
+            }
+        }
+
+        $labels = [];
+        foreach ($combinations as $combination) {
+            $labels[(int) $combination->getProductSaleElementsId()][] = $titles[(int) $combination->getAttributeAvId()] ?? '';
+        }
+
+        return array_map(static fn (array $parts): string => implode(' / ', array_filter($parts)), $labels);
     }
 
     /** @return ObjectCollection<int, Category> */

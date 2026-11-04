@@ -93,11 +93,6 @@
                         <i class="bi bi-download" aria-hidden="true"></i>
                     </a>
                 </div>
-                {% if can_edit_order|default(false) %}
-                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#order-edit-modal" data-testid="order-edit-btn">
-                        <i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Edit order'|trans }}
-                    </button>
-                {% endif %}
                 {% if cancel_status_id > 0 and not is_canceled and can_cancel %}
                     <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#order-cancel-modal" data-testid="order-cancel-btn">
                         <i class="bi bi-x-circle" aria-hidden="true"></i> {{ 'Cancel order'|trans }}
@@ -144,6 +139,31 @@
 
                 <div class="tab-pane fade{% if active_tab == 'cart' %} show active{% endif %}" id="tab-cart" role="tabpanel" aria-labelledby="tab-cart-toggle">
                 {{ safe_hook('order-edit.cart-top', { order_id: order.id, location: 'order-edit-cart-top' }) }}
+
+                <div data-controller="bo-order-edit"
+                     data-bo-order-edit-preview-url-value="{{ path('admin.order.edit.preview', { order_id: order.id }) }}"
+                     data-bo-order-edit-search-url-value="{{ path('admin.order.edit.search', { order_id: order.id }) }}"
+                     data-bo-order-edit-currency-value="{{ currency.code }}"
+                     data-bo-order-edit-locale-value="{{ app.request.locale|default('en_US')|replace({'_': '-'}) }}"
+                     data-bo-order-edit-per-page-value="25"
+                     data-bo-order-edit-page-label-value="{{ 'Page %current% of %last%'|trans }}">
+                    {% if can_edit_order|default(false) %}
+                        <div class="d-flex justify-content-end mb-2" data-bo-order-edit-target="toolbar">
+                            <button type="button" class="btn btn-outline-primary btn-sm" data-action="bo-order-edit#start" aria-controls="order-edit-panel" aria-expanded="false" data-bo-order-edit-target="start" data-testid="order-edit-btn">
+                                <i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Edit order'|trans }}
+                            </button>
+                        </div>
+                    {% elseif edit_unavailable_reason|default(null) %}
+                        <p class="text-muted small text-end mb-2" data-testid="order-edit-unavailable">
+                            <i class="bi bi-lock" aria-hidden="true"></i>
+                            {% if edit_unavailable_reason == 'invoice' %}
+                                {{ 'This order can no longer be edited: an invoice has been issued for it.'|trans }}
+                            {% else %}
+                                {{ 'This order can no longer be edited: its status does not allow it.'|trans }}
+                            {% endif %}
+                        </p>
+                    {% endif %}
+                    <div data-bo-order-edit-target="view">
 
                 {% set order_rows = [] %}
                 {% for item in order_items %}
@@ -268,6 +288,20 @@
                         </div>
                     </div>
                 {% endif %}
+
+                    </div>
+                    {% if can_edit_order|default(false) %}
+                        {% include '@BackOfficeDefaultTwig/order/_edit_panel.html.twig' with {
+                            order: order,
+                            edit_lines: edit_lines,
+                            edit_discount: edit_discount,
+                            edit_postage: edit_postage,
+                            edit_state: edit_state,
+                            edit_paid: edit_paid,
+                            token: token,
+                        } only %}
+                    {% endif %}
+                </div>
 
                 <div class="card mb-3" data-testid="order-taxes-breakdown">
                     <div class="card-header">{{ 'Taxes detail'|trans }}</div>
@@ -689,18 +723,6 @@
             order: order,
             returnable_lines: returnable_lines,
             return_reasons: return_reasons,
-            token: token,
-        } only %}
-    {% endif %}
-
-    {% if can_edit_order|default(false) %}
-        {% include '@BackOfficeDefaultTwig/order/_edit_modal.html.twig' with {
-            order: order,
-            edit_lines: edit_lines,
-            edit_discount: edit_discount,
-            edit_postage: edit_postage,
-            edit_state: edit_state,
-            edit_paid: edit_paid,
             token: token,
         } only %}
     {% endif %}

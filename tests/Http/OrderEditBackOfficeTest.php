@@ -431,6 +431,156 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         self::assertEqualsWithDelta(10.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
     }
 
+    public function testTheSearchOffersTheCombinationsOfVisibleProductsOnly(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        $visible = $this->searchableProduct('Zorblax visible', 1);
+        $this->searchableProduct('Zorblax hidden', 0);
+
+        $this->client->request('GET', $this->searchUrl($order), ['q' => 'Zorblax']);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $rows = json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertCount(1, $rows, 'The hidden product is not offered: the core would refuse it.');
+        self::assertSame((int) $visible->getDefaultSaleElements()->getId(), $rows[0]['pse_id']);
+        self::assertSame('Zorblax visible', $rows[0]['title']);
+        self::assertSame('10', $rows[0]['stock']);
+
+        $this->client->request('GET', $this->searchUrl($order));
+        self::assertSame([], json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR), 'No term searches nothing.');
+    }
+
+    public function testTheSearchIsRefusedWithoutTheEditPermission(): void
+    {
+        $admin = $this->factory->restrictedAdmin([
+            AdminResources::ORDER => [AccessManager::VIEW, AccessManager::UPDATE],
+        ]);
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+        [$order] = $this->editableOrder();
+        $this->searchableProduct('Zorblax visible', 1);
+
+        $this->client->request('GET', $this->searchUrl($order), ['q' => 'Zorblax']);
+
+        self::assertSame(403, $this->client->getResponse()->getStatusCode());
+        self::assertStringNotContainsString('Zorblax', $this->html());
+    }
+
+    public function testAnAddedLineIsPreviewedThenValidated(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $product = $this->searchableProduct('Zorblax visible', 1);
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+        $added = ['0' => ['pse' => (string) $product->getDefaultSaleElements()->getId(), 'quantity' => '2', 'price' => '5']];
+
+        $this->client->request('POST', $this->previewUrl($order), [
+            '_token' => $fields['_token'],
+            'expected_state' => $fields['expected_state'],
+            'add' => $added,
+        ]);
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $answer = json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertEqualsWithDelta(60.0, (float) $answer['after']['goods'], 0.011, '3 x 10 + 20 + 2 x 5.');
+        self::assertCount(2, $this->linesOf($order), 'The preview wrote nothing.');
+
+        $this->client->request('POST', $this->editUrl($order), [...$fields, 'add' => $added]);
+        self::assertSame(302, $this->client->getResponse()->getStatusCode());
+
+        $lines = $this->linesOf($order);
+        self::assertCount(3, $lines);
+        self::assertContains(2.0, array_map(static fn (OrderProduct $line): float => (float) $line->getQuantity(), $lines));
+        self::assertEqualsWithDelta(60.0, (float) $this->stateTotals($order)['goods'], 0.011);
+    }
+
+    public function testACombinationThatDoesNotExistIsRefusedWithItsReason(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+
+        $this->client->request('POST', $this->editUrl($order), [
+            ...$fields,
+            'price' => [(string) $first->getId() => '99'],
+            'add' => ['0' => ['pse' => '999999999', 'quantity' => '1', 'price' => '']],
+        ]);
+        $this->client->followRedirect();
+
+        self::assertStringContainsString('The product of a line no longer exists in the catalogue.', $this->html());
+        OrderProductTableMap::clearInstancePool();
+        self::assertCount(2, $this->linesOf($order));
+    }
+
+    public function testTheSheetSaysWhyTheEditorIsAbsentToAnAdministratorEntitledToIt(): void
+    {
+        $this->loginFullAdmin();
+        $order = $this->factory->order(null, ['statusCode' => OrderStatus::CODE_SENT]);
+        $this->factory->orderProduct($order);
+
+        $this->assertPageRenders($this->sheetUrl($order));
+        $html = $this->html();
+
+        self::assertStringContainsString('order-edit-unavailable', $html);
+        self::assertStringContainsString('its status does not allow it', $html);
+        self::assertStringNotContainsString('order-edit-btn', $html);
+
+        [$editable] = $this->editableOrder();
+        $this->assertPageRenders($this->sheetUrl($editable));
+        self::assertStringNotContainsString('order-edit-unavailable', $this->html());
+    }
+
+    public function testTheSheetSaysNothingToAnAdministratorWhoCannotEdit(): void
+    {
+        $admin = $this->factory->restrictedAdmin([AdminResources::ORDER => [AccessManager::VIEW, AccessManager::UPDATE]]);
+        $admin->eraseCredentials();
+        $this->injector->setAdmin($admin);
+        $order = $this->factory->order(null, ['statusCode' => OrderStatus::CODE_SENT]);
+        $this->factory->orderProduct($order);
+
+        $this->assertPageRenders($this->sheetUrl($order));
+
+        self::assertStringNotContainsString('order-edit-unavailable', $this->html());
+    }
+
+    public function testThePreviewNamesTheRefusalOfAnEditThatChangesNothing(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+
+        $this->client->request('POST', $this->previewUrl($order), ['_token' => $fields['_token'], 'expected_state' => $fields['expected_state']]);
+
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        self::assertSame('nothing_to_edit', json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR)['refusal']);
+    }
+
+    private function searchUrl(Order $order): string
+    {
+        return '/admin/order/'.$order->getId().'/edit/search';
+    }
+
+    private function searchableProduct(string $title, int $visible): \Thelia\Model\Product
+    {
+        return $this->factory->product(
+            $this->factory->category(),
+            $this->factory->taxRule(['isDefault' => false]),
+            $this->factory->currency(),
+            ['title' => $title, 'visible' => $visible, 'baseQuantity' => 10],
+        );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function stateTotals(Order $order): array
+    {
+        return get_object_vars($this->getService(OrderEditor::class)->simulate(
+            OrderQuery::create()->findPk($order->getId()),
+            new \Thelia\Domain\Order\DTO\OrderEdit(discount: (string) OrderQuery::create()->findPk($order->getId())->getDiscount()),
+        )->before);
+    }
+
     private function previewUrl(Order $order): string
     {
         return '/admin/order/'.$order->getId().'/edit/preview';

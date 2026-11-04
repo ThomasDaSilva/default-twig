@@ -1,0 +1,213 @@
+{#
+    The edit mode of the lines of an order. It replaces the read-only table while the merchant
+    composes the changes: nothing is written until the form is submitted, and every change asks
+    the server for the totals it would give (the tax is never computed in the browser). Prices and
+    postage are untaxed, the discount is taxed (as the core stores it). Only what differs from the
+    stored value is acted on by the core.
+
+    Expects: order, edit_lines, edit_discount, edit_postage, edit_state, edit_paid, token
+    Lives inside the element of the bo-order-edit controller.
+#}
+<form method="post" action="{{ path('admin.order.edit', { order_id: order.id }) }}" id="order-edit-panel" hidden novalidate
+      data-bo-order-edit-target="form"
+      data-preview-failed="{{ 'The totals could not be computed. Try again.'|trans }}"
+      data-search-failed="{{ 'The search failed. Try again.'|trans }}"
+      data-no-result="{{ 'No product found.'|trans }}"
+      data-stock-label="{{ 'Stock'|trans }}"
+      data-action="change->bo-order-edit#changed submit->bo-order-edit#submit keydown->bo-order-edit#keydown"
+      data-testid="order-edit-form">
+    <div class="card mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h6 mb-0" tabindex="-1" data-bo-order-edit-target="heading">{{ 'Edit the order'|trans }}</h2>
+        </div>
+        <div class="card-body">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <input type="hidden" name="expected_state" value="{{ edit_state }}">
+
+            <p class="text-muted small">{{ 'Prices and postage are entered without tax, the discount with tax. The taxes and the stock follow the changes.'|trans }}</p>
+            {% if edit_paid %}
+                <p class="text-muted small" data-testid="order-edit-paid-note">{{ 'This order is paid: its lines can be changed but not removed.'|trans }}</p>
+            {% endif %}
+
+            <div class="alert alert-danger py-2" role="alert" hidden data-bo-order-edit-target="error" data-testid="order-edit-error"></div>
+
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <label class="form-label" for="order-edit-discount">{{ 'Discount (incl. tax)'|trans }}</label>
+                    <input type="text" inputmode="decimal" class="form-control" id="order-edit-discount" name="discount" value="{{ edit_discount }}"
+                           data-testid="order-edit-discount">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="order-edit-postage">{{ 'Postage (excl. tax)'|trans }}</label>
+                    <input type="text" inputmode="decimal" class="form-control" id="order-edit-postage" name="postage" value="{{ edit_postage }}"
+                           data-testid="order-edit-postage">
+                </div>
+            </div>
+
+            <div class="table-responsive mb-2">
+                <table class="table table-sm align-middle mb-0">
+                    <caption class="visually-hidden">{{ 'Order items'|trans }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ 'Product'|trans }}</th>
+                            <th scope="col" class="text-center">{{ 'Quantity'|trans }}</th>
+                            <th scope="col" class="text-end">{{ 'Unit price (excl. tax)'|trans }}</th>
+                            {% if not edit_paid %}
+                                <th scope="col" class="text-center">{{ 'Remove'|trans }}</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    {% for line in edit_lines %}
+                        <tbody data-bo-order-edit-target="line" data-testid="order-edit-line-{{ line.id }}">
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ line.title }}</div>
+                                    {% if line.ref %}<div class="small text-body-secondary"><code>{{ line.ref }}</code></div>{% endif %}
+                                </td>
+                                {% if line.editable %}
+                                    <td class="text-center" style="max-width: 8rem;">
+                                        <label class="visually-hidden" for="order-edit-quantity-{{ line.id }}">{{ 'Quantity'|trans }} &mdash; {{ line.title }}</label>
+                                        <input type="text" inputmode="decimal" class="form-control form-control-sm text-center"
+                                               id="order-edit-quantity-{{ line.id }}" name="quantity[{{ line.id }}]" value="{{ line.quantity }}"
+                                               data-testid="order-edit-quantity-{{ line.id }}">
+                                    </td>
+                                    <td class="text-end" style="max-width: 10rem;">
+                                        <label class="visually-hidden" for="order-edit-price-{{ line.id }}">{{ 'Unit price (excl. tax)'|trans }} &mdash; {{ line.title }}</label>
+                                        <input type="text" inputmode="decimal" class="form-control form-control-sm text-end"
+                                               id="order-edit-price-{{ line.id }}" name="price[{{ line.id }}]" value="{{ line.price }}"
+                                               data-testid="order-edit-price-{{ line.id }}">
+                                    </td>
+                                    {% if not edit_paid %}
+                                        <td class="text-center">
+                                            <input type="checkbox" class="form-check-input" id="order-edit-remove-{{ line.id }}" name="remove[{{ line.id }}]" value="1"
+                                                   aria-label="{{ 'Remove this line'|trans }} &mdash; {{ line.title|e('html_attr') }}" data-testid="order-edit-remove-{{ line.id }}">
+                                        </td>
+                                    {% endif %}
+                                {% else %}
+                                    <td class="text-center">{{ line.quantity }}</td>
+                                    <td class="text-end">{{ line.price }}</td>
+                                    {% if not edit_paid %}<td></td>{% endif %}
+                                {% endif %}
+                            </tr>
+                            {% if not line.editable %}
+                                <tr>
+                                    <td colspan="{{ edit_paid ? 3 : 4 }}" class="small pt-0 text-body-secondary" data-testid="order-edit-locked-{{ line.id }}">
+                                        {% if line.locked_reason == 'in_use' %}
+                                            {{ 'Shipped or returned: this line cannot be edited.'|trans }}
+                                        {% else %}
+                                            {{ 'Bundle or service line: this line cannot be edited.'|trans }}
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    {% endfor %}
+                </table>
+            </div>
+            <nav aria-label="{{ 'Order items pagination'|trans }}" hidden data-bo-order-edit-target="pager" data-testid="order-edit-pager">
+                <div class="d-flex justify-content-end align-items-center gap-2 mb-3">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-action="bo-order-edit#previousPage" data-bo-order-edit-target="previous">{{ 'Previous page'|trans }}</button>
+                    <span class="small" aria-live="polite" data-bo-order-edit-target="pageLabel"></span>
+                    <button type="button" class="btn btn-outline-secondary btn-sm" data-action="bo-order-edit#nextPage" data-bo-order-edit-target="next">{{ 'Next page'|trans }}</button>
+                </div>
+            </nav>
+
+            <h3 class="h6">{{ 'Add a product'|trans }}</h3>
+            <div class="position-relative mb-2">
+                <label class="visually-hidden" for="order-edit-search">{{ 'Search a product by title or reference'|trans }}</label>
+                <input type="search" class="form-control" id="order-edit-search" autocomplete="off"
+                       placeholder="{{ 'Search a product by title or reference'|trans }}"
+                       data-bo-order-edit-target="search" data-action="input->bo-order-edit#searchTyped"
+                       data-testid="order-edit-search">
+            </div>
+            <p class="small text-body-secondary mb-2" role="status" hidden data-bo-order-edit-target="searchStatus" data-testid="order-edit-search-status"></p>
+            <ul class="list-group mb-3" hidden data-bo-order-edit-target="results" data-testid="order-edit-results"></ul>
+
+            <div class="table-responsive mb-3" hidden data-bo-order-edit-target="addedWrapper">
+                <table class="table table-sm align-middle mb-0" data-testid="order-edit-added">
+                    <caption class="visually-hidden">{{ 'Added products'|trans }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col">{{ 'Added products'|trans }}</th>
+                            <th scope="col" class="text-center">{{ 'Quantity'|trans }}</th>
+                            <th scope="col" class="text-end">{{ 'Unit price (excl. tax)'|trans }}</th>
+                            <th scope="col" class="text-center"><span class="visually-hidden">{{ 'Remove'|trans }}</span></th>
+                        </tr>
+                    </thead>
+                    <tbody data-bo-order-edit-target="added"></tbody>
+                </table>
+            </div>
+
+            <div class="table-responsive" aria-live="polite">
+                <table class="table table-sm mb-0" data-testid="order-edit-totals">
+                    <caption class="visually-hidden">{{ 'Totals of the order'|trans }}</caption>
+                    <thead>
+                        <tr>
+                            <th scope="col"><span class="visually-hidden">{{ 'Totals of the order'|trans }}</span></th>
+                            <th scope="col" class="text-end">{{ 'Before'|trans }}</th>
+                            <th scope="col" class="text-end">{{ 'After'|trans }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for key, label in {
+                            goods: 'Items (incl. tax)'|trans,
+                            discount: 'Discount (incl. tax)'|trans,
+                            postage: 'Postage (incl. tax)'|trans,
+                            tax: 'Tax'|trans,
+                            total: 'Amount due'|trans,
+                        } %}
+                            <tr{% if key == 'total' %} class="fw-bold"{% endif %}>
+                                <th scope="row" class="fw-normal">{{ label }}</th>
+                                <td class="text-end" dir="ltr" data-bo-order-edit-target="before" data-total="{{ key }}">&ndash;</td>
+                                <td class="text-end" dir="ltr" data-bo-order-edit-target="after" data-total="{{ key }}" data-testid="order-edit-after-{{ key }}">&ndash;</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-secondary" data-action="bo-order-edit#abandon" data-testid="order-edit-abandon">
+                {{ 'Abandon the changes'|trans }}
+            </button>
+            <button type="submit" class="btn btn-primary" disabled data-bo-order-edit-target="submit" data-testid="order-edit-submit">
+                <i class="bi bi-pencil-square me-1" aria-hidden="true"></i>{{ 'Save the changes'|trans }}
+            </button>
+        </div>
+    </div>
+
+    <template data-bo-order-edit-target="addedTemplate">
+        <tr data-bo-order-edit-target="addedRow" data-testid="order-edit-added-row">
+            <td>
+                <input type="hidden" data-field="pse">
+                <div class="fw-semibold" data-slot="title"></div>
+                <div class="small text-body-secondary" data-slot="detail"></div>
+            </td>
+            <td class="text-center" style="max-width: 8rem;">
+                <label class="visually-hidden" data-slot="quantity-label">{{ 'Quantity'|trans }}</label>
+                <input type="text" inputmode="decimal" class="form-control form-control-sm text-center" value="1" data-field="quantity">
+            </td>
+            <td class="text-end" style="max-width: 10rem;">
+                <label class="visually-hidden" data-slot="price-label">{{ 'Unit price (excl. tax)'|trans }}</label>
+                <input type="text" inputmode="decimal" class="form-control form-control-sm text-end" value="" placeholder="{{ 'Catalogue price'|trans }}" data-field="price">
+            </td>
+            <td class="text-center">
+                <button type="button" class="btn btn-outline-danger btn-sm" data-action="bo-order-edit#removeAdded" data-slot="remove" aria-label="{{ 'Remove this product'|trans }}">
+                    <i class="bi bi-trash" aria-hidden="true"></i>
+                </button>
+            </td>
+        </tr>
+    </template>
+
+    <template data-bo-order-edit-target="resultTemplate">
+        <li class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-2">
+            <span>
+                <span class="fw-semibold" data-slot="title"></span>
+                <span class="small text-body-secondary d-block" data-slot="detail"></span>
+            </span>
+            <button type="button" class="btn btn-outline-primary btn-sm flex-shrink-0" data-action="bo-order-edit#addProduct">
+                <i class="bi bi-plus-lg" aria-hidden="true"></i> {{ 'Add'|trans }}
+            </button>
+        </li>
+    </template>
+</form>

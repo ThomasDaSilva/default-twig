@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Controller\Order;
 
 use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
+use BackOfficeDefaultTwigBundle\Repository\SearchRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminFlash;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminLogger;
@@ -34,6 +35,7 @@ use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
 use Thelia\Core\Security\SecurityContext;
 use Thelia\Core\Security\User\UserInterface;
+use Thelia\Domain\Order\DTO\AddedOrderLine;
 use Thelia\Domain\Order\DTO\OrderEdit;
 use Thelia\Domain\Order\Enum\OrderEditRefusal;
 use Thelia\Domain\Order\Exception\OrderEditRefusedException;
@@ -41,6 +43,7 @@ use Thelia\Domain\Order\Exception\StockShortageException;
 use Thelia\Domain\Order\Service\OrderEditor;
 use Thelia\Log\Tlog;
 use Thelia\Messenger\JobFailureMessage;
+use Thelia\Model\LangQuery;
 use Thelia\Model\Order;
 use Thelia\Tools\TokenProvider;
 
@@ -62,6 +65,7 @@ final class OrderEditController
         private readonly OrderRepository $orderRepository,
         private readonly OrderAccess $orderAccess,
         private readonly OrderEditContextBuilder $context,
+        private readonly SearchRepository $search,
         #[Target('order_edit')]
         private readonly RateLimiterFactoryInterface $limiter,
         #[Target('order_edit_preview')]
@@ -165,7 +169,7 @@ final class OrderEditController
         try {
             $preview = $this->editor->simulate($order, $this->readEdit($request, $order));
         } catch (OrderEditRefusedException $refusal) {
-            return new JsonResponse(['error' => $this->refusalMessage($refusal->refusal)], Response::HTTP_UNPROCESSABLE_ENTITY);
+            return new JsonResponse(['error' => $this->refusalMessage($refusal->refusal), 'refusal' => $refusal->refusal->value], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (StockShortageException $shortage) {
             return new JsonResponse(['error' => $this->translator->trans('Not enough stock for product %ref%: the order was not edited.', ['%ref%' => (string) $shortage->productReference])], Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Throwable $throwable) {
@@ -178,6 +182,30 @@ final class OrderEditController
             'before' => get_object_vars($preview->before),
             'after' => get_object_vars($preview->after),
         ]);
+    }
+
+    #[Route('/admin/order/{order_id}/edit/search', name: 'admin.order.edit.search', methods: ['GET'], requirements: ['order_id' => '\d+'])]
+    public function search(Request $request, int $order_id): JsonResponse
+    {
+        if (null === $this->editor) {
+            throw new NotFoundHttpException();
+        }
+
+        if (null !== $this->access->check(self::RESOURCE, [], AccessManager::UPDATE)) {
+            return new JsonResponse([], Response::HTTP_FORBIDDEN);
+        }
+
+        $order = $this->orderRepository->findById($order_id);
+
+        if (null === $order) {
+            throw new NotFoundHttpException();
+        }
+
+        $this->orderAccess->assertReaches($order);
+
+        $locale = LangQuery::create()->findOneByByDefault(1)?->getLocale() ?? 'en_US';
+
+        return new JsonResponse($this->search->findSellableCombinations((string) $request->query->get('q', ''), $locale));
     }
 
     private function readEdit(Request $request, Order $order): OrderEdit
@@ -228,6 +256,7 @@ final class OrderEditController
         $postage = (string) $request->request->get('postage', $current['edit_postage']);
 
         return new OrderEdit(
+            addedLines: $this->readAddedLines($request),
             removedLines: $removed,
             quantities: $quantities,
             unitPrices: $prices,
@@ -235,6 +264,31 @@ final class OrderEditController
             untaxedPostage: $this->differs($postage, $current['edit_postage']) ? $this->sent($postage) : null,
             expectedState: (string) $request->request->get('expected_state', ''),
         );
+    }
+
+    /**
+     * @return list<AddedOrderLine>
+     */
+    private function readAddedLines(Request $request): array
+    {
+        $added = [];
+
+        foreach ($request->request->all('add') as $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+
+            $quantity = $this->amount((string) ($row['quantity'] ?? ''));
+            $price = trim((string) ($row['price'] ?? ''));
+
+            $added[] = new AddedOrderLine(
+                productSaleElementsId: (int) ($row['pse'] ?? 0),
+                quantity: null !== $quantity ? (float) $quantity : 0.0,
+                unitPrice: '' === $price ? null : $this->sent($price),
+            );
+        }
+
+        return $added;
     }
 
     /**

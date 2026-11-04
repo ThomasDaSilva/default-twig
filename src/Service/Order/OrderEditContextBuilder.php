@@ -48,7 +48,31 @@ final readonly class OrderEditContextBuilder
             && null !== $this->invoiceRefAllocator
             && null === $this->access->check(AdminResources::ORDER_EDIT, [], AccessManager::UPDATE)
             && $this->editableStatuses->allowsEditing($order)
-            && !($this->invoiceRefAllocator->isEnabled() && '' !== (string) $order->getInvoiceRef());
+            && !$this->isInvoiced($order);
+    }
+
+    /**
+     * Why an administrator entitled to edit orders is not offered the editor on this one:
+     * `status` or `invoice`, null when it is offered or when nothing is worth saying (no
+     * editor in the core, no right to edit).
+     */
+    public function unavailableReason(Order $order): ?string
+    {
+        if (null === $this->editor || null === $this->editableStatuses || null === $this->invoiceRefAllocator
+            || null !== $this->access->check(AdminResources::ORDER_EDIT, [], AccessManager::UPDATE)) {
+            return null;
+        }
+
+        if ($this->isInvoiced($order)) {
+            return 'invoice';
+        }
+
+        return $this->editableStatuses->allowsEditing($order) ? null : 'status';
+    }
+
+    private function isInvoiced(Order $order): bool
+    {
+        return null !== $this->invoiceRefAllocator && $this->invoiceRefAllocator->isEnabled() && '' !== (string) $order->getInvoiceRef();
     }
 
     /**
@@ -57,11 +81,12 @@ final readonly class OrderEditContextBuilder
     public function build(Order $order): array
     {
         if (!$this->canEdit($order)) {
-            return ['can_edit_order' => false];
+            return ['can_edit_order' => false, 'edit_unavailable_reason' => $this->unavailableReason($order)];
         }
 
         return [
             'can_edit_order' => true,
+            'edit_unavailable_reason' => null,
             ...$this->snapshot($order),
             'edit_state' => $this->editor->stateOf($order),
             'edit_paid' => $order->isPaid(false),
