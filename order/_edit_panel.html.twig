@@ -11,6 +11,7 @@
 <form method="post" action="{{ path('admin.order.edit', { order_id: order.id }) }}" id="order-edit-panel" hidden novalidate
       data-bo-order-edit-target="form"
       data-preview-failed="{{ 'The totals could not be computed. Try again.'|trans }}"
+      data-invalid-field="{{ 'This value is not a valid number.'|trans }}"
       data-search-failed="{{ 'The search failed. Try again.'|trans }}"
       data-no-result="{{ 'No product found.'|trans }}"
       data-stock-label="{{ 'Stock'|trans }}"

@@ -148,10 +148,12 @@
                      data-bo-order-edit-per-page-value="25"
                      data-bo-order-edit-page-label-value="{{ 'Page %current% of %last%'|trans }}">
                     {% if can_edit_order|default(false) %}
-                        <div class="d-flex justify-content-end mb-2" data-bo-order-edit-target="toolbar">
-                            <button type="button" class="btn btn-outline-primary btn-sm" data-action="bo-order-edit#start" aria-controls="order-edit-panel" aria-expanded="false" data-bo-order-edit-target="start" data-testid="order-edit-btn">
-                                <i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Edit order'|trans }}
-                            </button>
+                        <div class="mb-2" data-bo-order-edit-target="toolbar">
+                            <div class="d-flex justify-content-end">
+                                <button type="button" class="btn btn-outline-primary btn-sm" data-action="bo-order-edit#start" aria-controls="order-edit-panel" aria-expanded="false" data-bo-order-edit-target="start" data-testid="order-edit-btn">
+                                    <i class="bi bi-pencil-square" aria-hidden="true"></i> {{ 'Edit order'|trans }}
+                                </button>
+                            </div>
                         </div>
                     {% elseif edit_unavailable_reason|default(null) %}
                         <p class="text-muted small text-end mb-2" data-testid="order-edit-unavailable">

@@ -99,47 +99,51 @@ final class OrderEditController
         try {
             $this->tokens->checkToken((string) $request->request->get('_token', ''));
         } catch (\Throwable) {
-            $this->flash->add($request, 'danger', $this->translator->trans('Invalid security token, please try again.'));
-
-            return $back;
+            return $this->refused($request, $back, 'danger', $this->translator->trans('Invalid security token, please try again.'), Response::HTTP_FORBIDDEN);
         }
 
         $adminUser = $this->securityContext->getAdminUser();
 
         if (!$this->limiter->create($adminUser instanceof UserInterface ? $adminUser->getUsername() : null)->consume()->isAccepted()) {
-            $this->flash->add($request, 'warning', $this->translator->trans('Too many order edits in a row. Try again in a few minutes.'));
-
-            return $back;
+            return $this->refused($request, $back, 'warning', $this->translator->trans('Too many order edits in a row. Try again in a few minutes.'), Response::HTTP_TOO_MANY_REQUESTS);
         }
 
         if ($this->addsTooMany($request)) {
-            $this->flash->add($request, 'danger', $this->tooManyAddedMessage());
-
-            return $back;
+            return $this->refused($request, $back, 'danger', $this->tooManyAddedMessage(), Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         try {
             $this->editor->edit($order, $this->readEdit($request, $order));
         } catch (OrderEditRefusedException $refusal) {
-            $this->flash->add($request, 'danger', $this->refusalMessage($refusal->refusal));
-
-            return $back;
+            return $this->refused($request, $back, 'danger', $this->refusalMessage($refusal->refusal), Response::HTTP_UNPROCESSABLE_ENTITY, $refusal->refusal->value);
         } catch (StockShortageException $shortage) {
-            $this->flash->add($request, 'danger', $this->translator->trans('Not enough stock for product %ref%: the order was not edited.', ['%ref%' => (string) $shortage->productReference]));
-
-            return $back;
+            return $this->refused($request, $back, 'danger', $this->translator->trans('Not enough stock for product %ref%: the order was not edited.', ['%ref%' => (string) $shortage->productReference]), Response::HTTP_UNPROCESSABLE_ENTITY);
         } catch (\Throwable $throwable) {
             Tlog::getInstance()->error(\sprintf('Order %d edit failed: %s', $order_id, JobFailureMessage::forLog($throwable)));
 
-            $this->flash->add($request, 'danger', $this->translator->trans('The order could not be edited. See the system log for the details.'));
-
-            return $back;
+            return $this->refused($request, $back, 'danger', $this->translator->trans('The order could not be edited. See the system log for the details.'), Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, \sprintf('Order %s edited', (string) $order->getRef()), $order_id);
         $this->flash->add($request, 'success', $this->translator->trans('The order has been edited.'));
 
+        return $this->wantsJson($request) ? new JsonResponse(['redirect' => $back->getTargetUrl()]) : $back;
+    }
+
+    private function refused(Request $request, RedirectResponse $back, string $type, string $message, int $status, ?string $refusal = null): Response
+    {
+        if ($this->wantsJson($request)) {
+            return new JsonResponse(['error' => $message] + (null === $refusal ? [] : ['refusal' => $refusal]), $status);
+        }
+
+        $this->flash->add($request, $type, $message);
+
         return $back;
+    }
+
+    private function wantsJson(Request $request): bool
+    {
+        return str_contains((string) $request->headers->get('Accept', ''), 'application/json');
     }
 
     #[Route('/admin/order/{order_id}/edit/preview', name: 'admin.order.edit.preview', methods: ['POST'], requirements: ['order_id' => '\d+'])]

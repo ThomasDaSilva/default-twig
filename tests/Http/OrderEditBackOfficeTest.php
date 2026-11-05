@@ -288,6 +288,44 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         self::assertEqualsWithDelta(11.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001);
     }
 
+    public function testARefusedEditIsAnsweredInJsonSoThatTheScreenKeepsItsDraft(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+        $fields = $this->fieldsOf($this->sheetUrl($order));
+
+        $first->setPrice('11.000000')->setPromoPrice('11.000000')->save($this->getPropelConnection());
+
+        $this->client->request('POST', $this->editUrl($order), [
+            ...$fields,
+            'price' => [(string) $first->getId() => '99'],
+        ], [], ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertSame(422, $this->client->getResponse()->getStatusCode());
+        $answer = json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertSame('stale_state', $answer['refusal']);
+        self::assertStringContainsString('The order changed since you opened it.', $answer['error']);
+        OrderProductTableMap::clearInstancePool();
+        self::assertEqualsWithDelta(11.0, (float) $this->linesOf($order)[(int) $first->getId()]->getPromoPrice(), 0.0001, 'A refused edit writes nothing.');
+    }
+
+    public function testAnAcceptedEditIsAnsweredInJsonWithTheSheetToReturnTo(): void
+    {
+        $this->loginFullAdmin();
+        [$order, $first] = $this->editableOrder();
+
+        $this->client->request('POST', $this->editUrl($order), [
+            ...$this->fieldsOf($this->sheetUrl($order)),
+            'quantity' => [(string) $first->getId() => '2'],
+        ], [], ['HTTP_ACCEPT' => 'application/json']);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        $answer = json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertStringEndsWith('/admin/order/update/'.$order->getId(), $answer['redirect']);
+        OrderProductTableMap::clearInstancePool();
+        self::assertEqualsWithDelta(2.0, (float) $this->linesOf($order)[(int) $first->getId()]->getQuantity(), 0.0001);
+    }
+
     public function testAnOrderWhoseStatusForbidsEditingIsNotOfferedAndRefused(): void
     {
         $this->loginFullAdmin();
@@ -449,6 +487,31 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
 
         $this->client->request('GET', $this->searchUrl($order));
         self::assertSame([], json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR), 'No term searches nothing.');
+    }
+
+    public function testAProductWithManyCombinationsDoesNotHideTheProductsAfterIt(): void
+    {
+        $this->loginFullAdmin();
+        [$order] = $this->editableOrder();
+        $many = $this->searchableProduct('Zorblax many', 1);
+        $after = $this->searchableProduct('Zorblax after', 1);
+        for ($index = 1; $index <= 120; ++$index) {
+            (new \Thelia\Model\ProductSaleElements())
+                ->setProductId($many->getId())
+                ->setRef('ZMANY-'.$index)
+                ->setQuantity(1)
+                ->setPromo(0)
+                ->setNewness(0)
+                ->setWeight(1)
+                ->setIsDefault(0)
+                ->save($this->getPropelConnection());
+        }
+
+        $this->client->request('GET', $this->searchUrl($order), ['q' => 'Zorblax']);
+
+        $rows = json_decode($this->html(), true, 512, \JSON_THROW_ON_ERROR);
+        self::assertContains((int) $after->getDefaultSaleElements()->getId(), array_column($rows, 'pse_id'), 'The second product is offered even though the first holds 121 combinations.');
+        self::assertLessThanOrEqual(25, \count(array_filter($rows, static fn (array $row): bool => 'Zorblax many' === $row['title'])), 'A product is cut on its own.');
     }
 
     public function testTheSearchIsRefusedWithoutTheEditPermission(): void
@@ -629,10 +692,11 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
      */
     private function stateTotals(Order $order): array
     {
-        return get_object_vars($this->getService(OrderEditor::class)->simulate(
-            OrderQuery::create()->findPk($order->getId()),
-            new \Thelia\Domain\Order\DTO\OrderEdit(discount: (string) OrderQuery::create()->findPk($order->getId())->getDiscount()),
-        )->before);
+        $stored = OrderQuery::create()->findPk($order->getId());
+        Order::forgetCachedTotals((int) $stored->getId());
+        $tax = 0;
+
+        return ['goods' => number_format($stored->getTotalAmount($tax, false, false), 6, '.', '')];
     }
 
     private function previewUrl(Order $order): string

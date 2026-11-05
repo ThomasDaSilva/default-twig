@@ -37,6 +37,7 @@ export default class extends Controller {
         this.searchSequence = 0;
         this.searchRequest = null;
         this.searchTimer = null;
+        this.submitting = false;
     }
 
     disconnect() {
@@ -78,11 +79,15 @@ export default class extends Controller {
 
     // Enter in a field validates the field, it must not save the whole draft.
     keydown(event) {
-        if (event.key !== 'Enter' || event.target.tagName !== 'INPUT' || event.target.type === 'checkbox') {
+        if (event.key !== 'Enter' || event.target.tagName !== 'INPUT') {
             return;
         }
 
         event.preventDefault();
+
+        if (event.target.type === 'checkbox') {
+            return;
+        }
 
         if (event.target === this.searchTarget) {
             clearTimeout(this.searchTimer);
@@ -94,10 +99,39 @@ export default class extends Controller {
         this.changed(event);
     }
 
-    submit(event) {
-        if (!this.hasChanges()) {
-            event.preventDefault();
+    async submit(event) {
+        event.preventDefault();
+
+        if (!this.hasChanges() || this.submitTarget.disabled) {
+            return;
         }
+
+        this.submitting = true;
+        this.updateSubmit(false);
+        this.showError('');
+
+        try {
+            const response = await fetch(this.formTarget.action, {
+                method: 'POST',
+                body: new FormData(this.formTarget),
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' },
+            });
+            const answer = await response.json().catch(() => ({}));
+
+            if (response.ok && answer.redirect) {
+                window.location.assign(answer.redirect);
+
+                return;
+            }
+
+            this.showError(answer.error || this.formTarget.dataset.previewFailed || response.statusText);
+        } catch (error) {
+            this.showError(this.formTarget.dataset.previewFailed || String(error));
+        }
+
+        this.submitting = false;
+        this.updateSubmit(true);
     }
 
     // Only the fields that are sent count: the search box has no name.
@@ -106,7 +140,53 @@ export default class extends Controller {
             return;
         }
 
-        this.preview();
+        this.preview(event?.target);
+    }
+
+    rejectInvalidField(trigger) {
+        const thousands = /^\d{1,3}(,\d{3})+$/;
+        const number = /^\d+([.,]\d+)?$/;
+        const keyOf = (input) => input.dataset.field || input.name;
+        const fields = Array.from(this.formTarget.querySelectorAll('input[name], input[data-field]')).filter((input) => (
+            input.type !== 'hidden' && input.type !== 'checkbox' && /^(quantity|price|discount|postage)/.test(keyOf(input))
+        ));
+
+        fields.forEach((input) => input.removeAttribute('aria-invalid'));
+
+        const invalid = fields.filter((input) => {
+            if (input.closest('[data-bo-order-edit-target="line"]')?.querySelector('input[name^="remove"]:checked')) {
+                return false;
+            }
+
+            const value = input.value.replace(/\s+/g, '');
+
+            if (value === '') {
+                return false;
+            }
+
+            return thousands.test(value) || !number.test(value) || (keyOf(input).startsWith('quantity') && Number(value.replace(',', '.')) <= 0);
+        });
+
+        if (invalid.length === 0) {
+            return false;
+        }
+
+        invalid.forEach((input) => input.setAttribute('aria-invalid', 'true'));
+        this.showError(this.formTarget.dataset.invalidField);
+
+        const target = trigger && invalid.includes(trigger) ? trigger : null;
+
+        if (target) {
+            const line = target.closest('[data-bo-order-edit-target="line"]');
+
+            if (line) {
+                this.showPage(Math.floor(this.lineTargets.indexOf(line) / this.perPageValue) + 1);
+            }
+
+            target.focus();
+        }
+
+        return true;
     }
 
     hasChanges() {
@@ -123,13 +203,26 @@ export default class extends Controller {
         });
     }
 
-    async preview() {
+    async preview(trigger) {
+        if (this.submitting) {
+            return;
+        }
+
         this.previewRequest?.abort();
         const sequence = ++this.previewSequence;
 
         if (!this.hasChanges()) {
             this.clearTotals();
             this.showError('');
+            this.updateSubmit(false);
+
+            return;
+        }
+
+        this.updateSubmit(false);
+
+        if (this.rejectInvalidField(trigger)) {
+            this.clearTotals();
             this.updateSubmit(false);
 
             return;

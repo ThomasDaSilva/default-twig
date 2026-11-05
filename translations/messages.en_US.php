@@ -1385,6 +1385,7 @@ return [
     'Remove this product' => 'Remove this product',
     'Totals of the order' => 'Totals of the order',
     'Abandon the changes' => 'Abandon the changes',
+    'This value is not a valid number.' => 'This value is not a valid number.',
     'The totals could not be computed. Try again.' => 'The totals could not be computed. Try again.',
     'The search failed. Try again.' => 'The search failed. Try again.',
     'No product found.' => 'No product found.',

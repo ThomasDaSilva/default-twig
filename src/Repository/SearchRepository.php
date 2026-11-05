@@ -49,6 +49,8 @@ final readonly class SearchRepository
     /** Fetch one extra row so the presenter can flag truncated result sets. */
     private const SEARCH_LIMIT = self::DISPLAY_LIMIT + 1;
 
+    private const MAX_COMBINATIONS_PER_PRODUCT = 25;
+
     /** @return ObjectCollection<int, Product> */
     public function findProducts(string $term): ObjectCollection
     {
@@ -117,8 +119,14 @@ final readonly class SearchRepository
         $labels = $this->combinationLabels(array_map(static fn ($pse): int => (int) $pse->getId(), $elements), $locale);
 
         $rows = [];
-        foreach (\array_slice($elements, 0, $limit * 5) as $pse) {
+        $perProduct = [];
+        foreach ($elements as $pse) {
             $productId = (int) $pse->getProductId();
+
+            if (($perProduct[$productId] = ($perProduct[$productId] ?? 0) + 1) > self::MAX_COMBINATIONS_PER_PRODUCT) {
+                continue;
+            }
+
             $rows[] = [
                 'pse_id' => (int) $pse->getId(),
                 'product_ref' => $titles[$productId]['ref'],

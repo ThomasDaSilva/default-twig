@@ -3551,6 +3551,7 @@ return [
     'Remove this product' => 'Retirer ce produit',
     'Totals of the order' => 'Totaux de la commande',
     'Abandon the changes' => 'Abandonner les modifications',
+    'This value is not a valid number.' => 'Cette valeur n\'est pas un nombre valide.',
     'The totals could not be computed. Try again.' => 'Les totaux n\'ont pas pu être calculés. Réessayez.',
     'The search failed. Try again.' => 'La recherche a échoué. Réessayez.',
     'No product found.' => 'Aucun produit trouvé.',
