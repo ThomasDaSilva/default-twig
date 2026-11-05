@@ -123,6 +123,10 @@ final readonly class OrderStatusActionPresenter
      */
     private function triggerLabel(OrderStatusAction $action, array $statusTitles): string
     {
+        if (OrderStatusActionTrigger::EDIT->value === $action->getTriggerType()) {
+            return $this->translator->trans('When an order in this status is edited');
+        }
+
         if (OrderStatusActionTrigger::TRANSITION->value !== $action->getTriggerType()) {
             return $this->translator->trans('On entering this status');
         }

@@ -16,6 +16,7 @@ namespace BackOfficeDefaultTwigBundle\Service\OrderStatus;
 
 use Propel\Runtime\Propel;
 use Thelia\Domain\Order\Enum\OrderStatusActionTrigger;
+use Thelia\Domain\Order\StatusAction\Effect\AbstractEmailAction;
 use Thelia\Domain\Order\Exception\InvalidOrderStatusActionPayloadException;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRegistry;
 use Thelia\Domain\Order\StatusAction\OrderStatusActionRunner;
@@ -48,6 +49,10 @@ final readonly class OrderStatusActionWriter
 
         if (OrderStatusActionTrigger::TRANSITION === $trigger && null === $fromStatusId) {
             throw new \InvalidArgumentException('A transition needs the status it starts from.');
+        }
+
+        if (OrderStatusActionTrigger::EDIT === $trigger && !$service instanceof AbstractEmailAction) {
+            throw new \InvalidArgumentException('Only an e-mail can follow the edit of an order.');
         }
 
         $lastPosition = (int) (OrderStatusActionQuery::create()
