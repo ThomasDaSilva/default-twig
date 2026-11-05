@@ -121,6 +121,18 @@ final class OrderStatusStockRulesTest extends WebIntegrationTestCase
         self::assertStringNotContainsString('Stock left as it is', $html);
     }
 
+    public function testTheModulesOfAStockActionAreTickedInAListAndNotPickedWithCtrlClick(): void
+    {
+        $this->actAs([AdminResources::ORDER_STATUS => [AccessManager::VIEW, AccessManager::UPDATE]]);
+
+        $crawler = $this->client->request('GET', $this->actionsUrl($this->orderStatus(OrderStatus::CODE_PAID)));
+        $modal = $crawler->filter('[data-testid="order-status-action-create-modal"]');
+
+        self::assertGreaterThan(0, $modal->filter('input[type="checkbox"][name="payload[adjust_stock][payment_modules][]"]')->count());
+        self::assertGreaterThan(0, $modal->filter('input[type="checkbox"][name="payload[adjust_stock][delivery_modules][]"]')->count());
+        self::assertSame(0, $modal->filter('select[multiple]')->count());
+    }
+
     public function testAStockActionKeepsTheModulesPickedAndLeavesTheFieldOutWhenNothingIsPicked(): void
     {
         $this->actAs([AdminResources::ORDER_STATUS => [AccessManager::VIEW, AccessManager::UPDATE]]);

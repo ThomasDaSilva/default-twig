@@ -135,37 +135,44 @@
                     </div>
 
                     {% for type, fields in action_fields_by_type %}
-                        <div data-bo-order-status-action-form-target="fields" data-type="{{ type }}" hidden>
+                        <div class="row g-3 mb-3" data-bo-order-status-action-form-target="fields" data-type="{{ type }}" hidden>
                             {% for field in fields %}
-                                <div class="mb-3">
-                                    <label class="form-label" for="action-field-{{ type }}-{{ field.name }}">{{ field.label }}</label>
-                                    {% if field.type == 'multiple_choice' %}
+                                {% if field.type == 'multiple_choice' %}
+                                    <fieldset class="col-md-6" data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
+                                        <legend class="form-label fs-6">{{ field.label }}</legend>
                                         {% if field.choices is empty %}
                                             <p class="text-muted small mb-0">{{ 'Nothing to choose from: no module is installed for it.'|trans }}</p>
                                         {% else %}
-                                            <select class="form-select" multiple size="{{ min(field.choices|length, 6) }}" name="payload[{{ type }}][{{ field.name }}][]" id="action-field-{{ type }}-{{ field.name }}"
+                                            <div class="border rounded px-3 py-2">
+                                                {% for value, label in field.choices %}
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" name="payload[{{ type }}][{{ field.name }}][]" value="{{ value }}" id="action-field-{{ type }}-{{ field.name }}-{{ loop.index }}">
+                                                        <label class="form-check-label" for="action-field-{{ type }}-{{ field.name }}-{{ loop.index }}">{{ label }}</label>
+                                                    </div>
+                                                {% endfor %}
+                                            </div>
+                                            <div class="form-text">{{ 'Nothing ticked: no limit.'|trans }}</div>
+                                        {% endif %}
+                                    </fieldset>
+                                {% else %}
+                                    <div class="col-12">
+                                        <label class="form-label" for="action-field-{{ type }}-{{ field.name }}">{{ field.label }}</label>
+                                        {% if field.type == 'choice' %}
+                                            <select class="form-select" name="payload[{{ type }}][{{ field.name }}]" id="action-field-{{ type }}-{{ field.name }}" {% if field.required %}required{% endif %}
                                                     data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
                                                 {% for value, label in field.choices %}
                                                     <option value="{{ value }}">{{ label }}</option>
                                                 {% endfor %}
                                             </select>
-                                            <div class="form-text">{{ 'Leave empty for no limit. Ctrl or Cmd click selects several.'|trans }}</div>
+                                        {% else %}
+                                            <input type="text" class="form-control" name="payload[{{ type }}][{{ field.name }}]" id="action-field-{{ type }}-{{ field.name }}" {% if field.required %}required{% endif %}
+                                                   data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
                                         {% endif %}
-                                    {% elseif field.type == 'choice' %}
-                                        <select class="form-select" name="payload[{{ type }}][{{ field.name }}]" id="action-field-{{ type }}-{{ field.name }}" {% if field.required %}required{% endif %}
-                                                data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
-                                            {% for value, label in field.choices %}
-                                                <option value="{{ value }}">{{ label }}</option>
-                                            {% endfor %}
-                                        </select>
-                                    {% else %}
-                                        <input type="text" class="form-control" name="payload[{{ type }}][{{ field.name }}]" id="action-field-{{ type }}-{{ field.name }}" {% if field.required %}required{% endif %}
-                                               data-testid="order-status-action-field-{{ type }}-{{ field.name }}">
-                                    {% endif %}
-                                </div>
+                                    </div>
+                                {% endif %}
                             {% endfor %}
                             {% if fields|length == 0 %}
-                                <p class="text-muted small">{{ 'This action has no setting.'|trans }}</p>
+                                <p class="col-12 text-muted small mb-0">{{ 'This action has no setting.'|trans }}</p>
                             {% endif %}
                         </div>
                     {% endfor %}

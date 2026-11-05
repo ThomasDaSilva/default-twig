@@ -1220,7 +1220,7 @@ return [
     'Decided by action #%action%.' => 'Decided by action #%action%.',
     'by action #%action%' => 'by action #%action%',
     'Nothing to choose from: no module is installed for it.' => 'Nothing to choose from: no module is installed for it.',
-    'Leave empty for no limit. Ctrl or Cmd click selects several.' => 'Leave empty for no limit. Ctrl or Cmd click selects several.',
+    'Nothing ticked: no limit.' => 'Nothing ticked: no limit.',
     'Leave the stock as it is' => 'Leave the stock as it is',
     'Only for the orders paid with' => 'Only for the orders paid with',
     'Only for the orders delivered by' => 'Only for the orders delivered by',

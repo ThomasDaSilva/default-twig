@@ -3387,7 +3387,7 @@ return [
     'Decided by action #%action%.' => 'Décidé par l\'action n°%action%.',
     'by action #%action%' => 'par l\'action n°%action%',
     'Nothing to choose from: no module is installed for it.' => 'Rien à choisir : aucun module installé pour cela.',
-    'Leave empty for no limit. Ctrl or Cmd click selects several.' => 'Laissez vide pour ne rien limiter. Ctrl ou Cmd + clic pour en choisir plusieurs.',
+    'Nothing ticked: no limit.' => 'Rien de coché : aucune limite.',
     'Leave the stock as it is' => 'Laisser le stock tel quel',
     'Only for the orders paid with' => 'Seulement pour les commandes payées avec',
     'Only for the orders delivered by' => 'Seulement pour les commandes livrées par',
