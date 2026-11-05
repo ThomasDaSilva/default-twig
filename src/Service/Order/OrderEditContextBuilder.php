@@ -14,6 +14,7 @@ declare(strict_types=1);
 
 namespace BackOfficeDefaultTwigBundle\Service\Order;
 
+use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
@@ -22,14 +23,12 @@ use Thelia\Domain\Order\Service\EditableOrderStatuses;
 use Thelia\Domain\Order\Service\OrderEditor;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
-use Thelia\Model\OrderProductQuery;
-use Thelia\Model\OrderReturnLineQuery;
-use Thelia\Model\OrderShipmentItemQuery;
 
 final readonly class OrderEditContextBuilder
 {
     public function __construct(
         private AdminAccessChecker $access,
+        private OrderRepository $orders,
         private ?OrderEditor $editor = null,
         private ?EditableOrderStatuses $editableStatuses = null,
         private ?InvoiceRefAllocator $invoiceRefAllocator = null,
@@ -98,9 +97,9 @@ final readonly class OrderEditContextBuilder
      */
     public function snapshot(Order $order): array
     {
-        $products = OrderProductQuery::create()->filterByOrderId($order->getId())->orderById()->find()->getArrayCopy();
+        $products = $this->orders->findAllOrderProducts((int) $order->getId());
         $lineIds = array_map(static fn (OrderProduct $line): int => (int) $line->getId(), $products);
-        $inUse = $this->linesInUse($lineIds);
+        $inUse = $this->orders->findOrderProductIdsInUse($lineIds);
 
         $lines = [];
         foreach ($products as $line) {
@@ -123,28 +122,6 @@ final readonly class OrderEditContextBuilder
             'edit_discount' => self::plain($order->getDiscount()),
             'edit_postage' => self::plain($order->getUntaxedPostage()),
         ];
-    }
-
-    /**
-     * @param list<int> $lineIds
-     *
-     * @return array<int, true>
-     */
-    private function linesInUse(array $lineIds): array
-    {
-        if ([] === $lineIds) {
-            return [];
-        }
-
-        $inUse = [];
-        $shipped = OrderShipmentItemQuery::create()->filterByOrderProductId($lineIds)->select('OrderProductId')->find();
-        $returned = OrderReturnLineQuery::create()->filterByOrderProductId($lineIds)->select('OrderProductId')->find();
-
-        foreach ([...$shipped, ...$returned] as $lineId) {
-            $inUse[(int) $lineId] = true;
-        }
-
-        return $inUse;
     }
 
     private static function plain(string|float|int|null $value): string

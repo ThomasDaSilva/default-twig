@@ -28,6 +28,8 @@ use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderProductQuery;
 use Thelia\Model\OrderQuery;
+use Thelia\Model\OrderReturnLineQuery;
+use Thelia\Model\OrderShipmentItemQuery;
 use Thelia\Model\OrderStatus;
 use Thelia\Model\OrderStatusQuery;
 
@@ -375,6 +377,36 @@ final class OrderRepository
         // A core without bundles has no line type: every line stands on its own. The parent column
         // is older than the bundles and says nothing of them: the type of the line does.
         return (BundleCore::present() ? $query->filterByLineType(OrderProduct::LINE_TYPE_BUNDLE_COMPONENT, Criteria::NOT_EQUAL) : $query)->count();
+    }
+
+    /**
+     * @return list<OrderProduct>
+     */
+    public function findAllOrderProducts(int $orderId): array
+    {
+        return array_values(OrderProductQuery::create()->filterByOrderId($orderId)->orderById()->find()->getArrayCopy());
+    }
+
+    /**
+     * @param list<int> $lineIds
+     *
+     * @return array<int, true>
+     */
+    public function findOrderProductIdsInUse(array $lineIds): array
+    {
+        if ([] === $lineIds) {
+            return [];
+        }
+
+        $inUse = [];
+        $shipped = OrderShipmentItemQuery::create()->filterByOrderProductId($lineIds)->select('OrderProductId')->find();
+        $returned = OrderReturnLineQuery::create()->filterByOrderProductId($lineIds)->select('OrderProductId')->find();
+
+        foreach ([...$shipped, ...$returned] as $lineId) {
+            $inUse[(int) $lineId] = true;
+        }
+
+        return $inUse;
     }
 
     /**
