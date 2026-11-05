@@ -4223,7 +4223,7 @@ return [
     'Picking slip of the %count% orders matching the filters' => 'Bon de préparation des %count% commandes correspondant aux filtres',
     'Picking slip of the selection' => 'Bon de préparation de la sélection',
     'Never applies: action #%action%, placed before, always wins.' => 'Ne s\'applique jamais : l\'action n°%action%, placée avant, l\'emporte toujours.',
-    'Ignored modules (gone or switched off): %modules%' => 'Modules ignorés (disparus ou désactivés) : %modules%',
+    'Never applies while its limits name a module that is gone or switched off: %modules%' => 'Ne s\'applique jamais tant que ses limites nomment un module disparu ou désactivé : %modules%',
     'Check the stock operation of a status change' => 'Vérifier l\'opération de stock d\'un changement de statut',
     'Type an order reference and pick the status to move it to: the stock operation it would apply is shown, and nothing is moved.' => 'Saisissez une référence de commande et choisissez le statut visé : l\'opération de stock qui s\'appliquerait est affichée, rien n\'est déplacé.',
     'Order reference' => 'Référence de la commande',
