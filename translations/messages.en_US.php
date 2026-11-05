@@ -1205,7 +1205,7 @@ return [
     'Visible in the shop' => 'Visible in the shop',
     'Cancel the changes' => 'Cancel the changes',
     'Never applies: action #%action%, placed before, always wins.' => 'Never applies: action #%action%, placed before, always wins.',
-    'Ignored modules (gone or switched off): %modules%' => 'Ignored modules (gone or switched off): %modules%',
+    'Never applies while its limits name a module that is gone or switched off: %modules%' => 'Never applies while its limits name a module that is gone or switched off: %modules%',
     'Check the stock operation of a status change' => 'Check the stock operation of a status change',
     'Type an order reference and pick the status to move it to: the stock operation it would apply is shown, and nothing is moved.' => 'Type an order reference and pick the status to move it to: the stock operation it would apply is shown, and nothing is moved.',
     'Order reference' => 'Order reference',

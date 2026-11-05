@@ -3373,7 +3373,7 @@ return [
     'Actions of %combination%' => 'Actions de %combination%',
     'The price could not be converted with the tax rule. Type the price without taxes, or try again.' => 'Le prix n\'a pas pu être converti avec la règle de taxe. Saisissez le prix hors taxes, ou réessayez.',
     'Never applies: action #%action%, placed before, always wins.' => 'Ne s\'applique jamais : l\'action n°%action%, placée avant, l\'emporte toujours.',
-    'Ignored modules (gone or switched off): %modules%' => 'Modules ignorés (disparus ou désactivés) : %modules%',
+    'Never applies while its limits name a module that is gone or switched off: %modules%' => 'Ne s\'applique jamais tant que ses limites nomment un module disparu ou désactivé : %modules%',
     'Check the stock operation of a status change' => 'Vérifier l\'opération de stock d\'un changement de statut',
     'Type an order reference and pick the status to move it to: the stock operation it would apply is shown, and nothing is moved.' => 'Saisissez une référence de commande et choisissez le statut visé : l\'opération de stock qui s\'appliquerait est affichée, rien n\'est déplacé.',
     'Order reference' => 'Référence de la commande',

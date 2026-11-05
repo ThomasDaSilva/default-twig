@@ -137,7 +137,7 @@ final readonly class OrderStatusActionPresenter
         $missing = $this->stockRules->missingModules($action);
 
         if ([] !== $missing) {
-            $warnings[] = $this->translator->trans('Ignored modules (gone or switched off): %modules%', ['%modules%' => implode(', ', $missing)]);
+            $warnings[] = $this->translator->trans('Never applies while its limits name a module that is gone or switched off: %modules%', ['%modules%' => implode(', ', $missing)]);
         }
 
         return $warnings;

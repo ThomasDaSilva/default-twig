@@ -133,6 +133,21 @@ final class OrderStatusStockRulesTest extends WebIntegrationTestCase
         self::assertSame(0, $modal->filter('select[multiple]')->count());
     }
 
+    public function testAStockActionWhoseLimitNamesAGoneModuleIsSaidToNeverApply(): void
+    {
+        $this->actAs([AdminResources::ORDER_STATUS => [AccessManager::VIEW, AccessManager::UPDATE]]);
+        $status = $this->orderStatus(OrderStatus::CODE_PAID);
+
+        $this->client->request('POST', '/admin/configuration/order-status/actions/'.$status->getId().'/create', [
+            '_token' => $this->tokenOf($this->actionsUrl($status)),
+            'trigger' => 'enter',
+            'action_type' => 'adjust_stock',
+            'payload' => ['adjust_stock' => ['operation' => 'none', 'payment_modules' => ['Cheque', 'NoSuchModule']]],
+        ]);
+
+        self::assertStringContainsString('Never applies while its limits name a module that is gone or switched off: NoSuchModule', $this->actionsTab($status));
+    }
+
     public function testAStockActionKeepsTheModulesPickedAndLeavesTheFieldOutWhenNothingIsPicked(): void
     {
         $this->actAs([AdminResources::ORDER_STATUS => [AccessManager::VIEW, AccessManager::UPDATE]]);
