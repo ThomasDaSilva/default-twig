@@ -5,7 +5,7 @@
     postage are untaxed, the discount is taxed (as the core stores it). Only what differs from the
     stored value is acted on by the core.
 
-    Expects: order, edit_lines, edit_discount, edit_postage, edit_state, edit_paid, token
+    Expects: order, edit_lines, edit_discount, edit_postage, edit_state, token
     Lives inside the element of the bo-order-edit controller.
 #}
 <form method="post" action="{{ path('admin.order.edit', { order_id: order.id }) }}" id="order-edit-panel" hidden novalidate
@@ -26,10 +26,6 @@
             <input type="hidden" name="expected_state" value="{{ edit_state }}">
 
             <p class="small">{{ 'Prices and postage are entered without tax, the discount with tax. The taxes and the stock follow the changes.'|trans }}</p>
-            {% if edit_paid %}
-                <p class="small" data-testid="order-edit-paid-note">{{ 'This order is paid: its lines can be changed but not removed.'|trans }}</p>
-            {% endif %}
-
             <div class="alert alert-danger py-2" role="alert" hidden data-bo-order-edit-target="error" data-testid="order-edit-error"></div>
 
             <div class="row g-3 mb-3">
@@ -53,9 +49,7 @@
                             <th scope="col">{{ 'Product'|trans }}</th>
                             <th scope="col" class="text-center">{{ 'Quantity'|trans }}</th>
                             <th scope="col" class="text-end">{{ 'Unit price (excl. tax)'|trans }}</th>
-                            {% if not edit_paid %}
-                                <th scope="col" class="text-center">{{ 'Remove'|trans }}</th>
-                            {% endif %}
+                            <th scope="col" class="text-center">{{ 'Remove'|trans }}</th>
                         </tr>
                     </thead>
                     {% for line in edit_lines %}
@@ -78,21 +72,19 @@
                                                id="order-edit-price-{{ line.id }}" name="price[{{ line.id }}]" value="{{ line.price }}"
                                                data-testid="order-edit-price-{{ line.id }}">
                                     </td>
-                                    {% if not edit_paid %}
-                                        <td class="text-center">
-                                            <input type="checkbox" class="form-check-input" id="order-edit-remove-{{ line.id }}" name="remove[{{ line.id }}]" value="1"
-                                                   aria-label="{{ 'Remove this line'|trans }} &mdash; {{ line.title|e('html_attr') }}" data-testid="order-edit-remove-{{ line.id }}">
-                                        </td>
-                                    {% endif %}
+                                    <td class="text-center">
+                                        <input type="checkbox" class="form-check-input" id="order-edit-remove-{{ line.id }}" name="remove[{{ line.id }}]" value="1"
+                                               aria-label="{{ 'Remove this line'|trans }} &mdash; {{ line.title|e('html_attr') }}" data-testid="order-edit-remove-{{ line.id }}">
+                                    </td>
                                 {% else %}
                                     <td class="text-center">{{ line.quantity }}</td>
                                     <td class="text-end">{{ line.price }}</td>
-                                    {% if not edit_paid %}<td></td>{% endif %}
+                                    <td></td>
                                 {% endif %}
                             </tr>
                             {% if not line.editable %}
                                 <tr>
-                                    <td colspan="{{ edit_paid ? 3 : 4 }}" class="small pt-0" data-testid="order-edit-locked-{{ line.id }}">
+                                    <td colspan="4" class="small pt-0" data-testid="order-edit-locked-{{ line.id }}">
                                         {% if line.locked_reason == 'in_use' %}
                                             {{ 'Shipped or returned: this line cannot be edited.'|trans }}
                                         {% else %}

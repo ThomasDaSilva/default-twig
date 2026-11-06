@@ -366,7 +366,6 @@ final class OrderEditController
             OrderEditRefusal::StatusNotEditable => $this->translator->trans('The status of this order does not allow editing it.'),
             OrderEditRefusal::InvoiceIssued => $this->translator->trans('An invoice has been issued for this order: it can no longer be edited.'),
             OrderEditRefusal::NothingToEdit => $this->translator->trans('Nothing was changed.'),
-            OrderEditRefusal::PaidOrderLineRemoval => $this->translator->trans('A line cannot be removed from a paid order.'),
             OrderEditRefusal::LastLine => $this->translator->trans('An order must keep at least one product line.'),
             OrderEditRefusal::UnknownLine => $this->translator->trans('One of the lines does not belong to this order.'),
             OrderEditRefusal::ServiceLine => $this->translator->trans('A service line cannot be edited.'),

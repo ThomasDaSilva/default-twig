@@ -189,7 +189,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         self::assertCount(2, $this->linesOf($order));
     }
 
-    public function testAPaidOrderCannotLoseALineEvenByAForgedPost(): void
+    public function testAPaidOrderLosesALineFromItsSheet(): void
     {
         $this->loginFullAdmin();
         $order = $this->factory->order(null, ['statusCode' => OrderStatus::CODE_PAID]);
@@ -197,8 +197,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         $second = $this->catalogLine($order, 1.0, '20.000000');
 
         $this->assertPageRenders($this->sheetUrl($order));
-        self::assertStringContainsString('order-edit-paid-note', $this->html());
-        self::assertStringNotContainsString('order-edit-remove-'.$first->getId(), $this->html());
+        self::assertStringContainsString('order-edit-remove-'.$second->getId(), $this->html());
 
         $this->client->request('POST', $this->editUrl($order), [
             ...$this->fieldsOf($this->sheetUrl($order)),
@@ -206,8 +205,7 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         ]);
         $this->client->followRedirect();
 
-        self::assertStringContainsString('A line cannot be removed from a paid order.', $this->html());
-        self::assertCount(2, $this->linesOf($order));
+        self::assertSame([(int) $first->getId()], array_keys($this->linesOf($order)));
     }
 
     public function testThePostageIsSentWhenItChanges(): void
@@ -591,6 +589,26 @@ final class OrderEditBackOfficeTest extends WebIntegrationTestCase
         [$editable] = $this->editableOrder();
         $this->assertPageRenders($this->sheetUrl($editable));
         self::assertStringNotContainsString('order-edit-unavailable', $this->html());
+    }
+
+    public function testAnInvoicedOrderIsNotOfferedEvenWithAutomaticNumberingOff(): void
+    {
+        $previous = ConfigQuery::read('invoice_ref_auto');
+        ConfigQuery::write('invoice_ref_auto', '0');
+
+        try {
+            $this->loginFullAdmin();
+            [$order] = $this->editableOrder();
+            $order->setInvoiceRef('2026-'.$order->getId())->save();
+
+            $this->assertPageRenders($this->sheetUrl($order));
+            $html = $this->html();
+
+            self::assertStringContainsString('an invoice has been issued for it', $html);
+            self::assertStringNotContainsString('order-edit-btn', $html);
+        } finally {
+            ConfigQuery::write('invoice_ref_auto', (string) $previous);
+        }
     }
 
     public function testTheSheetSaysNothingToAnAdministratorWhoCannotEdit(): void

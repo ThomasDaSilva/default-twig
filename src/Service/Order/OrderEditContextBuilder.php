@@ -18,7 +18,6 @@ use BackOfficeDefaultTwigBundle\Repository\OrderRepository;
 use BackOfficeDefaultTwigBundle\Service\Admin\AdminAccessChecker;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
-use Thelia\Domain\Invoice\InvoiceRefAllocator;
 use Thelia\Domain\Order\Service\EditableOrderStatuses;
 use Thelia\Domain\Order\Service\OrderEditor;
 use Thelia\Model\Order;
@@ -31,7 +30,6 @@ final readonly class OrderEditContextBuilder
         private OrderRepository $orders,
         private ?OrderEditor $editor = null,
         private ?EditableOrderStatuses $editableStatuses = null,
-        private ?InvoiceRefAllocator $invoiceRefAllocator = null,
     ) {
     }
 
@@ -44,7 +42,6 @@ final readonly class OrderEditContextBuilder
     {
         return null !== $this->editor
             && null !== $this->editableStatuses
-            && null !== $this->invoiceRefAllocator
             && null === $this->access->check(AdminResources::ORDER_EDIT, [], AccessManager::UPDATE)
             && $this->editableStatuses->allowsEditing($order)
             && !$this->isInvoiced($order);
@@ -57,7 +54,7 @@ final readonly class OrderEditContextBuilder
      */
     public function unavailableReason(Order $order): ?string
     {
-        if (null === $this->editor || null === $this->editableStatuses || null === $this->invoiceRefAllocator
+        if (null === $this->editor || null === $this->editableStatuses
             || null !== $this->access->check(AdminResources::ORDER_EDIT, [], AccessManager::UPDATE)) {
             return null;
         }
@@ -71,7 +68,7 @@ final readonly class OrderEditContextBuilder
 
     private function isInvoiced(Order $order): bool
     {
-        return null !== $this->invoiceRefAllocator && $this->invoiceRefAllocator->isEnabled() && '' !== (string) $order->getInvoiceRef();
+        return '' !== (string) $order->getInvoiceRef();
     }
 
     /**
@@ -88,7 +85,6 @@ final readonly class OrderEditContextBuilder
             'edit_unavailable_reason' => null,
             ...$this->snapshot($order),
             'edit_state' => $this->editor->stateOf($order),
-            'edit_paid' => $order->isPaid(false),
         ];
     }
 
