@@ -54,6 +54,29 @@
             </div>
         </div>
 
+        {# Written by the export in the language it was run in: shown as it is, not translated again. #}
+        {% set report = job.status == 'done' ? job.exportReport : null %}
+        {% if report and (report.lines is not empty or report.warnings is not empty) %}
+            <div class="card mt-3" data-testid="export-job-report">
+                <div class="card-body">
+                    <h2 class="h5">{{ 'Report of the export'|trans }}</h2>
+                    {% if report.lines is not empty %}
+                        <ul class="mb-0">
+                            {% for line in report.lines %}<li>{{ line }}</li>{% endfor %}
+                        </ul>
+                    {% endif %}
+                    {% if report.warnings is not empty %}
+                        <div class="alert alert-warning mt-3 mb-0" data-testid="export-job-report-warnings">
+                            <h3 class="h6">{{ 'To check before using the file'|trans }}</h3>
+                            <ul class="mb-0">
+                                {% for warning in report.warnings %}<li>{{ warning }}</li>{% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+
         {% if not job.finished %}
             <p class="small mt-2 mb-0" data-testid="export-job-refresh">
                 {% if auto_refresh %}

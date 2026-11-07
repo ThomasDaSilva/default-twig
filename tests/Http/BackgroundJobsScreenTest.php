@@ -29,6 +29,7 @@ use Thelia\Core\Event\ExportEvent;
 use Thelia\Core\Event\TheliaEvents;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Core\Security\Resource\AdminResources;
+use Thelia\Domain\DataTransfer\Export\ExportReport;
 use Thelia\Domain\DataTransfer\Job\RunExportJob;
 use Thelia\Messenger\JobSetAsideException;
 use Thelia\Messenger\Message\UndecodableJob;
@@ -329,6 +330,34 @@ final class BackgroundJobsScreenTest extends WebIntegrationTestCase
      * The path of the file comes from the row: a row naming a file outside the export
      * folder offers nothing to download, and serves nothing.
      */
+    public function testTheReportOfAnExportIsShownOnItsJobAsItWasWritten(): void
+    {
+        $report = new ExportReport();
+        $report->addLine('3 pieces, debit 120.00, credit 120.00.');
+        $report->addWarning('Order ORD-7 has no invoice date.');
+        $job = $this->doneExportJob(null);
+        $job->recordReport($report)->save();
+        $this->loginAs($this->factory->admin());
+
+        $this->assertPageRenders('/admin/export/job/'.$job->getId());
+
+        $html = $this->html();
+        self::assertStringContainsString('data-testid="export-job-report"', $html);
+        self::assertStringContainsString('3 pieces, debit 120.00, credit 120.00.', $html);
+        self::assertStringContainsString('data-testid="export-job-report-warnings"', $html);
+        self::assertStringContainsString('Order ORD-7 has no invoice date.', $html);
+    }
+
+    public function testAJobWithoutReportShowsNone(): void
+    {
+        $job = $this->doneExportJob(null);
+        $this->loginAs($this->factory->admin());
+
+        $this->assertPageRenders('/admin/export/job/'.$job->getId());
+
+        self::assertStringNotContainsString('data-testid="export-job-report"', $this->html());
+    }
+
     public function testAnExportRowNamingAFileOutsideTheExportFolderServesNothing(): void
     {
         $job = $this->doneExportJob(null);
