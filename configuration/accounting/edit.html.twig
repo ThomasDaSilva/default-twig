@@ -4,7 +4,7 @@
     The chart of accounts of the sales journal.
 
     Expects:
-      - values:  { journal_code, journal_label, customer_account, shipping_account }
+      - values:  { journal_code, journal_label, customer_account, shipping_account, commercial_credit_account }
       - rates:   list of { rate, product, tax }, padded with empty rows
       - missing: what the accounting exports still need, translated
       - error:   why the chart sent was refused, or null
@@ -92,6 +92,19 @@
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">{{ 'Credit notes'|trans }}</div>
+                <div class="card-body">
+                    <p class="text-muted small">{{ 'The credit notes of the CreditNote module are booked as the reverse of an invoice. A commercial credit note (a rebate, a discount, a refund of a difference) is debited to this account when it is set, to the sales account of its rate otherwise.'|trans }}</p>
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label for="accounting-commercial-credit-account" class="form-label">{{ 'Account of commercial credit notes'|trans }}</label>
+                            <input type="text" class="form-control" id="accounting-commercial-credit-account" name="commercial_credit_account" value="{{ values.commercial_credit_account }}" placeholder="709000" maxlength="20" data-testid="accounting-commercial-credit-account">
+                        </div>
                     </div>
                 </div>
             </div>

@@ -35,7 +35,8 @@ use Twig\Environment;
 
 /**
  * The chart of accounts of the sales journal: the journal, the customer and shipping
- * accounts, and the accounts of each tax rate. The accounting exports refuse to run until
+ * accounts, the accounts of each tax rate, and the optional account of commercial credit
+ * notes. The accounting exports refuse to run until
  * it is set.
  */
 #[Route('/admin/configuration/accounting', name: 'admin.accounting.')]
@@ -73,6 +74,7 @@ final class AccountingController
             'journal_label' => (string) ConfigQuery::read(AccountingChart::JOURNAL_LABEL_KEY, ''),
             'customer_account' => (string) ConfigQuery::read(AccountingChart::CUSTOMER_ACCOUNT_KEY, ''),
             'shipping_account' => (string) ConfigQuery::read(AccountingChart::SHIPPING_ACCOUNT_KEY, ''),
+            'commercial_credit_account' => (string) ConfigQuery::read(AccountingChart::COMMERCIAL_CREDIT_ACCOUNT_KEY, ''),
         ];
         $rates = [];
 
@@ -99,7 +101,7 @@ final class AccountingController
 
         $values = [];
 
-        foreach (['journal_code', 'journal_label', 'customer_account', 'shipping_account'] as $field) {
+        foreach (['journal_code', 'journal_label', 'customer_account', 'shipping_account', 'commercial_credit_account'] as $field) {
             $values[$field] = trim((string) $request->request->get($field, ''));
         }
 
@@ -122,6 +124,7 @@ final class AccountingController
                 $values['customer_account'],
                 $values['shipping_account'],
                 implode(',', array_map(static fn (array $row): string => $row['rate'].':'.$row['product'].('' !== $row['tax'] ? ':'.$row['tax'] : ''), $rates)),
+                $values['commercial_credit_account'],
             );
         } catch (InvalidAccountingChartException $exception) {
             return $this->render($values, $rates, $exception->getMessage());
@@ -132,6 +135,7 @@ final class AccountingController
         ConfigQuery::write(AccountingChart::CUSTOMER_ACCOUNT_KEY, $chart->customerAccount);
         ConfigQuery::write(AccountingChart::SHIPPING_ACCOUNT_KEY, $chart->shippingAccount);
         ConfigQuery::write(AccountingChart::RATE_ACCOUNTS_KEY, $chart->rateAccountsSetting());
+        ConfigQuery::write(AccountingChart::COMMERCIAL_CREDIT_ACCOUNT_KEY, (string) $chart->commercialCreditAccount);
         $this->adminLogger->log(self::RESOURCE, AccessManager::UPDATE, 'Chart of accounts of the sales journal updated');
 
         $session = $this->requestStack->getSession();
@@ -144,7 +148,7 @@ final class AccountingController
     }
 
     /**
-     * @param array<string, string>                                  $values
+     * @param array<string, string>                                   $values
      * @param list<array{rate: string, product: string, tax: string}> $rates
      */
     private function render(array $values, array $rates, ?string $error = null): Response
@@ -161,7 +165,7 @@ final class AccountingController
     /**
      * What the accounting exports still need, read the way they read it.
      *
-     * @param array<string, string>                                  $values
+     * @param array<string, string>                                   $values
      * @param list<array{rate: string, product: string, tax: string}> $rates
      *
      * @return list<string>
