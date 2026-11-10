@@ -17,6 +17,7 @@ namespace BackOfficeDefaultTwigBundle\Service\Admin;
 use BackOfficeDefaultTwigBundle\Repository\DataTransferRepository;
 use Thelia\Core\Archiver\ArchiverManager;
 use Thelia\Core\Serializer\SerializerManager;
+use Thelia\Domain\DataTransfer\Export\AbstractExport;
 
 /**
  * The choices an export or an import form offers.
@@ -31,10 +32,11 @@ final readonly class DataTransferFormOptions
     }
 
     /** @return list<array{id: string, name: string, extension: string}> */
-    public function serializers(): array
+    public function serializers(?AbstractExport $export = null): array
     {
+        $serializers = null === $export ? $this->serializerManager->getSerializers() : $this->serializerManager->getExportSerializers($export);
         $options = [];
-        foreach ($this->serializerManager->getSerializers() as $serializer) {
+        foreach ($serializers as $serializer) {
             $options[] = ['id' => (string) $serializer->getId(), 'name' => (string) $serializer->getName(), 'extension' => (string) $serializer->getExtension()];
         }
 

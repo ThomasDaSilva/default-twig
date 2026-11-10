@@ -61,7 +61,7 @@ final readonly class ExportController
         return new Response($this->twig->render('@BackOfficeDefaultTwig/export/edit.html.twig', [
             'export' => $export,
             'export_id' => $id,
-            'serializers' => $this->formOptions->serializers(),
+            'serializers' => $this->formOptions->serializers($export->isHandlerAvailable() ? $export->getHandleClassInstance() : null),
             'archivers' => $this->formOptions->archivers(),
             'languages' => $this->formOptions->languages(),
             'handler_available' => $export->isHandlerAvailable(),
