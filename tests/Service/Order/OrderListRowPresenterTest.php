@@ -18,6 +18,7 @@ use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
 use Propel\Runtime\Connection\ConnectionWrapper;
 use Propel\Runtime\Propel;
 use Psr\Log\AbstractLogger;
+use Thelia\Model\ConfigQuery;
 use Thelia\Model\OrderProduct;
 use Thelia\Model\OrderProductAttributeCombination;
 use Thelia\Model\OrderStatus;
@@ -99,6 +100,36 @@ final class OrderListRowPresenterTest extends IntegrationTestCase
         self::assertStringNotContainsString('LINE-11', $items);
     }
 
+    public function testTheListShowsTheReferenceOfAnOrderByDefault(): void
+    {
+        $order = $this->factory->order($this->factory->customer($this->factory->customerTitle()));
+        $presenter = static::getContainer()->get(OrderListRowPresenter::class);
+
+        $link = $this->orderLink($presenter->present($order, 'en_US')['order_html']);
+
+        self::assertSame((string) $order->getRef(), $link->textContent);
+        self::assertFalse($link->hasAttribute('title'));
+    }
+
+    public function testAShopThatReadsItsOrdersByNumberSeesTheIdWithTheReferenceOverIt(): void
+    {
+        $order = $this->factory->order($this->factory->customer($this->factory->customerTitle()));
+        $order->setRef('ORD"<b>1')->save($this->getPropelConnection());
+        ConfigQuery::write(OrderListRowPresenter::SHOWS_ORDER_ID, '1');
+        $presenter = static::getContainer()->get(OrderListRowPresenter::class);
+
+        try {
+            $html = $presenter->present($order, 'en_US')['order_html'];
+        } finally {
+            ConfigQuery::write(OrderListRowPresenter::SHOWS_ORDER_ID, '0');
+        }
+
+        $link = $this->orderLink($html);
+        self::assertSame((string) $order->getId(), $link->textContent);
+        self::assertSame('ORD"<b>1', $link->getAttribute('title'));
+        self::assertStringNotContainsString('<b>', $html);
+    }
+
     public function testAnOrderWithoutLinesHasNoTooltip(): void
     {
         $order = $this->factory->order($this->factory->customer($this->factory->customerTitle()));
@@ -159,6 +190,16 @@ final class OrderListRowPresenterTest extends IntegrationTestCase
         }
 
         return $logger->messages;
+    }
+
+    private function orderLink(string $html): \DOMElement
+    {
+        $document = new \DOMDocument();
+        $document->loadHTML('<?xml encoding="UTF-8"><div>'.$html.'</div>', \LIBXML_NOERROR | \LIBXML_NOWARNING);
+        $link = (new \DOMXPath($document))->query('//a[@data-testid="bo-order-ref-link"]')->item(0);
+        self::assertInstanceOf(\DOMElement::class, $link);
+
+        return $link;
     }
 
     private function combination(OrderProduct $line, string $attribute, string $value): void

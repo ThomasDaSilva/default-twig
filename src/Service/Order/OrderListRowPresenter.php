@@ -23,6 +23,7 @@ use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 use Thelia\Core\Security\AccessManager;
 use Thelia\Domain\Order\Service\OrderStatusTransitionGuard;
+use Thelia\Model\ConfigQuery;
 use Thelia\Model\Module;
 use Thelia\Model\Order;
 use Thelia\Model\OrderStatusQuery;
@@ -43,6 +44,9 @@ final readonly class OrderListRowPresenter
     private const URGENT_THRESHOLD_HOURS = 48;
     private const URGENT_STATUS_CODE = 'not_paid';
     private const TOOLTIP_MAX_LINES = 10;
+
+    /** Configuration variable: 1 shows the order id in the list instead of its reference. */
+    public const SHOWS_ORDER_ID = 'order_list_shows_order_id';
 
     public function __construct(
         private UrlGeneratorInterface $urls,
@@ -175,15 +179,25 @@ final readonly class OrderListRowPresenter
 
     /**
      * The reference of the order, linked to its sheet, with the date it was placed underneath.
+     * A shop that reads its orders by number shows the order id instead, the reference
+     * staying over the link.
      */
     private function renderOrder(Order $order, bool $isUrgent, string $href): string
     {
         $date = '<div class="text-muted small">'.$this->renderDate($order).'</div>';
-        $link = \sprintf(
-            '<a href="%s" class="fw-semibold text-decoration-none" data-testid="bo-order-ref-link">%s</a>',
-            htmlspecialchars($href),
-            htmlspecialchars((string) $order->getRef()),
-        );
+        $ref = (string) $order->getRef();
+        $link = (bool) ConfigQuery::read(self::SHOWS_ORDER_ID, false)
+            ? \sprintf(
+                '<a href="%s" class="fw-semibold text-decoration-none" data-testid="bo-order-ref-link" title="%s">%s</a>',
+                htmlspecialchars($href),
+                htmlspecialchars($ref),
+                htmlspecialchars((string) $order->getId()),
+            )
+            : \sprintf(
+                '<a href="%s" class="fw-semibold text-decoration-none" data-testid="bo-order-ref-link">%s</a>',
+                htmlspecialchars($href),
+                htmlspecialchars($ref),
+            );
 
         if (!$isUrgent) {
             return $link.$date;
