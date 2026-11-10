@@ -1107,6 +1107,8 @@ return [
     'Redefine the text only for this resource.' => 'Definieren Sie den Text nur für diese Ressource.',
     'redefines translations for your website only.' => 'definiert Übersetzungen nur für Ihre Website neu.',
     'Reference' => 'Referenz',
+    'Ref.: %ref% - %title%' => 'Ref.: %ref% - %title%',
+    'and %count% more' => 'und %count% weitere',
     'Reference, customer name or email' => 'Referenz, Kundenname oder E-Mail',
     'Reference, name or email' => 'Referenz, Name oder E-Mail',
     'Refresh the active status of every sale according to its dates.' => 'Den Aktivstatus jeder Aktion entsprechend ihrer Daten aktualisieren.',
