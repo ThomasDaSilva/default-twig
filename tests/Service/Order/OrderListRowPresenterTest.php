@@ -15,6 +15,7 @@ declare(strict_types=1);
 namespace BackOfficeDefaultTwigBundle\Tests\Service\Order;
 
 use BackOfficeDefaultTwigBundle\Service\Order\OrderListRowPresenter;
+use Thelia\Model\ConfigQuery;
 use Thelia\Model\OrderStatus;
 use Thelia\Test\FixtureFactory;
 use Thelia\Test\IntegrationTestCase;
@@ -44,5 +45,45 @@ final class OrderListRowPresenterTest extends IntegrationTestCase
 
         self::assertSame('$1,234.50', $row['amount']);
         self::assertSame("1\u{202F}234,50\u{a0}\$US", $presenter->present($order, 'fr_FR', totals: [(int) $order->getId() => 1234.5])['amount']);
+    }
+
+    public function testTheListShowsTheReferenceOfAnOrderByDefault(): void
+    {
+        $order = $this->factory->order($this->factory->customer($this->factory->customerTitle()));
+        $presenter = static::getContainer()->get(OrderListRowPresenter::class);
+
+        $link = $this->orderLink($presenter->present($order, 'en_US')['order_html']);
+
+        self::assertSame((string) $order->getRef(), $link->textContent);
+        self::assertFalse($link->hasAttribute('title'));
+    }
+
+    public function testAShopThatReadsItsOrdersByNumberSeesTheIdWithTheReferenceOverIt(): void
+    {
+        $order = $this->factory->order($this->factory->customer($this->factory->customerTitle()));
+        $order->setRef('ORD"<b>1')->save($this->getPropelConnection());
+        ConfigQuery::write(OrderListRowPresenter::SHOWS_ORDER_ID, '1');
+        $presenter = static::getContainer()->get(OrderListRowPresenter::class);
+
+        try {
+            $html = $presenter->present($order, 'en_US')['order_html'];
+        } finally {
+            ConfigQuery::write(OrderListRowPresenter::SHOWS_ORDER_ID, '0');
+        }
+
+        $link = $this->orderLink($html);
+        self::assertSame((string) $order->getId(), $link->textContent);
+        self::assertSame('ORD"<b>1', $link->getAttribute('title'));
+        self::assertStringNotContainsString('<b>', $html);
+    }
+
+    private function orderLink(string $html): \DOMElement
+    {
+        $document = new \DOMDocument();
+        $document->loadHTML('<?xml encoding="UTF-8"><div>'.$html.'</div>', \LIBXML_NOERROR | \LIBXML_NOWARNING);
+        $link = (new \DOMXPath($document))->query('//a[@data-testid="bo-order-ref-link"]')->item(0);
+        self::assertInstanceOf(\DOMElement::class, $link);
+
+        return $link;
     }
 }
