@@ -1965,6 +1965,17 @@ main[data-testid="bo-main"] {
 
 .bo-order-items {
     font-weight: 500;
+
+    &[data-bs-toggle="tooltip"] {
+        cursor: help;
+    }
+}
+
+// The lines of the order, one per line, left as long as a product title needs.
+.bo-order-items-tooltip .tooltip-inner {
+    max-width: 32rem;
+    white-space: pre-line;
+    text-align: start;
 }
 
 .bo-order-module {

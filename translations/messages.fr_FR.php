@@ -1720,6 +1720,8 @@ return [
     'Redefine the text only for this resource.' => 'Redéfinir le texte seulement pour cette ressource.',
     'redefines translations for your website only.' => 'redéfinit les traductions pour votre site uniquement.',
     'Reference' => 'Référence',
+    'Ref.: %ref% - %title%' => 'Réf. : %ref% - %title%',
+    'and %count% more' => 'et %count% autre(s)',
     'Reference / transaction' => 'Référence / transaction',
     'Reference or title' => 'Référence ou titre',
     'Reference, customer name or email' => 'Référence, nom du client ou email',

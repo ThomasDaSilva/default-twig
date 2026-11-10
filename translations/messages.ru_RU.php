@@ -1101,6 +1101,8 @@ return [
     'Redefine the text only for this resource.' => 'Переопределить текст только для этого ресурса.',
     'redefines translations for your website only.' => 'переопределяет переводы только для вашего сайта.',
     'Reference' => 'Ссылка',
+    'Ref.: %ref% - %title%' => 'Арт.: %ref% - %title%',
+    'and %count% more' => 'и ещё %count%',
     'Reference, customer name or email' => 'Артикул, имя клиента или email',
     'Reference, name, email or phone' => 'Артикул, имя, email или телефон',
     'Refresh the active status of every sale according to its dates.' => 'Обновить статус активности каждой акции в соответствии с её датами.',

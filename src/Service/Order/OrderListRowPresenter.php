@@ -42,6 +42,7 @@ final readonly class OrderListRowPresenter
     private const FALLBACK_STATUS_COLOR = '#6c757d';
     private const URGENT_THRESHOLD_HOURS = 48;
     private const URGENT_STATUS_CODE = 'not_paid';
+    private const TOOLTIP_MAX_LINES = 10;
 
     public function __construct(
         private UrlGeneratorInterface $urls,
@@ -78,6 +79,8 @@ final readonly class OrderListRowPresenter
         }
 
         $itemCounts = $this->orderRepository->countItemsByOrder($orderIds);
+        // An order without lines still gets its entry, so it is not read again on its own.
+        $itemLines = $this->orderRepository->findLinesByOrder($orderIds) + array_fill_keys($orderIds, []);
         $totals = $this->orderRepository->findTotalAmountByOrder($orderIds);
         $moduleTitles = $this->moduleRepository->findLocalizedTitles($locale);
         $saleUnitTitles = $this->saleUnits->titlesById($locale);
@@ -85,22 +88,23 @@ final readonly class OrderListRowPresenter
 
         $rows = [];
         foreach ($page as $order) {
-            $rows[] = $this->present($order, $locale, $itemCounts, $totals, $moduleTitles, $saleUnitTitles, $preorderOrderIds);
+            $rows[] = $this->present($order, $locale, $itemCounts, $totals, $moduleTitles, $saleUnitTitles, $preorderOrderIds, $itemLines);
         }
 
         return $rows;
     }
 
     /**
-     * @param array<int, int>     $itemCounts       number of lines per order id, when the caller has them
-     * @param array<int, float>   $totals           amount per order id, when the caller has them
-     * @param array<int, ?string> $moduleTitles     module titles per module id, when the caller has them
-     * @param array<int, string>  $saleUnitTitles   sale unit titles per sale unit id, when the caller has them
-     * @param list<int>           $preorderOrderIds the orders of the page that hold a preorder line
+     * @param array<int, int>                                                                                                $itemCounts       number of lines per order id, when the caller has them
+     * @param array<int, float>                                                                                              $totals           amount per order id, when the caller has them
+     * @param array<int, ?string>                                                                                            $moduleTitles     module titles per module id, when the caller has them
+     * @param array<int, string>                                                                                             $saleUnitTitles   sale unit titles per sale unit id, when the caller has them
+     * @param list<int>                                                                                                      $preorderOrderIds the orders of the page that hold a preorder line
+     * @param array<int, list<array{ref: string, title: string, attributes: list<array{attribute: string, value: string}>}>> $itemLines        lines per order id, when the caller has them
      *
      * @return array<string, mixed>
      */
-    public function present(Order $order, string $locale, array $itemCounts = [], array $totals = [], array $moduleTitles = [], array $saleUnitTitles = [], array $preorderOrderIds = []): array
+    public function present(Order $order, string $locale, array $itemCounts = [], array $totals = [], array $moduleTitles = [], array $saleUnitTitles = [], array $preorderOrderIds = [], array $itemLines = []): array
     {
         $orderId = (int) $order->getId();
         $status = OrderStatusQuery::create()->findPk((int) $order->getStatusId());
@@ -143,7 +147,7 @@ final readonly class OrderListRowPresenter
             'status_code' => (string) ($status?->getCode() ?? ''),
             'status_color' => (string) ($status?->getColor() ?: self::FALLBACK_STATUS_COLOR),
             'customer_html' => $this->renderCustomer($order),
-            'items_html' => $this->renderItems($orderId, $itemCounts, $preorderOrderIds),
+            'items_html' => $this->renderItems($orderId, $itemCounts, $preorderOrderIds, $itemLines),
             'payment_delivery_html' => $this->renderModule($paymentTitle, 'bi-credit-card')
                 .'<div class="mt-1">'.$this->renderDelivery($order, $deliveryTitle).'</div>',
             'amount' => $this->formatAmount($order, $totals, $locale),
@@ -216,10 +220,14 @@ final readonly class OrderListRowPresenter
     }
 
     /**
-     * @param array<int, int> $itemCounts
-     * @param list<int>       $preorderOrderIds
+     * The number of lines, with the lines themselves in a tooltip: reference, title
+     * and the combination chosen, one per line.
+     *
+     * @param array<int, int>                                                                                                $itemCounts
+     * @param list<int>                                                                                                      $preorderOrderIds
+     * @param array<int, list<array{ref: string, title: string, attributes: list<array{attribute: string, value: string}>}>> $itemLines
      */
-    private function renderItems(int $orderId, array $itemCounts, array $preorderOrderIds): string
+    private function renderItems(int $orderId, array $itemCounts, array $preorderOrderIds, array $itemLines): string
     {
         $count = \array_key_exists($orderId, $itemCounts)
             ? $itemCounts[$orderId]
@@ -229,10 +237,19 @@ final readonly class OrderListRowPresenter
             ['%count%' => $count],
         );
 
-        $items = \sprintf(
-            '<span class="badge text-bg-light bo-order-items"><i class="bi bi-box-seam me-1" aria-hidden="true"></i>%s</span>',
-            htmlspecialchars($label),
-        );
+        $content = '<i class="bi bi-box-seam me-1" aria-hidden="true"></i>'.htmlspecialchars($label);
+
+        $lines = \array_key_exists($orderId, $itemLines)
+            ? $itemLines[$orderId]
+            : ($this->orderRepository->findLinesByOrder([$orderId])[$orderId] ?? []);
+        // Plain text, one line each: the tooltip keeps the line breaks without HTML.
+        $items = $lines === []
+            ? '<span class="badge text-bg-light bo-order-items">'.$content.'</span>'
+            : \sprintf(
+                '<span class="badge text-bg-light bo-order-items" tabindex="0" data-bs-toggle="tooltip" data-bs-custom-class="bo-order-items-tooltip" title="%s">%s</span>',
+                htmlspecialchars($this->describeLines($lines)),
+                $content,
+            );
 
         if (!\in_array($orderId, $preorderOrderIds, true)) {
             return $items;
@@ -242,6 +259,28 @@ final readonly class OrderListRowPresenter
             ' <span class="badge text-bg-warning bo-order-preorder" data-testid="bo-order-preorder-badge"><i class="bi bi-hourglass-split me-1" aria-hidden="true"></i>%s</span>',
             htmlspecialchars($this->translator->trans('Preorder')),
         );
+    }
+
+    /**
+     * @param non-empty-list<array{ref: string, title: string, attributes: list<array{attribute: string, value: string}>}> $lines
+     */
+    private function describeLines(array $lines): string
+    {
+        $descriptions = [];
+        foreach (\array_slice($lines, 0, self::TOOLTIP_MAX_LINES) as $line) {
+            $description = $this->translator->trans('Ref.: %ref% - %title%', ['%ref%' => $line['ref'], '%title%' => $line['title']]);
+            foreach ($line['attributes'] as $attribute) {
+                $description .= ' - '.$this->translator->trans('%attribute%: %value%', ['%attribute%' => $attribute['attribute'], '%value%' => $attribute['value']]);
+            }
+            $descriptions[] = $description;
+        }
+
+        $hidden = \count($lines) - self::TOOLTIP_MAX_LINES;
+        if ($hidden > 0) {
+            $descriptions[] = $this->translator->trans('and %count% more', ['%count%' => $hidden]);
+        }
+
+        return implode("\n", $descriptions);
     }
 
     private function renderModule(?string $title, string $icon): string
