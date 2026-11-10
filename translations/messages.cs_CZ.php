@@ -1101,6 +1101,8 @@ return [
     'Redefine the text only for this resource.' => 'Redefinovat text pouze pro tento zdroj.',
     'redefines translations for your website only.' => 'předdefinuje překlady pouze pro váš web.',
     'Reference' => 'Reference',
+    'Ref.: %ref% - %title%' => 'Ref.: %ref% - %title%',
+    'and %count% more' => 'a dalších %count%',
     'Reference, customer name or email' => 'Reference, jméno zákazníka nebo e-mail',
     'Reference, name, email or phone' => 'Reference, jméno, e-mail nebo telefon',
     'Refresh the active status of every sale according to its dates.' => 'Obnovit aktivní stav každé akce podle jejích dat.',

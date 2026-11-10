@@ -1101,6 +1101,8 @@ return [
     'Redefine the text only for this resource.' => 'De tekst alleen voor deze resource herdefiniëren.',
     'redefines translations for your website only.' => 'herdefiniëert vertalingen uitsluitend voor uw website.',
     'Reference' => 'Referentie',
+    'Ref.: %ref% - %title%' => 'Ref.: %ref% - %title%',
+    'and %count% more' => 'en nog %count%',
     'Reference, customer name or email' => 'Referentie, klantnaam of e-mail',
     'Reference, name, email or phone' => 'Referentie, naam, e-mail of telefoon',
     'Refresh the active status of every sale according to its dates.' => 'De actieve status van elke aanbieding vernieuwen op basis van de datums.',

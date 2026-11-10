@@ -23,6 +23,7 @@ use Propel\Runtime\Collection\ObjectCollection;
 use Propel\Runtime\Propel;
 use Symfony\Component\EventDispatcher\Attribute\AsEventListener;
 use Thelia\Core\Event\TheliaEvents;
+use Thelia\Model\Map\OrderProductAttributeCombinationTableMap;
 use Thelia\Model\Map\OrderTableMap;
 use Thelia\Model\Order;
 use Thelia\Model\OrderProduct;
@@ -227,6 +228,52 @@ final class OrderRepository
             ->find();
 
         return array_map(intval(...), $found->toArray());
+    }
+
+    /**
+     * The lines of these orders in the order they were placed, each with the
+     * combination the customer chose, as the order froze them: one query for a
+     * whole page instead of one per order. An order without lines is absent.
+     *
+     * @param list<int> $orderIds
+     *
+     * @return array<int, list<array{ref: string, title: string, attributes: list<array{attribute: string, value: string}>}>>
+     */
+    public function findLinesByOrder(array $orderIds): array
+    {
+        if ($orderIds === []) {
+            return [];
+        }
+
+        $rows = OrderProductQuery::create()
+            ->filterByOrderId($orderIds, Criteria::IN)
+            ->useOrderProductAttributeCombinationQuery(null, Criteria::LEFT_JOIN)
+            ->endUse()
+            ->withColumn(OrderProductAttributeCombinationTableMap::COL_ATTRIBUTE_TITLE, 'attribute_title')
+            ->withColumn(OrderProductAttributeCombinationTableMap::COL_ATTRIBUTE_AV_TITLE, 'attribute_value_title')
+            ->orderById()
+            ->addAscendingOrderByColumn(OrderProductAttributeCombinationTableMap::COL_ID)
+            ->select(['Id', 'OrderId', 'ProductRef', 'Title', 'attribute_title', 'attribute_value_title'])
+            ->find();
+
+        $lines = [];
+        foreach ($rows as $row) {
+            $orderId = (int) $row['OrderId'];
+            $lineId = (int) $row['Id'];
+            $lines[$orderId][$lineId] ??= [
+                'ref' => (string) $row['ProductRef'],
+                'title' => (string) $row['Title'],
+                'attributes' => [],
+            ];
+            if ($row['attribute_value_title'] !== null) {
+                $lines[$orderId][$lineId]['attributes'][] = [
+                    'attribute' => (string) $row['attribute_title'],
+                    'value' => (string) $row['attribute_value_title'],
+                ];
+            }
+        }
+
+        return array_map(array_values(...), $lines);
     }
 
     /**

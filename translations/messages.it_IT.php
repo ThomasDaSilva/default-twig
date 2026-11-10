@@ -1148,6 +1148,8 @@ return [
     'Redefine the text only for this resource.' => 'Ridefinisci il testo solo per questa risorsa.',
     'redefines translations for your website only.' => 'ridefinisce le traduzioni solo per il tuo sito web.',
     'Reference' => 'Riferimento',
+    'Ref.: %ref% - %title%' => 'Rif.: %ref% - %title%',
+    'and %count% more' => 'e altri %count%',
     'Reference, customer name or email' => 'Riferimento, nome cliente o email',
     'Reference, name, email or phone' => 'Riferimento, nome, email o telefono',
     'Refresh the active status of every sale according to its dates.' => 'Aggiorna lo stato attivo di ogni promozione in base alle date.',
