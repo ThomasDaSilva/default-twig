@@ -87,6 +87,7 @@
                     <table class="table mb-0" data-testid="attributeav-table">
                         <thead>
                             <tr>
+                                <th class="bo-sortable-grip"><span class="visually-hidden">{{ 'Drag to reorder'|trans }}</span></th>
                                 <th>{{ 'Title'|trans }}</th>
                                 <th class="text-center">{{ 'Position'|trans }}</th>
                                 <th class="text-end">{{ 'Actions'|trans }}</th>
@@ -99,6 +100,9 @@
                                data-bo-sortable-param-name-value="attributeav_id">
                             {% for av in attribute_avs %}
                                 <tr data-row-id="{{ av.id }}" data-testid="attributeav-row-{{ av.id }}">
+                                    <td class="bo-sortable-grip" data-bo-sortable-handle title="{{ 'Drag to reorder'|trans }}" data-testid="attributeav-handle-{{ av.id }}">
+                                        <i class="bi bi-grip-vertical" aria-hidden="true"></i>
+                                    </td>
                                     <td>
                                         <input type="text"
                                                class="form-control form-control-sm"
@@ -120,7 +124,7 @@
                                     {{ safe_hook('attributes-value.table-row', { attribute_id: attribute.id, attribute_av_id: av.id, location: 'attributes_value_table_row' }) }}
                                 </tr>
                             {% else %}
-                                <tr><td colspan="3" class="text-muted text-center">{{ 'No value yet.'|trans }}</td></tr>
+                                <tr><td colspan="4" class="text-muted text-center">{{ 'No value yet.'|trans }}</td></tr>
                             {% endfor %}
                         </tbody>
                     </table>
