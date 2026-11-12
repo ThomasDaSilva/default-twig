@@ -115,7 +115,8 @@ export default class extends Controller {
 
     onDragLeave(event) {
         const row = event.target.closest(this.itemValue);
-        if (row) {
+        // Moving from one cell to the next stays on the row: the mark would blink off and on.
+        if (row && !row.contains(event.relatedTarget)) {
             row.classList.remove('bo-sortable-target', 'bo-sortable-target--after');
         }
     }

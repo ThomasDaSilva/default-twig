@@ -1334,16 +1334,110 @@ td.bo-datatable__details-col {
     }
 }
 
-.bo-sortable-dragging {
-    opacity: 0.5;
+// The row being dragged stays as a faint dashed slot; its cells fade, not the row, so that the dashes stay sharp.
+.table > tbody > tr.bo-sortable-dragging {
+    outline: 1px dashed var(--bs-border-color);
+    outline-offset: -1px;
+
+    > td {
+        opacity: .3;
+    }
 }
 
-.bo-sortable-target {
-    box-shadow: inset 0 2px 0 0 var(--bs-primary, #0d6efd);
+// Two small triangles pinch the landing line, centred on the handle column, away from the rounded
+// corner of the card that clips what overflows. They hang on the first cell, the handle: on the row
+// itself, the browser would take them for one more cell and shift the columns. Lifted above the next
+// row, which would otherwise cover the one that overflows into it.
+$bo-sortable-pincer-width: .5rem;
+$bo-sortable-pincer-height: 5px;
+$bo-sortable-pincer-gap: 1px;
+
+// The line spans $outer to $inner, counted inward from the padding edge of the cell on the landing side.
+// ::before is the triangle above the line, pointing down; ::after the one below it, pointing up.
+@mixin bo-sortable-pincer($side, $outer, $inner) {
+    position: relative;
+    z-index: 1;
+
+    &::before,
+    &::after {
+        content: "";
+        position: absolute;
+        inset-inline-start: 50%;
+        margin-inline-start: $bo-sortable-pincer-width * -.5;
+        // The dots of bi-grip-vertical span 5 to 10 of its 16 units: drawn at 1.25rem, they sit half a unit
+        // left of the cell's centre. Glyphs are not mirrored, hence a physical shift.
+        translate: 1.25rem * -.03125 0;
+        width: $bo-sortable-pincer-width;
+        height: $bo-sortable-pincer-height;
+        background-color: var(--bs-primary);
+        pointer-events: none;
+    }
+
+    &::before {
+        clip-path: polygon(0 0, 100% 0, 50% 100%);
+    }
+
+    &::after {
+        clip-path: polygon(50% 0, 100% 100%, 0 100%);
+    }
+
+    @if $side == start {
+        &::before {
+            inset-block-start: calc(#{$outer} - #{$bo-sortable-pincer-gap + $bo-sortable-pincer-height});
+        }
+
+        &::after {
+            inset-block-start: calc(#{$inner} + #{$bo-sortable-pincer-gap});
+        }
+    } @else {
+        &::before {
+            inset-block-start: auto;
+            inset-block-end: calc(#{$inner} + #{$bo-sortable-pincer-gap});
+        }
+
+        &::after {
+            inset-block-start: auto;
+            inset-block-end: calc(#{$outer} - #{$bo-sortable-pincer-gap + $bo-sortable-pincer-height});
+        }
+    }
 }
 
-.bo-sortable-target--after {
-    box-shadow: inset 0 -2px 0 0 var(--bs-primary, #0d6efd);
+// The edge of the row the drop lands on takes a line, on the landing side.
+// Drawn on the cells: a shadow of the row itself would sit under their backgrounds. Bootstrap paints
+// the stripes and the hover with a shadow of the cell too, and the pinned actions cell its hairline:
+// the line is stacked on top of them rather than replacing them.
+$bo-sortable-cell-state: inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, var(--bs-table-accent-bg)));
+$bo-sortable-sticky-state: inset 0 0 0 9999px var(--bs-table-bg-state, var(--bs-table-bg-type, transparent)), var(--bo-sticky-actions-shadow-x) 0 0 0 #e6e8eb;
+
+.table > tbody > tr.bo-sortable-target > td {
+    box-shadow: inset 0 3px 0 0 var(--bs-primary), $bo-sortable-cell-state;
+
+    &.datatable-sticky-actions {
+        box-shadow: inset 0 3px 0 0 var(--bs-primary), $bo-sortable-sticky-state;
+    }
+}
+
+.table > tbody > tr.bo-sortable-target--after > td {
+    box-shadow: inset 0 -3px 0 0 var(--bs-primary), $bo-sortable-cell-state;
+
+    &.datatable-sticky-actions {
+        box-shadow: inset 0 -3px 0 0 var(--bs-primary), $bo-sortable-sticky-state;
+    }
+}
+
+// The 3px line is drawn inside the cell.
+.table > tbody > tr.bo-sortable-target > td:first-child {
+    @include bo-sortable-pincer(start, 0px, 3px);
+}
+
+.table > tbody > tr.bo-sortable-target--after > td:first-child {
+    @include bo-sortable-pincer(end, 0px, 3px);
+}
+
+// Under the last row, the lower triangle would overflow the scrolling box of the table and show a
+// scrollbar: the upper one points alone. The last row, not the last <tr>: a hidden detail line may follow it.
+.table > tbody > tr.bo-sortable-target--after:not(:has(~ tr[data-row-id])) > td:first-child::after {
+    content: none;
 }
 
 // Position cell: arrows move a row one step, the number opens a field to send it
@@ -2793,10 +2887,6 @@ tr.bo-order-row--urgent {
     }
 
     // The separator on the side where the drag lands takes the color, not a line inside the fields.
-    > tbody.bo-sortable-target {
-        box-shadow: none;
-    }
-
     > tbody.bo-sortable-target:not(.bo-sortable-target--after) > tr:first-child > td,
     > tbody.bo-sortable-target--after + tbody > tr:first-child > td {
         border-block-start-color: var(--bs-primary);
@@ -2806,8 +2896,25 @@ tr.bo-order-row--urgent {
         border-block-end-color: var(--bs-primary);
     }
 
-    > tbody.bo-sortable-dragging > tr > td {
-        opacity: .5;
+    // The line is the 2px separator, a border: the triangles are placed from inside the cell, borders
+    // excluded, so it lies just outside it, above the combination or under its closing band (the separator
+    // of the next one, or the band's own border after the last one). The margin under the grid leaves room
+    // for the lower triangle after the last one.
+    > tbody.bo-sortable-target:not(.bo-sortable-target--after) > tr:first-child > td:first-child {
+        @include bo-sortable-pincer(start, -2px, 0px);
+    }
+
+    > tbody.bo-sortable-target--after > tr:last-child > td:first-child {
+        @include bo-sortable-pincer(end, -2px, 0px);
+    }
+
+    > tbody.bo-sortable-dragging {
+        outline: 1px dashed var(--bs-border-color);
+        outline-offset: -1px;
+
+        > tr > td {
+            opacity: .3;
+        }
     }
 }
 
