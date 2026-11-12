@@ -101,4 +101,15 @@ final class DataTable
      * button's accessible name ("View details for <value>"). Falls back to the row id when null.
      */
     public ?string $rowIdentifierKey = null;
+
+    /**
+     * A table body driven by the `bo-sortable` controller reorders its rows by dragging: each row
+     * then starts with the handle that drags it.
+     */
+    public function isReorderable(): bool
+    {
+        $controllers = preg_split('/\s+/', $this->tbodyAttributes['data-controller'] ?? '', -1, \PREG_SPLIT_NO_EMPTY) ?: [];
+
+        return \in_array('bo-sortable', $controllers, true);
+    }
 }
