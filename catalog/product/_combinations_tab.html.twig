@@ -102,7 +102,6 @@
                         <table class="table table-borderless bo-combinations-grid" data-testid="combinations-table"
                                data-controller="bo-sortable" data-bo-combinations-bulk-edit-target="sortable"
                                data-bo-sortable-item-value="tbody[data-row-id]"
-                               data-bo-sortable-drag-whole-value="true"
                                data-bo-sortable-url-value="{{ path('admin.product.product-sale-element-position', { product_id: product.id }) }}"
                                data-bo-sortable-token-value="{{ assignToken() }}"
                                data-bo-sortable-param-name-value="product_sale_element_id"
@@ -111,7 +110,7 @@
                                data-bo-sortable-reindexed-fields-value="{{ ['onsale', 'isnew', 'visible']|json_encode|e('html_attr') }}">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="bo-combinations-grid__col-handle">
+                                    <th class="bo-sortable-grip bo-combinations-grid__col-handle">
                                         <span class="visually-hidden bo-combinations-grid__grip">{{ 'Position'|trans }}</span>
                                         <input type="checkbox" class="form-check-input bo-combinations-grid__select" form="combinations-bulk-edit" autocomplete="off"
                                                data-bo-bulk-select-target="all" data-action="change->bo-bulk-select#toggleAll change->bo-combinations-bulk-edit#refresh"
@@ -137,7 +136,7 @@
                                        data-bo-pse-price-with-tax-scope
                                        data-controller="bo-virtual-toggle" data-bo-virtual-toggle-mode-value="readonly">
                                     <tr>
-                                        <td class="text-center bo-combinations-grid__handle" rowspan="3" data-bo-sortable-handle title="{{ 'Drag to reorder'|trans }}">
+                                        <td class="text-center bo-sortable-grip bo-combinations-grid__handle" rowspan="3" data-bo-sortable-handle title="{{ 'Drag to reorder'|trans }}">
                                             <i class="bi bi-grip-vertical bo-combinations-grid__grip" aria-hidden="true"></i>
                                             <label class="bo-combinations-grid__select" title="{{ 'Select %name%'|trans({ '%name%': row.label }) }}">
                                                 <input type="checkbox" class="form-check-input" form="combinations-bulk-edit" value="{{ row.id }}" autocomplete="off"

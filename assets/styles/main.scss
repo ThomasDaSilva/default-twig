@@ -1302,6 +1302,30 @@ td.bo-datatable__details-col {
     }
 }
 
+// The handle column of a reorderable table: as wide as its icon, darker under the pointer.
+// Scoped to the table cells to outweigh the colour Bootstrap gives them.
+.table > * > tr > .bo-sortable-grip {
+    width: 2rem;
+    padding-inline: .25rem;
+    text-align: center;
+}
+
+.table > tbody > tr > td.bo-sortable-grip {
+    vertical-align: middle;
+    font-size: 1.25rem;
+    color: var(--bs-secondary-color);
+    transition: color .15s ease, background-color .15s ease;
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+
+    &.bo-sortable-handle:hover {
+        color: var(--bs-body-color);
+        background-color: var(--bs-gray-200);
+    }
+}
+
 .bo-sortable-handle {
     cursor: grab;
 
@@ -2528,7 +2552,6 @@ tr.bo-order-row--urgent {
 
     // Each column takes a share of the card and a field grows up to its cap; the prices have none,
     // so that the sale box stays filled.
-    .bo-combinations-grid__col-handle { width: 2.75rem; }
     .bo-combinations-grid__col-identifiers { width: 23%; }
     .bo-combinations-grid__col-stock { width: 15%; }
     .bo-combinations-grid__col-promo { width: 9%; }
@@ -2592,14 +2615,13 @@ tr.bo-order-row--urgent {
         height: .5rem;
     }
 
-    // The handle cells of the lower lines darken with it, so that the column is covered down to the separator.
-    > tbody > tr > td.bo-combinations-grid__handle {
-        vertical-align: middle;
-        font-size: 1.25rem;
-        color: var(--bs-secondary-color);
+    // The handle column keeps the narrow padding of the shared style: the padding of the grid would widen it.
+    > thead > tr > th.bo-sortable-grip,
+    > tbody > tr > td.bo-sortable-grip {
+        padding-inline: .25rem;
     }
 
-    > tbody > tr > td.bo-combinations-grid__handle,
+    // The handle cells of the lower lines darken with it, so that the column is covered down to the separator.
     > tbody > tr > td.bo-combinations-grid__handle-cont {
         transition: color .15s ease, background-color .15s ease;
 

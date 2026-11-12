@@ -5,7 +5,7 @@ import { tokenBody } from '../lib/post-request.js';
  * Native HTML5 drag-and-drop reorder for tables whose <tbody> hosts
  * the controller. Each <tr> must carry a `data-row-id="<id>"` attribute.
  * A table with one <tbody> per item sets `item` to `tbody[data-row-id]` and hosts the controller on
- * the <table>; `dragWhole` makes the drag image the whole item, not the handle.
+ * the <table>. The drag image is always the whole item, even when a handle starts the drag.
  * On drop, POSTs the moved row's id and its new 1-based position to the
  * configured URL (the token in the request body), then reloads the page so the server-rendered table
  * reflects the persisted order.
@@ -21,7 +21,6 @@ export default class extends Controller {
         token: String,
         paramName: { type: String, default: 'id' },
         item: { type: String, default: 'tr[data-row-id]' },
-        dragWhole: { type: Boolean, default: false },
         json: { type: Boolean, default: false },
         failureElement: String,
         reindexedFields: { type: Array, default: [] },
@@ -81,14 +80,15 @@ export default class extends Controller {
         if (!row || row.parentElement !== this.element || this.disabledValue) {
             return;
         }
+        // Only the handle starts a move (the item itself when it has none): an image or a link of a cell
+        // is draggable on its own, and dropping it on another row would reorder the list.
+        const handle = row.querySelector('[data-bo-sortable-handle]');
+        if (event.target !== (handle ?? row)) {
+            return;
+        }
         this.dragged = row;
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', row.dataset.rowId || '');
-        if (!this.dragWholeValue) {
-            row.classList.add('bo-sortable-dragging');
-
-            return;
-        }
 
         // The browser snapshots the item once this handler returns: dim it after, or the snapshot is dimmed too.
         const box = row.getBoundingClientRect();
