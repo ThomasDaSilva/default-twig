@@ -1698,6 +1698,8 @@ return [
     'How this order can be refunded has changed since the page was loaded. Read the payment card again before refunding.' => 'La façon de rembourser cette commande a changé depuis l’affichage de la page. Relisez le bloc paiement avant de rembourser.',
     'The amount to refund must be a positive number.' => 'Le montant à rembourser doit être un nombre positif.',
     'Order payment refunded' => 'Paiement de commande remboursé',
+    'Refund of %amount% recorded.' => 'Remboursement de %amount% enregistré.',
+    'Refund of %amount% made. Provider reference: %reference%' => 'Remboursement de %amount% effectué. Référence du prestataire : %reference%',
     'Goods returned' => 'Articles retournés',
     'Goods missing or damaged' => 'Articles manquants ou abîmés',
     'Commercial gesture' => 'Geste commercial',
