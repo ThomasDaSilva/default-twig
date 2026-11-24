@@ -22,6 +22,7 @@ use BackOfficeDefaultTwigBundle\Service\Bundle\BundleCore;
 use BackOfficeDefaultTwigBundle\Service\Company\CompanyLinks;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryFlag;
 use BackOfficeDefaultTwigBundle\Service\I18n\CountryStateProvider;
+use BackOfficeDefaultTwigBundle\Service\I18n\MoneyFormatter;
 use BackOfficeDefaultTwigBundle\Service\Order\ForcedStatusChangeLog;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderAccess;
 use BackOfficeDefaultTwigBundle\Service\Order\OrderBulkStatusPlanner;
@@ -132,6 +133,7 @@ final class OrderController
         private readonly OrderPaymentContextBuilder $paymentContextBuilder,
         private readonly CompanyLinks $companyLinks,
         private readonly OrderPickingSlipRenderer $pickingSlipRenderer,
+        private readonly MoneyFormatter $money,
     ) {
     }
 
@@ -669,6 +671,23 @@ final class OrderController
             actionLabel: 'Order payment refunded',
             successRoute: self::DETAIL_ROUTE,
             successParameters: ['order_id' => $order_id],
+            // Only a refund that went through says so: a line left pending, or written as failed by the
+            // answer of the module, keeps to the payment journal.
+            afterDispatch: function (OrderPaymentRefundEvent $event) use ($order, $request): void {
+                $transaction = $event->getTransaction();
+
+                if (!$transaction->isSucceeded()) {
+                    return;
+                }
+
+                $formatted = $this->money->format(PaymentAmount::toFloat((string) $transaction->getAmount()), $request->getLocale(), (string) $order->getCurrency()->getCode());
+                $reference = (string) $transaction->getPspReference();
+
+                // The reference of a refund recorded by hand is made up here, no provider gave it.
+                $this->flash('success', $event->isOffline() || $reference === ''
+                    ? $this->translator->trans('Refund of %amount% recorded.', ['%amount%' => $formatted])
+                    : $this->translator->trans('Refund of %amount% made. Provider reference: %reference%', ['%amount%' => $formatted, '%reference%' => $reference]));
+            },
             trustedFailures: [PaymentException::class, TokenAuthenticationException::class],
             describeForLog: static fn (OrderPaymentRefundEvent $event): array => [
                 \sprintf(

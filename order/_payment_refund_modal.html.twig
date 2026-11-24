@@ -14,7 +14,8 @@
 #}
 <div class="modal fade" id="order-payment-refund-modal" tabindex="-1" aria-labelledby="order-payment-refund-modal-label" aria-hidden="true" data-testid="order-payment-refund-modal">
     <div class="modal-dialog">
-        <form method="post" action="{{ path('admin.order.update.paymentRefund', { order_id: order.id }) }}" data-testid="order-payment-refund-form">
+        <form method="post" action="{{ path('admin.order.update.paymentRefund', { order_id: order.id }) }}" data-testid="order-payment-refund-form"
+              data-controller="bo-submit-once" data-action="submit->bo-submit-once#lock pageshow@window->bo-submit-once#unlock">
             <input type="hidden" name="_token" value="{{ token }}">
             <input type="hidden" name="mode" value="{{ mode }}">
             <div class="modal-content">
