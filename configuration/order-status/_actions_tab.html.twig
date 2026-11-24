@@ -24,7 +24,7 @@
         column_actions('_actions', 'Actions'|trans),
     ],
     rows: action_rows|map(row => row|merge({
-        type_html: '<span>' ~ row.type_label|e ~ '</span>' ~ (row.installed ? '' : ' <span class="badge text-bg-danger" title="' ~ ('The module providing this action is missing or disabled: it will be recorded as a failure.'|trans)|e ~ '">' ~ ('missing'|trans)|e ~ '</span>') ~ (row.warnings|map(warning => '<div class="small text-warning-emphasis mt-1" data-testid="order-status-action-warning-' ~ row.id ~ '"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> ' ~ warning|e ~ '</div>')|join),
+        type_html: '<span>' ~ row.type_label|e ~ '</span>' ~ (row.installed ? '' : ' <span class="badge text-bg-danger" title="' ~ ('The module providing this action is missing or disabled: it will be recorded as a failure.'|trans)|e ~ '">' ~ ('missing'|trans)|e ~ '</span>') ~ (row.warnings|map(warning => '<div class="small text-warning-emphasis mt-1 bo-datatable__wrap" data-testid="order-status-action-warning-' ~ row.id ~ '"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i> ' ~ warning|e ~ '</div>')|join),
         failures_html: row.failures > 0 ? '<span class="badge text-bg-warning" data-testid="order-status-action-failures-' ~ row.id ~ '">' ~ row.failures ~ '</span>' : '<span class="text-muted">0</span>',
     })),
     emptyMessage: 'No action yet: entering this status changes nothing beyond what the core always does.'|trans,

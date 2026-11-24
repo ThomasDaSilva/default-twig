@@ -145,7 +145,14 @@ final class OrderStatusStockRulesTest extends WebIntegrationTestCase
             'payload' => ['adjust_stock' => ['operation' => 'none', 'payment_modules' => ['Cheque', 'NoSuchModule']]],
         ]);
 
-        self::assertStringContainsString('Never applies while its limits name a module that is gone or switched off: NoSuchModule', $this->actionsTab($status));
+        $actionsTab = $this->actionsTab($status);
+
+        self::assertStringContainsString('Never applies while its limits name a module that is gone or switched off: NoSuchModule', $actionsTab);
+        self::assertMatchesRegularExpression(
+            '/class="[^"]*\bbo-datatable__wrap\b[^"]*" data-testid="order-status-action-warning-\d+"/',
+            $actionsTab,
+            'A long warning breaks over several lines: on one line it widens its column until the settings, failures and active columns leave the screen.',
+        );
     }
 
     public function testAStockActionKeepsTheModulesPickedAndLeavesTheFieldOutWhenNothingIsPicked(): void
