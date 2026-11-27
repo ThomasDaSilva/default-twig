@@ -133,17 +133,28 @@ final class OrderStatusController
             'status' => $status,
             'form' => $this->buildUpdateForm($status, $locale)->createView(),
             'edit_language_id' => (int) $editLang->getId(),
-            'current_tab' => \in_array($request->query->get('tab'), ['general', 'transitions', 'actions', 'modules'], true) ? $request->query->get('tab') : 'general',
+            'current_tab' => \in_array(self::queryText($request, 'tab'), ['general', 'transitions', 'actions', 'modules'], true) ? self::queryText($request, 'tab') : 'general',
             'token' => $this->tokens->assignToken(),
             ...$this->transitionsContext->build($status, $locale),
             ...$this->actionsContext->build(
                 $status,
                 $locale,
                 $this->access->canView(AdminResources::ORDER),
-                $request->query->has('simulate_ref') ? (string) $request->query->get('simulate_ref') : null,
-                $request->query->has('simulate_status') ? $request->query->getInt('simulate_status') : null,
+                self::queryText($request, 'simulate_ref'),
+                null === self::queryText($request, 'simulate_status') ? null : (int) self::queryText($request, 'simulate_status'),
             ),
         ]));
+    }
+
+    /**
+     * A parameter of the address read as text: one sent as a list (`simulate_ref[]=x`) is
+     * no text, and reads as absent instead of failing the page.
+     */
+    private static function queryText(Request $request, string $name): ?string
+    {
+        $value = $request->query->all()[$name] ?? null;
+
+        return \is_string($value) ? $value : null;
     }
 
     #[Route('/transitions/{order_status_id}', name: 'transitions.save', methods: ['POST'], requirements: ['order_status_id' => '\d+'])]

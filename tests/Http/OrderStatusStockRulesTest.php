@@ -88,6 +88,20 @@ final class OrderStatusStockRulesTest extends WebIntegrationTestCase
         self::assertStringNotContainsString(AdminFailureMessage::SERVER_ERROR, $html);
     }
 
+    public function testAReferenceOrAStatusSentAsAListReadsAsNoSimulationAndNotAsAnError(): void
+    {
+        $this->actAs([AdminResources::ORDER_STATUS => [AccessManager::VIEW], AdminResources::ORDER => [AccessManager::VIEW]]);
+        $paid = $this->orderStatus(OrderStatus::CODE_PAID);
+
+        $this->assertPageRenders('/admin/configuration/order-status/update/'.$paid->getId().'?tab[]=actions&simulate_ref[]=x&simulate_status[]=5');
+        $html = (string) $this->client->getResponse()->getContent();
+
+        self::assertResponseStatusCodeSame(200);
+        self::assertStringContainsString('data-testid="order-status-stock-simulation"', $html);
+        self::assertStringNotContainsString('data-testid="order-status-stock-simulation-error"', $html);
+        self::assertStringNotContainsString('data-testid="order-status-stock-simulation-result"', $html);
+    }
+
     public function testAKnownOrderGivesTheOperationOfTheStatusChange(): void
     {
         $this->actAs([AdminResources::ORDER_STATUS => [AccessManager::VIEW], AdminResources::ORDER => [AccessManager::VIEW]]);
